@@ -1,0 +1,6 @@
+.omake*
+OMake*.omc
+*~
+_build
+\#*#
+.#*
