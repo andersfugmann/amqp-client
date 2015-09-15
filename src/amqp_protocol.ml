@@ -2,6 +2,8 @@ open Batteries
 open Amqp_types
 
 exception Unknown_frame of int
+exception Decode_error
+
 
 let protocol_header = "AMQP\x00\x00\x09\x01"
 
@@ -89,9 +91,15 @@ end
 module Method = struct
 end
 (** Demultiplex into channels *)
+(* Really need a better way of decoding.
+   The spec using lists is really bad
+ *)
+
+
+
+
 module Framing = struct
   (* Imperative. We will change that later *)
-  let channels = Hashtbl.create 0
   type hdr = { class_id: int; method_id: int }
 
   type channel_state =
@@ -100,54 +108,88 @@ module Framing = struct
 
   type message =
     | Method of string
-    | Body of hdr * string
+    | Body of string
 
-  type callback = message -> unit
+  type callback = hdr * message -> unit
 
   type channel = {  callback: callback;
                     mutable state: channel_state;
                  }
 
+  let channels : (int, channel) Hashtbl.t = Hashtbl.create 0
+
   let frame          = Type.[ Octet; Short; Longstr; Octet ]
   let method_frame   = Type.[ Short; Short ]
   let content_header = Type.[ Short; Short; Longlong; Short; ]
 
+  let decode_header data =
+    let open Param in
+    let input = IO.input_string data in
+    match Transport.read input content_header with
+    | [ Short class_id; Short method_id; Longlong size; Short _flags ] ->
+      { class_id; method_id }, size
+    | _ -> raise Decode_error
+
+  let decode_method data =
+    let open Param in
+    let input = IO.input_string data in
+    match Transport.read input method_frame with
+    | [ Short class_id; Short method_id ] ->
+      { class_id; method_id }
+    | _ -> raise Decode_error
+
   let read_frame input =
+    let open Param in
     match Transport.read input frame with
-    | [ Octet tpe; Octet channel; Longstr data; Octet magic ] ->
+    | [ Octet tpe; Short channel; Longstr data; Octet _magic ] ->
       begin
+        Printf.printf "Channel: %d\n" channel;
         let channel = Hashtbl.find channels channel in
         match tpe with
         | n when n = Amqp_spec.frame_method ->
           (* Standard method message *)
           assert (channel.state = Ready);
-          channel.callback (Message data)
+          let hdr = decode_method data in
+          let data = String.slice ~last:4 data in
+          channel.callback (hdr, Method data)
         | n when n = Amqp_spec.frame_header ->
-
-
-
-          (* Methods which has a body (content) *)
-          (* Will send a header message to indicate the amount of data in
-             the body *)
-        | n when n = Amqp_spec.body ->
-          (* Body messages should be assembled based on the header message *)
-
-        | n when n = Amqp_spec.heartbeat ->
+          assert (channel.state = Ready);
+          (* Decode the header frame *)
+          let hdr, size = decode_header data in
+          channel.state <- Waiting (hdr, size, Buffer.create size);
+        | n when n = Amqp_spec.frame_body ->
+          begin
+            match channel.state with
+            | Ready -> failwith "Channel not expecting data frames"
+            | Waiting (hdr, size, buffer) ->
+              Buffer.add_string buffer data;
+              if (size <= Buffer.length buffer) then begin
+                channel.callback (hdr, Body (Buffer.contents buffer));
+                channel.state <- Ready
+              end
+          end
+        | n when n = Amqp_spec.frame_heartbeat ->
           ()
-        | n -> raise Unknown_frame n
+        | n -> raise (Unknown_frame n)
       end
-    | _ -> raise "Error"
+    | _ -> raise Decode_error
+
+  let register_callback channel callback =
+    Hashtbl.add channels channel { callback; state = Ready }
+
+end
 
 
-  let write_channel n data = ()
 
 
-
-
+let print_data (hdr, data) =
+  Printf.printf "Data: (%d, %d) %s\n"
+    hdr.Framing.class_id
+    hdr.Framing.method_id
+    (dump data)
 
 let init () =
   let t = Transport.connect () in
   print_endline "Connected";
-  let resp = Transport.read t.Transport.i frame in
-  Printf.printf "Got response: %s\n" (dump resp);
-  ()
+  Framing.register_callback 0 print_data;
+  Framing.read_frame t.Transport.i
