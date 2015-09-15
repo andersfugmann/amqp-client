@@ -1,0 +1,26 @@
+.PHONY: all
+
+USE_OCAMLFIND = true
+NATIVE_ENABLED = true
+BYTE_ENABLED = false
+
+OCAMLFLAGS = -thread -g -w @A-4-29-33-41-44-45-48 -bin-annot
+OCAMLPACKS[] = batteries xml-light
+
+vmount(-l, src, _build)
+mkdir -p _build
+.SUBDIRS: _build
+    section:
+	.DEFAULT: $(OCamlProgram gen_protocol, gen_protocol)
+
+    section:
+	AMQP_SPEC_URL=http://www.rabbitmq.com/resources/specs/amqp0-9-1.stripped.extended.xml
+	amqp0-9-1.stripped.xml:
+		mkdir -p data
+		curl $(AMQP_SPEC_URL) > $@
+
+	FILES[] = amqp_types amqp_spec amqp_protocol main
+	DATA_FILE=amqp0-9-1.stripped.xml
+	amqp_spec.ml: gen_protocol amqp0-9-1.stripped.xml
+		./gen_protocol amqp0-9-1.stripped.xml > $@
+	.DEFAULT: $(OCamlProgram test, $(FILES))
