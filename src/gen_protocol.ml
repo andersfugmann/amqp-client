@@ -10,8 +10,7 @@ let log fmt =
   Printf.ifprintf "" ("%s" ^^ fmt ^^ "\n") indent
 
 module Field = struct
-  type tpe = Domain of string | Type of string
-  type t = { name: string; tpe: tpe } (* Reserved flag *)
+  type t = { name: string; tpe: string } (* Reserved flag *)
 end
 module Constant = struct
   type t = { name: string; value: int }
@@ -46,8 +45,8 @@ let parse_field attrs nodes =
   log "Parsing field %s" name;
   let tpe =
     match List.Exceptionless.assoc "domain" attrs with
-    | Some d -> Field.Domain d
-    | None -> Field.Type (List.assoc "type" attrs)
+    | Some d -> d
+    | None -> List.assoc "type" attrs
   in
   { Field.name; tpe }
 
@@ -135,16 +134,25 @@ let rec print = function
   | _ -> ()
 
 
-
-(*********** Ok. Now comes the funny part. We have our AST ******)
 (* Remove domains *)
 let inline_domains tree =
+  (* Damn -> We should uppercase or lower_case the names to understand whats going on *)
   let domains = Hashtbl.create 0 in
-  List.iter (function Domain {Domain.name; amqp_type} -> Hashtbl.add domains name amqp_type | _ -> ()) tree;
+  List.iter (function
+      | Domain {Domain.name; amqp_type} when name <> amqp_type ->
+        Hashtbl.add domains name amqp_type
+      | _ -> ()) tree;
+
+  Hashtbl.iter (fun d t -> emit "let %s = %s" (bind_name d) (variant_name t)) domains;
   (* Alter the tree *)
   let replace lst =
-    List.map (function { Field.name; tpe = Field.Domain d } -> {Field.name; tpe = Field.Type (Hashtbl.find domains d)}
-                     | { Field.name; tpe = Field.Type t } -> { Field.name; tpe = Field.Type t}) lst
+    let open Field in
+    List.map (fun t ->
+        let tpe = match Hashtbl.mem domains t.tpe with
+          | true -> bind_name t.tpe
+          | false -> variant_name t.tpe
+        in
+        { t with tpe }) lst
   in
   let map = function
     | Domain _ -> None
@@ -170,8 +178,7 @@ let emit_method class_index { Method.name; arguments; response = _; content; ind
   incr indent;
   let spec_str =
     (arguments
-     |> List.map (function {Field.tpe = Field.Type t; _} -> Printf.sprintf "%s" (variant_name t)
-                         | {Field.tpe = Field.Domain _; _} -> failwith ("Domain present"))
+     |> List.map (fun t -> Printf.sprintf "%s" t.Field.tpe)
      |> flip List.append ["eol"]
      |> String.concat " @ "
     )
@@ -208,8 +215,8 @@ let emit_class { Class.name; content; index; methods } =
 let _ =
   let xml = Xml.parse_file Sys.argv.(1) in
   print xml;
-  let tree = xml |> parse_amqp |> inline_domains in
   emit "open Amqp_types";
+  let tree = xml |> parse_amqp |> inline_domains in
   emit_constants tree;
   List.iter (function Class x -> emit_class x | _ -> ()) tree;
 
