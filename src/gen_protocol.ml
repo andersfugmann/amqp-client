@@ -168,40 +168,19 @@ let emit_constants tree =
 let emit_method class_index { Method.name; arguments; response = _; content; index } =
   emit "module %s = struct" (variant_name name);
   incr indent;
-
-  emit "type t = %s" (* Replace with unit type if no arguments *)
+  let spec_str =
     (arguments
-     |> List.map (function {Field.name; tpe = Field.Type t} -> Printf.sprintf "%s: %s" (bind_name name) (bind_name t)
-                         | {Field.name; tpe = Field.Domain _} -> failwith ("Domain present: " ^ name))
-     |> String.concat "; "
-     |> (function "" -> "unit" | s -> "{ " ^ s ^ " }" )
-    );
-
-  emit "let encode (arg : t) %s = " (if content then "(payload: Payload.t)" else "");
-  incr indent;
-  if arguments = [] then emit "ignore arg;";
-  emit "[%s] %s"
-    (arguments
-     |> List.map (function {Field.name; tpe = Field.Type t} -> Printf.sprintf "Param.%s arg.%s"  (variant_name t) (bind_name name)
-                         | {Field.name; tpe = Field.Domain _} -> failwith ("Domain present: " ^ name))
-     |> String.concat "; ")
-    (if content then "@ (Payload.encode payload)" else "");
-  decr indent;
-
-
-  emit "let format = [%s] %s"
-    (arguments
-     |> List.map (function {Field.name = _; tpe = Field.Type t} -> Printf.sprintf "Type.%s" (variant_name t)
-                         | {Field.name; tpe = Field.Domain _} -> failwith ("Domain present: " ^ name))
-     |> String.concat "; ")
-    (if content then "@ (Payload.format)" else "");
-
-  emit "let decode args = %s args" (pvariant_name name);
-
-  emit "let make (arg : t) %s= { major = %d; minor = %d; params = encode arg %s}"
-    (if content then "(payload: Payload.t) " else "")
+     |> List.map (function {Field.tpe = Field.Type t; _} -> Printf.sprintf "%s" (variant_name t)
+                         | {Field.tpe = Field.Domain _; _} -> failwith ("Domain present"))
+     |> flip List.append ["eol"]
+     |> String.concat " @ "
+    )
+  in
+  emit "let spec = ESpec (%s)" spec_str;
+  emit "let t = { class_id = %d; method_id = %d; spec = spec; content = %s }"
     class_index index
-    (if content then "payload " else "");
+    (if content then "Some Payload.spec" else "None");
+
   decr indent;
   emit "end";
   ()
@@ -217,7 +196,7 @@ let emit_class { Class.name; content; index; methods } =
   (* Emit decode dispatch *)
   emit "let decode = function";
   incr indent;
-  List.iter (fun {Method.name; index; _} -> emit "| %d -> (%s.format, %s.decode)" index (variant_name name) (variant_name name)) methods;
+  List.iter (fun {Method.name; index; _} -> emit "| %d -> (%s.t)" index (variant_name name)) methods;
   emit "| d -> raise (Unknown_minor d)";
   decr indent;
 
@@ -231,7 +210,6 @@ let _ =
   print xml;
   let tree = xml |> parse_amqp |> inline_domains in
   emit "open Amqp_types";
-  emit "let (@) = Pervasives.(@)";
   emit_constants tree;
   List.iter (function Class x -> emit_class x | _ -> ()) tree;
 

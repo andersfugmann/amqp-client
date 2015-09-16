@@ -14,37 +14,6 @@ type timestamp = int
 exception Unknown_major of int
 exception Unknown_minor of int
 
-module Param = struct
-  type t =
-    | Bit of bit
-    | Octet of octet
-    | Short of short
-    | Long of long
-    | Longlong of longlong
-    | Shortstr of shortstr
-    | Longstr of longstr
-    (*     | Routing_key of routing_key *)
-    | Table of table
-    | Timestamp of timestamp
-
-end
-
-module Type = struct
-  type t =
-    | Bit
-    | Octet
-    | Short
-    | Long
-    | Longlong
-    | Shortstr
-    | Longstr
-    (*     | Routing_key *)
-    | Table
-    | Timestamp
-end
-
-type message = { major: int; minor:int; params: Param.t list}
-
 type _ elem =
   | Bit: bool elem
   | Octet: int elem
@@ -142,3 +111,7 @@ let elem_to_string: type a. a elem -> string = function
 let rec to_string: type a b. (a, b) spec -> string = function
   | Cons(x, xs) -> elem_to_string x ^ ", " ^ to_string xs
   | Nil -> "Nil"
+
+type espec = ESpec: ('a, 'b) spec -> espec
+
+type message = { class_id: int; method_id: int; spec: espec; content: espec option }
