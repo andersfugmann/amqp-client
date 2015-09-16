@@ -231,6 +231,7 @@ let _ =
   print xml;
   let tree = xml |> parse_amqp |> inline_domains in
   emit "open Amqp_types";
+  emit "let (@) = Pervasives.(@)";
   emit_constants tree;
   List.iter (function Class x -> emit_class x | _ -> ()) tree;
 
