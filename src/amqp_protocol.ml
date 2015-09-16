@@ -27,25 +27,38 @@ module Transport = struct
         let r, xs = to_bits [] (IO.read_byte t) (8, xs) in
         r @ read t xs
     | Type.Octet :: xs ->
-        Param.Octet (IO.read_byte t) :: read t xs
+        let b = IO.read_byte t in
+        Printf.printf "Octet: x%02x\n" b;
+        Param.Octet b :: read t xs
     | Type.Short :: xs ->
-        Param.Short (IO.read_ui16 t) :: read t xs
+        let s = IO.BigEndian.read_ui16 t in
+        Printf.printf "Short: x%02x\n" s;
+        Param.Short s :: read t xs
     | Type.Long :: xs ->
-        Param.Long (IO.read_i32 t) :: read t xs (* TODO: should be unsigned *)
+        let l = IO.BigEndian.read_i32 t in
+        Printf.printf "Long: l%04x\n" l;
+        Param.Long l :: read t xs (* TODO: should be unsigned *)
     | Type.Longlong :: xs ->
-        Param.Longlong (Int64.to_int (IO.read_i64 t)) :: read t xs (* TODO: should be unsigned *)
+        let ll = IO.BigEndian.read_i64 t |> Int64.to_int in
+        Printf.printf "Longlong: l%08x\n" ll;
+        Param.Longlong ll :: read t xs (* TODO: should be unsigned *)
     | Type.Shortstr :: xs ->
         let len = IO.read_byte t in
-        Param.Shortstr (IO.nread t len) :: read t xs
+        Printf.printf "Shortstr len: d%d\n" len;
+        let s = IO.nread t len in
+        Param.Shortstr s :: read t xs
     | Type.Longstr :: xs ->
-        let len = IO.read_i32 t in
-        Param.Longstr (IO.nread t len) :: read t xs
+        let len = IO.BigEndian.read_i32 t in
+        Printf.printf "Longstr len: d%d\n" len;
+        let s = IO.nread t len in
+        Param.Longstr s :: read t xs
     | Type.Table :: xs ->
-        let len = IO.read_i32 t in
+        let len = IO.BigEndian.read_i32 t in
         IO.nread t len |> ignore;
         Param.Table () :: read t xs
     | Type.Timestamp :: xs ->
-        Param.Timestamp (Int64.to_int (IO.read_i64 t)) :: read t xs (* TODO: should be unsigned *)
+        let ts = IO.BigEndian.read_i64 t |> Int64.to_int in
+        Param.Timestamp ts :: read t xs (* TODO: should be unsigned *)
     | [] -> []
 
   let rec write t = function
@@ -150,7 +163,7 @@ module Framing = struct
           (* Standard method message *)
           assert (channel.state = Ready);
           let hdr = decode_method data in
-          let data = String.slice ~last:4 data in
+          let data = String.slice ~first:4 data in
           channel.callback (hdr, Method data)
         | n when n = Amqp_spec.frame_header ->
           assert (channel.state = Ready);
@@ -183,13 +196,20 @@ end
 
 
 let print_data (hdr, data) =
-  Printf.printf "Data: (%d, %d) %s\n"
+  Printf.printf "Data: (%d, %d) Len: %d\n"
     hdr.Framing.class_id
     hdr.Framing.method_id
-    (dump data)
+    (String.length (match data with Framing.Method d | Framing.Body d -> d))
 
 let init () =
   let t = Transport.connect () in
   print_endline "Connected";
+  (*
+  let dta = IO.nread t.Transport.i 20 in
+  String.explode dta
+  |> List.map Char.code
+  |> List.iter (Printf.printf "%02x");
+  print_endline "";
+*)
   Framing.register_callback 0 print_data;
   Framing.read_frame t.Transport.i
