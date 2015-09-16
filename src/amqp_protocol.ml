@@ -70,27 +70,27 @@ module Transport = struct
         IO.write_byte t n;
         write t xs
     | Param.Short n :: xs ->
-        IO.write_ui16 t n;
+        IO.BigEndian.write_ui16 t n;
         write t xs
     | Param.Long n :: xs ->
-        IO.write_i32 t n;
+        IO.BigEndian.write_i32 t n;
         write t xs
     | Param.Longlong n :: xs ->
-        IO.write_i64 t (Int64.of_int n);
+        Int64.of_int n |> IO.BigEndian.write_i64 t;
         write t xs
     | Param.Shortstr s :: xs ->
         IO.write_byte t (String.length s);
         IO.write_string t s;
         write t xs
     | Param.Longstr s :: xs ->
-        IO.write_i32 t (String.length s);
+        String.length s |> IO.BigEndian.write_i32 t;
         IO.write_string t s;
         write t xs
     | Param.Table () :: xs ->
-        IO.write_i32 t 0;
+        IO.BigEndian.write_i32 t 0;
         write t xs
     | Param.Timestamp n :: xs ->
-        IO.write_i64 t (Int64.of_int n);
+        Int64.of_int n |> IO.BigEndian.write_i64 t;
         write t xs
     | [] -> ()
 
