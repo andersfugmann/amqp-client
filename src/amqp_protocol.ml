@@ -19,6 +19,7 @@ module Transport = struct
 end
 
 module Framing = struct
+
   (* Imperative. We will change that later *)
   type hdr = { class_id: int; method_id: int }
   let hdr class_id method_id = { class_id; method_id }
@@ -41,28 +42,36 @@ module Framing = struct
 
   let frame          = Octet @ Short @ Longstr @ Octet @ eol
   let scan_frame     = scan frame
+  let print_frame : (string IO.output -> 'a) = print frame
 
   let method_frame   = Short @ Short @ eol
-  let scan_method_frame = scan method_frame
   let content_header = Short @ Short @ Longlong @ Short @ eol
-  let scan_content_header = scan content_header
 
+  let scan_method_frame = scan method_frame
+  let print_method_frame : (string IO.output -> 'a) = print method_frame
+
+  let scan_content_header = scan content_header
+  let print_content_header : (string IO.output -> 'a) = print content_header
 
   let read_frame input =
-    let (tpe, channel, data, _magic) = scan_frame input (Tuple4.curry identity) in
+    let (tpe, channel, data, _magic) = scan_frame (Tuple4.curry identity) input in
     Printf.printf "Channel: %d\n%!" channel;
     let channel = Hashtbl.find channels channel in
     match tpe with
     | n when n = Amqp_spec.frame_method ->
       (* Standard method message *)
       assert (channel.state = Ready);
-      let hdr = scan_method_frame (IO.input_string data) hdr in
+      let hdr = scan_method_frame hdr (IO.input_string data) in
       let data = String.slice ~first:4 data in
       channel.callback (hdr, Method data)
     | n when n = Amqp_spec.frame_header ->
       assert (channel.state = Ready);
       (* Decode the header frame *)
-      let hdr, size = scan_content_header (IO.input_string data) (fun a b c _ -> hdr a b, c) in
+      let hdr, size =
+        scan_content_header
+          (fun a b c _ -> hdr a b, c)
+          (IO.input_string data)
+      in
       channel.state <- Waiting (hdr, size, Buffer.create size);
     | n when n = Amqp_spec.frame_body ->
       begin
@@ -82,7 +91,22 @@ module Framing = struct
   let register_callback channel callback =
     Hashtbl.add channels channel { callback; state = Ready }
 
+
 end
+
+module Test = struct
+  let method_frame = Short @ Short @ eol
+
+
+  let test_for_identity () =
+    let (i, o) = IO.pipe () in
+    let () = print method_frame o 5 6 in
+    let (a, b) = scan method_frame (fun a b -> a,b) i in
+
+    assert ((a, b) = (5,6))
+end
+
+
 
 
 
