@@ -82,12 +82,16 @@ let rec spec_min_len: type b c. (b, c) spec -> int = function
   | Nil -> 0
 
 let rec scan: type b c. (b, c) spec -> IO.input -> b -> c = function
-  | Cons(Bit, _) as tail -> fun t b -> scan_bits 8 tail t b (decode Octet t)
+  | Cons(Bit, _) as tail ->
+    let scanner = scan_bits 8 tail
+    and decoder = decode Octet in
+    fun t b -> scanner t b (decoder t)
   | Cons (head, tail) ->
     let scanner = scan tail
     and decoder = decode head in
     fun t b -> scanner t (b (decoder t))
-  | Nil -> fun _t b -> b
+  | Nil ->
+    fun _t b -> b
 and scan_bits: type b c. int -> (b, c) spec -> IO.input -> b -> int -> c = fun c -> function
   | Cons(Bit, tail) when c > 0 ->
     let scanner = scan_bits (c - 1) tail in
@@ -104,7 +108,8 @@ let rec print: type b c. (b, c) spec -> c IO.output -> b = function
     let encoder = encode head
     and printer = print tail in
     fun t x -> encoder t x; printer t
-  | Nil -> fun t -> IO.close_out t
+  | Nil ->
+    fun t -> IO.close_out t
 and print_bits: type b c. int -> (b, c) spec -> c IO.output -> int -> b = fun c -> function
   | Cons(Bit, tail) when c > 0 ->
     let printer = print_bits (c-1) tail in
