@@ -35,16 +35,36 @@ let rec decode: type a. a elem -> IO.input -> a = function
   | Short -> fun t -> IO.BigEndian.read_ui16 t |> tap (Printf.printf "Short 0x%04x\n%!")
   | Long -> fun t -> IO.BigEndian.read_i32 t |> tap (Printf.printf "Long 0x%08x\n%!")
   | Longlong -> fun t -> IO.BigEndian.read_i64 t |> Int64.to_int |> tap (Printf.printf "Longlong 0x%16x\n%!")
-  | Shortstr ->fun t ->
+  | Shortstr -> fun t ->
     let len = decode Short t in
     IO.nread t len
-  | Longstr ->fun t ->
+  | Longstr -> fun t ->
     let len = decode Long t in
     IO.nread t len
-  | Table -> fun t ->
+  | Table ->  fun t ->
     let len = decode Long t in
     IO.nread t len |> ignore
   | Timestamp -> fun t -> decode Longlong t
+
+let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
+  | Bit -> fun t x -> IO.write_byte t (if x then 1 else 0)
+  | Octet -> IO.write_byte
+  | Short -> IO.BigEndian.write_ui16
+  | Long -> IO.BigEndian.write_i32
+  | Longlong -> fun t x -> Int64.of_int x |> IO.BigEndian.write_i64 t
+  | Shortstr -> let enc = encode Short in
+    fun t x ->
+      enc t (String.length x);
+      IO.nwrite t x
+  | Longstr -> let enc = encode Long in
+    fun t x ->
+      enc t (String.length x);
+      IO.nwrite t x
+  | Table -> let enc = encode Long in
+    fun t _ ->
+      enc t 0;
+  | Timestamp -> encode Longlong
+
 
 let rec elem_size: type a. a elem -> int = function
   | Bit -> 1
@@ -63,11 +83,39 @@ let rec spec_min_len: type b c. (b, c) spec -> int = function
 
 let rec scan: type b c. (b, c) spec -> IO.input -> b -> c = function
   | Cons(Bit, _) as tail -> fun t b -> scan_bits 8 tail t b (decode Octet t)
-  | Cons (head, tail) -> let scanner = scan tail and decoder = decode head in fun t b -> scanner t (b (decoder t))
+  | Cons (head, tail) ->
+    let scanner = scan tail
+    and decoder = decode head in
+    fun t b -> scanner t (b (decoder t))
   | Nil -> fun _t b -> b
 and scan_bits: type b c. int -> (b, c) spec -> IO.input -> b -> int -> c = fun c -> function
-  | Cons(Bit, tail) when c > 0 -> fun t b v -> scan_bits (c - 1) tail t (b (v mod 2 = 1)) (v/2)
-  | tail -> fun t b _v -> scan tail t b
+  | Cons(Bit, tail) when c > 0 ->
+    let scanner = scan_bits (c - 1) tail in
+    fun t b v -> scanner t (b (v mod 2 = 1)) (v/2)
+  | tail ->
+    let scanner = scan tail in
+    fun t b _v -> scanner t b
+
+let rec print: type b c. (b, c) spec -> c IO.output -> b = function
+  | Cons (Bit, _) as tail ->
+    let printer = print_bits 8 tail in
+    fun t -> printer t 0
+  | Cons (head, tail) ->
+    let encoder = encode head
+    and printer = print tail in
+    fun t x -> encoder t x; printer t
+  | Nil -> fun t -> IO.close_out t
+and print_bits: type b c. int -> (b, c) spec -> c IO.output -> int -> b = fun c -> function
+  | Cons(Bit, tail) when c > 0 ->
+    let printer = print_bits (c-1) tail in
+    fun t v x -> printer t (v*2 + (if x then 1 else 0))
+  | tail ->
+    let encoder = encode Octet
+    and printer = print tail in
+    fun t v -> encoder t v; printer t
+
+
+
 
 (* Helper function for spec construction *)
 let (@) elem tail = Cons (elem, tail)

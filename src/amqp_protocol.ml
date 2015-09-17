@@ -40,25 +40,29 @@ module Framing = struct
   let channels : (int, channel) Hashtbl.t = Hashtbl.create 0
 
   let frame          = Octet @ Short @ Longstr @ Octet @ eol
+  let scan_frame     = scan frame
+
   let method_frame   = Short @ Short @ eol
+  let scan_method_frame = scan method_frame
   let content_header = Short @ Short @ Longlong @ Short @ eol
+  let scan_content_header = scan content_header
 
 
   let read_frame input =
-    let (tpe, channel, data, _magic) = scan input (Tuple4.curry identity) frame in
+    let (tpe, channel, data, _magic) = scan_frame input (Tuple4.curry identity) in
     Printf.printf "Channel: %d\n%!" channel;
     let channel = Hashtbl.find channels channel in
     match tpe with
     | n when n = Amqp_spec.frame_method ->
       (* Standard method message *)
       assert (channel.state = Ready);
-      let hdr = scan (IO.input_string data) hdr method_frame in
+      let hdr = scan_method_frame (IO.input_string data) hdr in
       let data = String.slice ~first:4 data in
       channel.callback (hdr, Method data)
     | n when n = Amqp_spec.frame_header ->
       assert (channel.state = Ready);
       (* Decode the header frame *)
-      let hdr, size = scan (IO.input_string data) (fun a b c _ -> hdr a b, c) content_header in
+      let hdr, size = scan_content_header (IO.input_string data) (fun a b c _ -> hdr a b, c) in
       channel.state <- Waiting (hdr, size, Buffer.create size);
     | n when n = Amqp_spec.frame_body ->
       begin
