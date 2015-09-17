@@ -94,7 +94,7 @@ and print_bits: type b c. c IO.output -> int -> int -> (b, c) spec -> b = fun t 
   | tail -> encode t Octet v; print t tail
 
 (* Helper function for spec construction *)
-let (@) f tail = Cons (f, tail)
+let (@) elem tail = Cons (elem, tail)
 let eol = Nil
 
 let elem_to_string: type a. a elem -> string = function
@@ -109,8 +109,8 @@ let elem_to_string: type a. a elem -> string = function
   | Timestamp -> "Timestamp"
 
 let rec to_string: type a b. (a, b) spec -> string = function
-  | Cons(x, xs) -> elem_to_string x ^ ", " ^ to_string xs
-  | Nil -> "Nil"
+  | Cons(x, xs) -> elem_to_string x ^ " @ " ^ to_string xs
+  | Nil -> "eol"
 
 type espec = ESpec: ('a, 'b) spec -> espec
 
