@@ -185,7 +185,6 @@ module Framing = struct
   let register_callback channel callback =
     Hashtbl.add channels channel { callback; state = Ready }
 
-
 end
 
 let dispatch = function
@@ -223,5 +222,33 @@ let init () =
 Something like
 val qos: { qos parameters} -> (fun {qos_response} -> ())
 the unit returned could be a CSP style thing - Like a {qos_resp} Lwt.t
+
+To retrieve messages, the user needs to register a on_deliver handler. These are just bodies.
+For oob, the user need to register oob handler.
+
+Following messages needs to handle bodies:
+deliver
+return
+get_ok (as a reply to get) - We dont need to implement get, but we could
+We know that the reply will have a body (well - may)
+- We can code that manually. Also We could code everything manually.
+There are not that many cases, and while coding we will see
+a pattern.
+
+Each channel has a state.
+The user needs to register for OOP messages.
+We can then call the callback with the correct type...
+We can see if we need to implement handlers based on fixtures
+(client or server). Nah...
+
+All message marked 'server', synchronious and with reply can be called.
+All messages marked 'client', synchronious with reply must have a handler that produces the required reply type (* I think we need a map to know which *).
+
+All message marked 'client' not synchronious are oob and should have a handler that procuces no reply.
+
+How the hell do we handle requests that can produce multiple replies?
+- Try create an algebraic data structure - Or use polymorphic variants.
+
+I think I got it now.
 
 *)
