@@ -111,7 +111,7 @@ let parse_amqp = function
   | _ -> failwith "Error parsing"
 
 let bind_name str =
-  String.nreplace ~str ~sub:"-" ~by:"_"
+  String.nreplace ~str ~sub:"-" ~by:"_" |> String.lowercase
 
 let variant_name str =
   bind_name str
@@ -135,8 +135,8 @@ let rec print = function
 
 
 (* Remove domains *)
-let inline_domains tree =
-  (* Damn -> We should uppercase or lower_case the names to understand whats going on *)
+let emit_domains tree =
+  emit "(* Domains *)";
   let domains = Hashtbl.create 0 in
   List.iter (function
       | Domain {Domain.name; amqp_type} when name <> amqp_type ->
@@ -144,6 +144,8 @@ let inline_domains tree =
       | _ -> ()) tree;
 
   Hashtbl.iter (fun d t -> emit "let %s = %s" (bind_name d) (variant_name t)) domains;
+  Hashtbl.iter (fun d t -> emit "type %s = %s" (bind_name d) (bind_name t)) domains;
+
   (* Alter the tree *)
   let replace lst =
     let open Field in
@@ -173,20 +175,43 @@ let emit_constants tree =
     (function Constant { Constant.name; value } -> emit "let %s = %d" (bind_name name) value | _ -> ())
     tree
 
-let emit_method class_index { Method.name; arguments; response = _; content; index } =
+let emit_method class_index { Method.name;
+                              arguments;
+                              response = _;
+                              content;
+                              index } =
   emit "module %s = struct" (variant_name name);
   incr indent;
   let spec_str =
-    (arguments
-     |> List.map (fun t -> Printf.sprintf "%s" t.Field.tpe)
-     |> flip List.append ["eol"]
-     |> String.concat " @ "
-    )
+    arguments
+    |> List.map (fun t -> t.Field.tpe)
+    |> flip List.append ["Nil"]
+    |> String.concat " :: "
   in
-  emit "let spec = ESpec (%s)" spec_str;
-  emit "let t = { class_id = %d; method_id = %d; spec = spec; content = %s }"
-    class_index index
-    (if content then "Some Payload.spec" else "None");
+  emit "let spec = %s" spec_str;
+
+  let () =
+    match arguments with
+    | [] ->
+       emit "type t = ()";
+       emit "let encode () : string = sprint spec";
+       emit "let decode buf : t = sscan spec () buf"
+    | _ ->
+       arguments
+       |> List.map
+            (fun t ->
+             Printf.sprintf
+               "%s: %s"
+               (bind_name t.Field.name)
+               (bind_name t.Field.tpe)
+            )
+       |> String.concat "; "
+       |> emit "type t = { %s }"
+
+  in
+  emit "let t = { Amqp_types.class_id = %d; method_id = %d; spec = ESpec spec; content = %s }"
+       class_index index
+       (if content then "Some (ESpec Payload.spec)" else "None");
 
   decr indent;
   emit "end";
@@ -204,7 +229,7 @@ let emit_class { Class.name; content; index; methods } =
   emit "let decode = function";
   incr indent;
   List.iter (fun {Method.name; index; _} -> emit "| %d -> (%s.t)" index (variant_name name)) methods;
-  emit "| d -> raise (Unknown_minor d)";
+  emit "| d -> raise (Unknown_method_id d)";
   decr indent;
 
 
@@ -216,7 +241,7 @@ let _ =
   let xml = Xml.parse_file Sys.argv.(1) in
   print xml;
   emit "open Amqp_types";
-  let tree = xml |> parse_amqp |> inline_domains in
+  let tree = xml |> parse_amqp |> emit_domains in
   emit_constants tree;
   List.iter (function Class x -> emit_class x | _ -> ()) tree;
 
@@ -227,5 +252,5 @@ let _ =
   tree
   |> List.filter_map (function Class {Class.name; index; _} -> Some (name, index) | _ -> None)
   |> List.iter (fun (name, index) -> emit "| %d -> %s.decode" index (variant_name name));
-  emit "| d -> raise (Unknown_major d)";
+  emit "| d -> raise (Unknown_class_id d)";
   decr indent;
