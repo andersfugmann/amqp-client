@@ -19,7 +19,9 @@ module Domain = struct
   type t = { name: string; amqp_type: string; (* asserts *) }
 end
 module Method = struct
-  type t = { name: string; arguments: Field.t list; response: string option; content: bool; index : int }
+  type t = { name: string; arguments: Field.t list;
+             response: string list; content: bool;
+             index: int; synchronious: bool; server: bool; client: bool}
 end
 module Class = struct
   type t = { name: string; content: Field.t list; index: int; methods: Method.t list }
@@ -74,17 +76,26 @@ let parse_method attrs nodes =
   let index = List.assoc "index" attrs |> int_of_string in
   let response =
     nodes
-    |> List.Exceptionless.find (function Xml.Element ("response", _, _) -> true | _ -> false)
-    |> Option.map (function Xml.Element ("response", attrs, []) -> List.assoc "name" attrs | _ -> failwith "Error parsing response")
+    |> List.filter (function Xml.Element ("response", _, _) -> true | _ -> false)
+    |> List.map (function Xml.Element ("response", attrs, []) -> List.assoc "name" attrs | _ -> failwith "Error parsing response")
   in
+  let synchronious = List.Exceptionless.assoc "synchronious" attrs |> Option.map_default ((=) "1") false in
   (*
   let synchronous = List.Exceptionless.assoc "synchronous" attrs |> Option.map_default ((=) "1") false in
   assert (not synchronous || response <> None);
   *)
   let content = List.Exceptionless.assoc "content" attrs |> Option.map_default ((=) "1") false in
   let arguments = map_elements "field" parse_field nodes in
+
+  let chassis = List.filter_map (function
+      | Xml.Element ("chassis", attrs, _) ->
+        List.Exceptionless.assoc "name" attrs
+      | _ -> None) nodes
+  in
+  let client = List.mem "client" chassis in
+  let server = List.mem "server" chassis in
   decr indent;
-  { Method.name; arguments; response; content; index }
+  { Method.name; arguments; response; content; index; synchronious; client; server }
 
 let parse_class attrs nodes =
   (* All field nodes goes into content *)
@@ -143,6 +154,7 @@ let emit_domains tree =
         Hashtbl.add domains name amqp_type
       | _ -> ()) tree;
 
+  emit "(* Aliases *)";
   Hashtbl.iter (fun d t -> emit "let %s = %s" (bind_name d) (variant_name t)) domains;
   Hashtbl.iter (fun d t -> emit "type %s = %s" (bind_name d) (bind_name t)) domains;
 
@@ -179,7 +191,12 @@ let emit_method class_index { Method.name;
                               arguments;
                               response = _;
                               content;
-                              index } =
+                              index;
+                              synchronious = _;
+                              client;
+                              server;
+                            } =
+  ignore content; ignore index; ignore server; ignore client; ignore class_index;
   emit "module %s = struct" (variant_name name);
   incr indent;
   let spec_str =
@@ -189,13 +206,12 @@ let emit_method class_index { Method.name;
     |> String.concat " :: "
   in
   emit "let spec = %s" spec_str;
-
-  let () =
+  begin
     match arguments with
     | [] ->
-       emit "type t = ()";
-       emit "let encode () : string = sprint spec";
-       emit "let decode buf : t = sscan spec () buf"
+      emit "type t = ()";
+      emit "let apply f () = f ()"; (* Do we need unit on nil? *)
+      emit "let make () = ()" (* Do we need unit on nil? *)
     | _ ->
        arguments
        |> List.map
@@ -206,13 +222,35 @@ let emit_method class_index { Method.name;
                (bind_name t.Field.tpe)
             )
        |> String.concat "; "
-       |> emit "type t = { %s }"
+       |> emit "type t = { %s }";
+       let names = List.map (fun t -> bind_name t.Field.name) arguments in
+       emit "let apply f { %s } = f %s"
+         (String.concat "; " names) (String.concat " " names);
+       emit "let make %s = { %s }"
+         (String.concat " " names) (String.concat "; " names) ;
+  end;
+  emit "let def = (%d, %d, spec, make, apply)" class_index index;
+  (*
+begin
+    (** Need ID and functions *)
+    match server with
+    | true ->
+      emit "let call = call%d ("
+        call = call (callback t:t -> unit) (callback t:t -> unit)
+
+  (*
+  let () =
+    match response, client, server with
+    | false, [], false -> emit "Need()" (* We need the chassis *)
+
+  let () =
 
   in
+*)
+*)
   emit "let t = { Amqp_types.class_id = %d; method_id = %d; spec = ESpec spec; content = %s }"
        class_index index
        (if content then "Some (ESpec Payload.spec)" else "None");
-
   decr indent;
   emit "end";
   ()
@@ -221,7 +259,8 @@ let emit_class { Class.name; content; index; methods } =
   emit "module %s = struct" (variant_name name);
   incr indent;
 
-  emit_method index { Method.name = "payload"; arguments = content; response = None; content = false; index = 0 };
+  emit_method index { Method.name = "payload"; arguments = content; response = []; content = false; index = 0;
+                      synchronious = false; server=false; client=false};
 
   List.iter (emit_method index) methods;
 

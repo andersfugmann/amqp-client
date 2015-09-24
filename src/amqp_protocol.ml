@@ -19,104 +19,12 @@ module Transport = struct
     IO.flush o;
     { i; o }
 
-  end
-
-module Start = struct
-  let spec = Octet :: Octet :: peer_properties :: Longstr :: Longstr :: Nil
-  type t = { version_major: octet;
-             version_minor: octet;
-             server_properties: peer_properties;
-             mechanisms: longstr;
-             locales: longstr }
-  let to_t
-      version_major
-      version_minor
-      server_properties
-      mechanisms
-      locales =
-    { version_major;
-      version_minor;
-      server_properties;
-      mechanisms;
-      locales;
-    }
-
-  let of_t f
-      { version_major;
-        version_minor;
-        server_properties;
-        mechanisms;
-        locales;
-      } = f
-      version_major
-      version_minor
-      server_properties
-      mechanisms
-      locales
-
-
-  let t = { Amqp_types.class_id = 10;
-            method_id = 10;
-            spec = ESpec spec;
-            content = None }
-
-  let print =
-    let printer = sprint spec in
-    of_t printer
-
-  let scan = sscan spec to_t
-
 end
-
-module Start_ok = struct
-  let spec = peer_properties :: Shortstr :: Longstr :: Shortstr :: Nil
-  type t = { client_properties: peer_properties;
-             mechanism: shortstr;
-             response: longstr;
-             locale: shortstr
-           }
-
-  let to_t
-      client_properties
-      mechanism
-      response
-      locale =
-    { client_properties;
-      mechanism;
-      response;
-      locale
-    }
-
-  let of_t f
-      { client_properties;
-        mechanism;
-        response;
-        locale
-      } = f
-      client_properties
-      mechanism
-      response
-      locale
-
-  let print =
-    let printer = sprint spec in
-    of_t printer
-
-  let scan = sscan spec to_t
-
-
-  let t = { Amqp_types.class_id = 10;
-            method_id = 11;
-            spec = ESpec spec;
-            content = None }
-end
-
 
 module Framing = struct
 
   (* Imperative. We will change that later *)
-  type hdr = { class_id: int; method_id: int }
-  let hdr class_id method_id = { class_id; method_id }
+  type hdr = (int * int)
 
   type channel_state =
     | Ready
@@ -126,7 +34,7 @@ module Framing = struct
     | Method of string
     | Body of string
 
-  type callback = hdr * message -> unit
+  type callback = hdr * message -> (hdr * string) option
 
   type channel = {  callback: callback;
                     mutable state: channel_state;
@@ -147,6 +55,11 @@ module Framing = struct
   let scan_content_header = scan content_header
   let print_content_header  : (string IO.output -> 'a) = print content_header
 
+  let send_frame output tpe channel hdr data =
+    let data = Tuple2.uncurry (sprint method_frame) hdr ^ data in
+    let s = print_frame output tpe channel data 0xde in
+    IO.nwrite output s
+
   let read_frame input =
     let (tpe, channel, data, _magic) = scan_frame (Tuple4.curry identity) input in
     Printf.printf "Channel: %d\n%!" channel;
@@ -155,18 +68,18 @@ module Framing = struct
     | n when n = Amqp_spec.frame_method ->
       (* Standard method message *)
       assert (channel.state = Ready);
-      let hdr = scan_method_frame hdr (IO.input_string data) in
+      let hdr = scan_method_frame (Tuple2.curry identity) (IO.input_string data) in
       let data = String.slice ~first:4 data in
       channel.callback (hdr, Method data)
     | n when n = Amqp_spec.frame_header ->
       assert (channel.state = Ready);
       (* Decode the header frame *)
-      let hdr, size =
+      let cls_id, mth_id, size, _ =
         scan_content_header
-          (fun a b c _ -> hdr a b, c)
+          (Tuple4.curry identity)
           (IO.input_string data)
       in
-      channel.state <- Waiting (hdr, size, Buffer.create size);
+      channel.state <- Waiting ((cls_id, mth_id), size, Buffer.create size)
     | n when n = Amqp_spec.frame_body ->
       begin
       match channel.state with
@@ -187,31 +100,51 @@ module Framing = struct
 
 end
 
-let dispatch = function
-  | { Framing.class_id = 10; method_id = 10  } ->
-    fun s -> let res = Start.scan s in
-      dump res
-  | { Framing.class_id = 10; method_id = 11  } ->
-    fun s -> let res = Start_ok.scan s in
-      dump res
-  | _ -> failwith "Not suported"
 
+(* Uh. This is a cool method *)
+let handle1 (_class, _method, spec, make, apply) (r_class, r_method, r_spec, r_make, r_apply) =
+  let scan = sscan spec in
+  let print = sprint r_spec in
+  fun callback buf ->
+    let req = scan make buf in
+    let rep = callback req in
+    let data = r_apply print rep in
+    ( r_class, r_method, data )
 
-let print_data (hdr, data) =
-  let s = match data with
-    | Framing.Method data -> dispatch hdr data
-    | Framing.Body _data -> failwith "Body not supported"
+module Start = struct
+  let handle = handle1 Amqp_spec.Connection.Start.def Amqp_spec.Connection.Start_ok.def
+end
+
+let handle_start {Amqp_spec.Connection.Start.version_major;
+                  version_minor;
+                  server_properties;
+                  mechanisms;
+                  locales } =
+  Printf.printf "Connection start\n";
+  Printf.printf "Id: %d %d\n" version_major version_minor;
+  (* Printf.printf "Properties: %s\n" server_properties; *)
+  Printf.printf "Mechanisms: %s\n" mechanisms;
+  Printf.printf "Locales: %s\n" locales;
+  {
+    Amqp_spec.Connection.Start_ok.client_properties = server_properties;
+    mechanism = ""; response = "Sure";
+    locale = String.split ~by:";" locales |> fst
+  }
+
+(* How do we send a frame? *)
+let dispatch (hdr, data) =
+  let reply =
+    match hdr with
+    | (10, 10)  ->
+      Some (Start.handle handle_start data)
+    | _ -> failwith "Not suported"
   in
-  Printf.printf "Data: (%d, %d) %s\n%!"
-    hdr.Framing.class_id
-    hdr.Framing.method_id
-    s
-
+  ()
 
 let init () =
   let t = Transport.connect () in
   print_endline "Connected";
-  Framing.register_callback 0 print_data;
+  Framing.register_callback 0 dispatch;
   Framing.read_frame t.Transport.i
 
 
