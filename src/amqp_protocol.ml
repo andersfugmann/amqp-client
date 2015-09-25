@@ -25,6 +25,7 @@ module Framing = struct
 
   (* Imperative. We will change that later *)
   type hdr = (int * int)
+  type channel_id = int
 
   type channel_state =
     | Ready
@@ -34,7 +35,7 @@ module Framing = struct
     | Method of string
     | Body of string
 
-  type callback = hdr * message -> (hdr * string) option
+  type callback = hdr -> message -> unit
 
   type channel = {  callback: callback;
                     mutable state: channel_state;
@@ -55,26 +56,32 @@ module Framing = struct
   let scan_content_header = scan content_header
   let print_content_header  : (string IO.output -> 'a) = print content_header
 
-  let send_frame output tpe channel hdr data =
+  let write output channel (hdr, message) =
+    let o = IO.output_string () in
+    let (data, tpe) = match message with
+      | Method data -> data, Amqp_spec.frame_method
+      | Body data -> data, Amqp_spec.frame_header (* TODO *)
+    in
     let data = Tuple2.uncurry (sprint method_frame) hdr ^ data in
-    let s = print_frame output tpe channel data 0xde in
-    IO.nwrite output s
+    let s = print_frame o tpe channel data 0xde in
+    IO.nwrite output s;
+    IO.flush output
 
-  let read_frame input =
-    let (tpe, channel, data, _magic) = scan_frame (Tuple4.curry identity) input in
-    Printf.printf "Channel: %d\n%!" channel;
-    let channel = Hashtbl.find channels channel in
+  let read input =
+    let (tpe, channel_id, data, _magic) = scan_frame (Tuple4.curry identity) input in
+    Printf.printf "Channel: %d\n%!" channel_id;
+    let channel = Hashtbl.find channels channel_id in
     match tpe with
     | n when n = Amqp_spec.frame_method ->
       (* Standard method message *)
       assert (channel.state = Ready);
       let hdr = scan_method_frame (Tuple2.curry identity) (IO.input_string data) in
       let data = String.slice ~first:4 data in
-      channel.callback (hdr, Method data)
+      channel.callback hdr (Method data)
     | n when n = Amqp_spec.frame_header ->
       assert (channel.state = Ready);
       (* Decode the header frame *)
-      let cls_id, mth_id, size, _ =
+      let cls_id, mth_id, size, _magic =
         scan_content_header
           (Tuple4.curry identity)
           (IO.input_string data)
@@ -87,7 +94,7 @@ module Framing = struct
         | Waiting (hdr, size, buffer) ->
           Buffer.add_string buffer data;
           if (size <= Buffer.length buffer) then begin
-            channel.callback (hdr, Body (Buffer.contents buffer));
+            channel.callback hdr (Body (Buffer.contents buffer));
             channel.state <- Ready
           end
       end
@@ -102,14 +109,14 @@ end
 
 
 (* Uh. This is a cool method *)
-let handle1 (_class, _method, spec, make, apply) (r_class, r_method, r_spec, r_make, r_apply) =
+let handle1 (_class, _method, spec, make, _apply) (r_class, r_method, r_spec, _r_make, r_apply) =
   let scan = sscan spec in
   let print = sprint r_spec in
   fun callback buf ->
     let req = scan make buf in
     let rep = callback req in
     let data = r_apply print rep in
-    ( r_class, r_method, data )
+    ( (r_class, r_method), Framing.Method data )
 
 module Start = struct
   let handle = handle1 Amqp_spec.Connection.Start.def Amqp_spec.Connection.Start_ok.def
@@ -128,24 +135,32 @@ let handle_start {Amqp_spec.Connection.Start.version_major;
   {
     Amqp_spec.Connection.Start_ok.client_properties = server_properties;
     mechanism = ""; response = "Sure";
-    locale = String.split ~by:";" locales |> fst
+    locale = String.nsplit ~by:";" locales |> List.hd
   }
 
 (* How do we send a frame? *)
-let dispatch (hdr, data) =
+let dispatch o channel hdr message =
+  let data = match message with
+    | Framing.Method data -> data
+    | Framing.Body _ -> failwith "Unsupported"
+  in
   let reply =
     match hdr with
     | (10, 10)  ->
       Some (Start.handle handle_start data)
     | _ -> failwith "Not suported"
   in
-  ()
+  (* Ahhh. This is where we handle it all. *)
+  match reply with
+  | Some message -> Framing.write o channel message
+  | None -> ()
+
 
 let init () =
   let t = Transport.connect () in
   print_endline "Connected";
-  Framing.register_callback 0 dispatch;
-  Framing.read_frame t.Transport.i
+  Framing.register_callback 0 (dispatch t.Transport.o 0);
+  Framing.read t.Transport.i
 
 
 (* We manually need to handle main connection status and other protocol thingys. *)
