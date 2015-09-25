@@ -82,43 +82,43 @@ let rec spec_min_len: type b c. (b, c) spec -> int = function
   | head :: tail -> elem_size head + spec_min_len tail
   | Nil -> 0
 
-let rec scan: type b c. (b, c) spec -> b -> IO.input -> c = function
+let rec read: type b c. (b, c) spec -> b -> IO.input -> c = function
   | (Bit :: _) as spec ->
-    let scanner = scan_bits 8 spec
+    let reader = read_bits 8 spec
     and decoder = decode Octet in
-    fun b t -> scanner b (decoder t) t
+    fun b t -> reader b (decoder t) t
   | head :: tail ->
-    let scanner = scan tail
+    let reader = read tail
     and decoder = decode head in
-    fun b t -> scanner (b (decoder t)) t
+    fun b t -> reader (b (decoder t)) t
   | Nil ->
     fun b _t -> b
-and scan_bits: type b c. int -> (b, c) spec -> b -> int -> IO.input -> c = fun c -> function
+and read_bits: type b c. int -> (b, c) spec -> b -> int -> IO.input -> c = fun c -> function
   | Bit :: tail when c > 0 ->
-    let scanner = scan_bits (c - 1) tail in
-    fun b v t -> scanner (b (v mod 2 = 1)) (v/2) t
+    let reader = read_bits (c - 1) tail in
+    fun b v t -> reader (b (v mod 2 = 1)) (v/2) t
   | spec ->
-    let scanner = scan spec in
-    fun b _v t -> scanner b t
+    let reader = read spec in
+    fun b _v t -> reader b t
 
 
-let rec print: type b c. (b, c IO.output) spec -> c IO.output -> b = function
+let rec write: type b c. (b, c IO.output) spec -> c IO.output -> b = function
   | (Bit :: _) as spec ->
-    let printer = print_bits 8 spec in
-    fun t -> printer t 0
+    let writer = write_bits 8 spec in
+    fun t -> writer t 0
   | spec :: tail ->
     let encoder = encode spec
-    and printer = print tail in
-    fun t x -> encoder t x; printer t
+    and writer = write tail in
+    fun t x -> encoder t x; writer t
   | Nil -> identity
-and print_bits: type b c. int -> (b, c IO.output) spec -> c IO.output -> int -> b = fun c -> function
+and write_bits: type b c. int -> (b, c IO.output) spec -> c IO.output -> int -> b = fun c -> function
   | Bit :: tail when c > 0 ->
-    let printer = print_bits (c-1) tail in
-    fun t v x -> printer t (v*2 + (if x then 1 else 0))
+    let writer = write_bits (c-1) tail in
+    fun t v x -> writer t (v*2 + (if x then 1 else 0))
   | spec ->
     let encoder = encode Octet
-    and printer = print spec in
-    fun t v -> encoder t v; printer t
+    and writer = write spec in
+    fun t v -> encoder t v; writer t
 
 
 let elem_to_string: type a. a elem -> string = function

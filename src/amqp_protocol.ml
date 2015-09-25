@@ -44,17 +44,17 @@ module Framing = struct
   let channels : (int, channel) Hashtbl.t = Hashtbl.create 0
 
   let frame          = Octet :: Short :: Longstr :: Octet :: Nil
-  let scan_frame     = scan frame
-  let print_frame    = print frame
+  let read_frame     = read frame
+  let write_frame    = write frame
 
   let method_frame   = Short :: Short :: Nil
   let content_header = Short :: Short :: Longlong :: Short :: Nil
 
-  let scan_method_frame = scan method_frame
-  let print_method_frame : (string IO.output -> 'a)  = print method_frame
+  let read_method_frame = read method_frame
+  let write_method_frame : (string IO.output -> 'a)  = write method_frame
 
-  let scan_content_header = scan content_header
-  let print_content_header  : (string IO.output -> 'a) = print content_header
+  let read_content_header = read content_header
+  let write_content_header  : (string IO.output -> 'a) = write content_header
 
   let write output channel (hdr, message) =
     let (data, tpe) = match message with
@@ -62,27 +62,27 @@ module Framing = struct
       | Body data -> data, Amqp_spec.frame_header (* TODO *)
     in
     let data =
-      let o = Tuple2.uncurry (print method_frame (IO.output_string ())) hdr in
+      let o = Tuple2.uncurry (write method_frame (IO.output_string ())) hdr in
       (IO.close_out o) ^ data
     in
-    print_frame output tpe channel data 0xde |> ignore
+    write_frame output tpe channel data 0xde |> ignore
 
   let read input =
-    let (tpe, channel_id, data, _magic) = scan_frame (Tuple4.curry identity) input in
+    let (tpe, channel_id, data, _magic) = read_frame (Tuple4.curry identity) input in
     Printf.printf "Channel: %d\n%!" channel_id;
     let channel = Hashtbl.find channels channel_id in
     match tpe with
     | n when n = Amqp_spec.frame_method ->
       (* Standard method message *)
       assert (channel.state = Ready);
-      let hdr = scan_method_frame (Tuple2.curry identity) (IO.input_string data) in
+      let hdr = read_method_frame (Tuple2.curry identity) (IO.input_string data) in
       let data = String.slice ~first:4 data in
       channel.callback hdr (Method data)
     | n when n = Amqp_spec.frame_header ->
       assert (channel.state = Ready);
       (* Decode the header frame *)
       let cls_id, mth_id, size, _magic =
-        scan_content_header
+        read_content_header
           (Tuple4.curry identity)
           (IO.input_string data)
       in
@@ -110,12 +110,12 @@ end
 
 (* Uh. This is a cool method *)
 let handle1 (_class, _method, spec, make, _apply) (r_class, r_method, r_spec, _r_make, r_apply) =
-  let scan = scan spec in
-  let print = print r_spec in
+  let read = read spec in
+  let write = write r_spec in
   fun callback buf ->
-    let req = scan make (IO.input_string buf) in
+    let req = read make (IO.input_string buf) in
     let rep = callback req in
-    let out = r_apply (print (IO.output_string ())) rep in
+    let out = r_apply (write (IO.output_string ())) rep in
     ( (r_class, r_method), Framing.Method (IO.close_out out) )
 
 module Start = struct
@@ -129,7 +129,7 @@ let handle_start {Amqp_spec.Connection.Start.version_major;
                   locales } =
   Printf.printf "Connection start\n";
   Printf.printf "Id: %d %d\n" version_major version_minor;
-  (* Printf.printf "Properties: %s\n" server_properties; *)
+  (* Writef.writef "Properties: %s\n" server_properties; *)
   Printf.printf "Mechanisms: %s\n" mechanisms;
   Printf.printf "Locales: %s\n" locales;
   {
