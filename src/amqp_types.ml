@@ -102,7 +102,7 @@ and scan_bits: type b c. int -> (b, c) spec -> b -> int -> IO.input -> c = fun c
     fun b _v t -> scanner b t
 
 
-let rec print: type b c. (b, c) spec -> c IO.output -> b = function
+let rec print: type b c. (b, c IO.output) spec -> c IO.output -> b = function
   | (Bit :: _) as spec ->
     let printer = print_bits 8 spec in
     fun t -> printer t 0
@@ -110,8 +110,8 @@ let rec print: type b c. (b, c) spec -> c IO.output -> b = function
     let encoder = encode spec
     and printer = print tail in
     fun t x -> encoder t x; printer t
-  | Nil -> fun t -> IO.close_out t
-and print_bits: type b c. int -> (b, c) spec -> c IO.output -> int -> b = fun c -> function
+  | Nil -> identity
+and print_bits: type b c. int -> (b, c IO.output) spec -> c IO.output -> int -> b = fun c -> function
   | Bit :: tail when c > 0 ->
     let printer = print_bits (c-1) tail in
     fun t v x -> printer t (v*2 + (if x then 1 else 0))
@@ -119,14 +119,6 @@ and print_bits: type b c. int -> (b, c) spec -> c IO.output -> int -> b = fun c 
     let encoder = encode Octet
     and printer = print spec in
     fun t v -> encoder t v; printer t
-
-
-let sprint: type b. (b, string) spec -> b = fun spec ->
-  print spec (IO.output_string ())
-
-let sscan: type b c. (b, c) spec -> b -> string -> c = fun spec ->
-  let scanner = scan spec in
-  fun b buf -> scanner b (IO.input_string buf)
 
 
 let elem_to_string: type a. a elem -> string = function

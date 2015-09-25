@@ -45,7 +45,7 @@ module Framing = struct
 
   let frame          = Octet :: Short :: Longstr :: Octet :: Nil
   let scan_frame     = scan frame
-  let print_frame : (string IO.output -> 'a)     = print frame
+  let print_frame    = print frame
 
   let method_frame   = Short :: Short :: Nil
   let content_header = Short :: Short :: Longlong :: Short :: Nil
@@ -57,15 +57,15 @@ module Framing = struct
   let print_content_header  : (string IO.output -> 'a) = print content_header
 
   let write output channel (hdr, message) =
-    let o = IO.output_string () in
     let (data, tpe) = match message with
       | Method data -> data, Amqp_spec.frame_method
       | Body data -> data, Amqp_spec.frame_header (* TODO *)
     in
-    let data = Tuple2.uncurry (sprint method_frame) hdr ^ data in
-    let s = print_frame o tpe channel data 0xde in
-    IO.nwrite output s;
-    IO.flush output
+    let data =
+      let o = Tuple2.uncurry (print method_frame (IO.output_string ())) hdr in
+      (IO.close_out o) ^ data
+    in
+    print_frame output tpe channel data 0xde |> ignore
 
   let read input =
     let (tpe, channel_id, data, _magic) = scan_frame (Tuple4.curry identity) input in
@@ -110,13 +110,13 @@ end
 
 (* Uh. This is a cool method *)
 let handle1 (_class, _method, spec, make, _apply) (r_class, r_method, r_spec, _r_make, r_apply) =
-  let scan = sscan spec in
-  let print = sprint r_spec in
+  let scan = scan spec in
+  let print = print r_spec in
   fun callback buf ->
-    let req = scan make buf in
+    let req = scan make (IO.input_string buf) in
     let rep = callback req in
-    let data = r_apply print rep in
-    ( (r_class, r_method), Framing.Method data )
+    let out = r_apply (print (IO.output_string ())) rep in
+    ( (r_class, r_method), Framing.Method (IO.close_out out) )
 
 module Start = struct
   let handle = handle1 Amqp_spec.Connection.Start.def Amqp_spec.Connection.Start_ok.def
