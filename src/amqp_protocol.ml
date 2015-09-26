@@ -11,15 +11,20 @@ let peer_properties = Table
 type peer_properties = table
 
 module Transport = struct
-  type t = { i: IO.input; o: unit IO.output; }
+  type t = { i: IO.input; o: unit IO.output; written: (unit -> int)}
 
   let connect () =
     let i, o = Unix.(open_connection ~autoclose:false (ADDR_INET (inet_addr_loopback, 5672))) in
     IO.write_string o protocol_header;
     IO.flush o;
-    { i; o }
+    let o, written = IO.pos_out o in
+    { i; o; written }
 
 end
+
+let print_bytes bytes =
+  String.iter (fun c -> Printf.printf "%02x." (Char.code c)) bytes;
+  Printf.printf "\n%!";
 
 module Framing = struct
 
@@ -63,14 +68,20 @@ module Framing = struct
       | Method data -> data, Amqp_spec.frame_method
       | Body data -> data, Amqp_spec.frame_header (* TODO *)
     in
-    let data =
+    let hdr_data =
       let o = Tuple2.uncurry (write method_frame (IO.output_string ())) hdr in
-      (IO.close_out o) ^ data
+      (IO.close_out o)
     in
-    write_frame output tpe channel data frame_end |> ignore
+    let os = IO.output_string () in
+    write_frame os tpe channel (hdr_data ^ data) frame_end |> ignore;
+    let bytes = IO.close_out os in
+    print_bytes bytes;
+    IO.nwrite output bytes;
+    IO.flush output
 
   let read input =
-    let (tpe, channel_id, data, _magic) = read_frame (Tuple4.curry identity) input in
+    let (tpe, channel_id, data, magic) = read_frame (Tuple4.curry identity) input in
+    assert (magic = frame_end);
     Printf.printf "Channel: %d\n%!" channel_id;
     let channel = Hashtbl.find channels channel_id in
     match tpe with
@@ -131,12 +142,13 @@ let handle_start {Amqp_spec.Connection.Start.version_major;
                   locales } =
   Printf.printf "Connection start\n";
   Printf.printf "Id: %d %d\n" version_major version_minor;
-  (* Writef.writef "Properties: %s\n" server_properties; *)
+  Printf.printf "Properties: %s(%d)\n" (dump server_properties) (List.length server_properties);
   Printf.printf "Mechanisms: %s\n" mechanisms;
   Printf.printf "Locales: %s\n" locales;
   {
     Amqp_spec.Connection.Start_ok.client_properties = server_properties;
-    mechanism = ""; response = "Sure";
+    mechanism = "PLAIN";(*String.nsplit ~by:" " mechanisms |> List.hd; *)
+    response = "\x00guest\x00guest";
     locale = String.nsplit ~by:";" locales |> List.hd
   }
 
@@ -162,7 +174,9 @@ let init () =
   let t = Transport.connect () in
   print_endline "Connected";
   Framing.register_callback 0 (dispatch t.Transport.o 0);
-  Framing.read t.Transport.i
+  Framing.read t.Transport.i;
+  Printf.printf "Written: %d\n" (t.Transport.written ())
+
 
 
 (* We manually need to handle main connection status and other protocol thingys. *)

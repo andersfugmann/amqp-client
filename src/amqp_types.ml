@@ -27,7 +27,7 @@ and value =
   | VTimestamp of int
   | VUnit of unit
 
-let log fmt = Printf.ifprintf stdout fmt
+let log fmt = Printf.fprintf stdout fmt
 
 exception Unknown_class_id of int
 exception Unknown_method_id of int
@@ -43,6 +43,7 @@ type _ elem =
   | Longlong: int elem
   | Shortstr: string elem
   | Longstr: string elem
+  | Litteral: string elem
   | Float: float elem
   | Double: float elem
   | Decimal: decimal elem
@@ -56,8 +57,8 @@ type (_, _) spec =
   | ::  : 'a elem * ('b, 'c) spec -> (('a -> 'b), 'c) spec
 
 let rec read_while t f =
-  match (try Some (f t) with _ -> None) with
-  | Some v -> List.cons v (read_while t f)
+  match (try Some (f t) with e -> Printf.printf "%s\n" (Printexc.to_string e); None) with
+  | Some v -> Printf.printf "Field\n"; List.cons v (read_while t f)
   | None -> []
 
 
@@ -69,7 +70,7 @@ let rec decode: type a. a elem -> IO.input -> a = fun elem t ->
   | Long -> IO.BigEndian.read_i32 t |> tap (log "Long 0x%08x\n%!")
   | Longlong -> IO.BigEndian.read_i64 t |> Int64.to_int |> tap (log "Longlong 0x%16x\n%!")
   | Shortstr ->
-    let len = decode Short t in
+    let len = decode Octet t in
     IO.nread t len
   | Longstr ->
     let len = decode Long t in
@@ -96,6 +97,7 @@ let rec decode: type a. a elem -> IO.input -> a = fun elem t ->
     let data = decode Longstr t in
     let is = IO.input_string data in
     read_while is decode_field
+  | Litteral -> failwith "Cannot read string litterals"
   | Unit -> ()
 and decode_field t =
   match IO.read t with
@@ -122,7 +124,7 @@ let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
   | Long -> IO.BigEndian.write_i32
   | Longlong -> fun t x -> Int64.of_int x |> IO.BigEndian.write_i64 t
   | Shortstr ->
-    let enc = encode Short in
+    let enc = encode Octet in
     fun t x ->
       enc t (String.length x);
       IO.nwrite t x
@@ -137,7 +139,9 @@ let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
         encode Shortstr os k;
         encode_field os v;
       ) x;
-    encode Longstr t (IO.close_out os)
+    let tbl = IO.close_out os in
+    log "Write Table size: %d\n" (String.length tbl);
+    encode Longstr t (tbl)
   | Timestamp ->
     encode Longlong
   | Boolean ->
@@ -157,6 +161,7 @@ let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
     let os = IO.output_string () in
     List.iter (encode_field os) x;
     encode Longstr t (IO.close_out os)
+  | Litteral -> fun t x -> IO.nwrite t x
   | Unit -> fun _ _ -> ()
 and encode_field t = function
   | VBoolean b ->
@@ -258,7 +263,4 @@ let rec to_string: type a b. (a, b) spec -> string = function
   | Nil -> "Nil"
 
 type espec = ESpec: ('a, 'b) spec -> espec
-
 type message = { class_id: int; method_id: int; spec: espec; content: espec option;}
-
-(* Need functions - not specs *)
