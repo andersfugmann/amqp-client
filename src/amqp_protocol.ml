@@ -43,6 +43,8 @@ module Framing = struct
 
   let channels : (int, channel) Hashtbl.t = Hashtbl.create 0
 
+  let frame_end = 0xce
+
   let frame          = Octet :: Short :: Longstr :: Octet :: Nil
   let read_frame     = read frame
   let write_frame    = write frame
@@ -65,7 +67,7 @@ module Framing = struct
       let o = Tuple2.uncurry (write method_frame (IO.output_string ())) hdr in
       (IO.close_out o) ^ data
     in
-    write_frame output tpe channel data 0xde |> ignore
+    write_frame output tpe channel data frame_end |> ignore
 
   let read input =
     let (tpe, channel_id, data, _magic) = read_frame (Tuple4.curry identity) input in
