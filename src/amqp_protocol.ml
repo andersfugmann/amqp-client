@@ -23,7 +23,7 @@ module Transport = struct
 end
 
 let print_bytes bytes =
-  String.iter (fun c -> Printf.printf "%02x." (Char.code c)) bytes;
+  String.iter (fun c -> Printf.printf "%02x " (Char.code c)) bytes;
   Printf.printf "\n%!";
 
 module Framing = struct
@@ -122,7 +122,7 @@ end
 
 
 (* Uh. This is a cool method *)
-let handle1 (_class, _method, spec, make, _apply) (r_class, r_method, r_spec, _r_make, r_apply) =
+let reply (_class, _method, spec, make, _apply) (r_class, r_method, r_spec, _r_make, r_apply) =
   let read = read spec in
   let write = write r_spec in
   fun callback buf ->
@@ -132,7 +132,7 @@ let handle1 (_class, _method, spec, make, _apply) (r_class, r_method, r_spec, _r
     ( (r_class, r_method), Framing.Method (IO.close_out out) )
 
 module Start = struct
-  let handle = handle1 Amqp_spec.Connection.Start.def Amqp_spec.Connection.Start_ok.def
+  let handle = reply Amqp_spec.Connection.Start.def Amqp_spec.Connection.Start_ok.def
 end
 
 let handle_start {Amqp_spec.Connection.Start.version_major;
@@ -175,44 +175,6 @@ let init () =
   print_endline "Connected";
   Framing.register_callback 0 (dispatch t.Transport.o 0);
   Framing.read t.Transport.i;
-  Printf.printf "Written: %d\n" (t.Transport.written ())
-
-
-
-(* We manually need to handle main connection status and other protocol thingys. *)
-
-(* When the user ( application programmer ) calls a function (to send data) the user needs to register a callback handler.
-
-Something like
-val qos: { qos parameters} -> (fun {qos_response} -> ())
-the unit returned could be a CSP style thing - Like a {qos_resp} Lwt.t
-
-To retrieve messages, the user needs to register a on_deliver handler. These are just bodies.
-For oob, the user need to register oob handler.
-
-Following messages needs to handle bodies:
-deliver
-return
-get_ok (as a reply to get) - We dont need to implement get, but we could
-We know that the reply will have a body (well - may)
-- We can code that manually. Also We could code everything manually.
-There are not that many cases, and while coding we will see
-a pattern.
-
-Each channel has a state.
-The user needs to register for OOP messages.
-We can then call the callback with the correct type...
-We can see if we need to implement handlers based on fixtures
-(client or server). Nah...
-
-All message marked 'server', synchronious and with reply can be called.
-All messages marked 'client', synchronious with reply must have a handler that produces the required reply type (* I think we need a map to know which *).
-
-All message marked 'client' not synchronious are oob and should have a handler that procuces no reply.
-
-How the hell do we handle requests that can produce multiple replies?
-- Try create an algebraic data structure - Or use polymorphic variants.
-
-I think I got it now.
-
-*)
+  Printf.printf "Written: %d\n" (t.Transport.written ());
+  Framing.read t.Transport.i;
+  ()

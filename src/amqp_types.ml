@@ -43,7 +43,6 @@ type _ elem =
   | Longlong: int elem
   | Shortstr: string elem
   | Longstr: string elem
-  | Litteral: string elem
   | Float: float elem
   | Double: float elem
   | Decimal: decimal elem
@@ -97,7 +96,6 @@ let rec decode: type a. a elem -> IO.input -> a = fun elem t ->
     let data = decode Longstr t in
     let is = IO.input_string data in
     read_while is decode_field
-  | Litteral -> failwith "Cannot read string litterals"
   | Unit -> ()
 and decode_field t =
   match IO.read t with
@@ -140,7 +138,6 @@ let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
         encode_field os v;
       ) x;
     let tbl = IO.close_out os in
-    log "Write Table size: %d\n" (String.length tbl);
     encode Longstr t (tbl)
   | Timestamp ->
     encode Longlong
@@ -161,7 +158,6 @@ let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
     let os = IO.output_string () in
     List.iter (encode_field os) x;
     encode Longstr t (IO.close_out os)
-  | Litteral -> fun t x -> IO.nwrite t x
   | Unit -> fun _ _ -> ()
 and encode_field t = function
   | VBoolean b ->
