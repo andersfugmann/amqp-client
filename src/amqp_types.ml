@@ -70,10 +70,10 @@ let rec decode: type a. a elem -> IO.input -> a = fun elem t ->
   | Longlong -> IO.BigEndian.read_i64 t |> Int64.to_int |> tap (log "Longlong 0x%16x\n%!")
   | Shortstr ->
     let len = decode Octet t in
-    IO.nread t len
+    IO.really_nread t len
   | Longstr ->
     let len = decode Long t in
-    IO.nread t len
+    IO.really_nread t len
   | Table ->
     let s = decode Longstr t in
     let t = IO.input_string s in
@@ -125,20 +125,20 @@ let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
     let enc = encode Octet in
     fun t x ->
       enc t (String.length x);
-      IO.nwrite t x
+      IO.really_output t x 0 (String.length x) |> ignore
   | Longstr ->
     let enc = encode Long in
     fun t x ->
       enc t (String.length x);
-      IO.nwrite t x
+      IO.really_output t x 0 (String.length x) |> ignore
   | Table -> fun t x ->
     let os = IO.output_string () in
     List.iter (fun (k, v) ->
         encode Shortstr os k;
-        encode_field os v;
+        encode_field os v
       ) x;
-    let tbl = IO.close_out os in
-    encode Longstr t (tbl)
+    IO.close_out os
+    |> encode Longstr t
   | Timestamp ->
     encode Longlong
   | Boolean ->
@@ -151,7 +151,7 @@ let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
   | Decimal ->
     let denc = encode Octet in
     let venc = encode Long in
-    fun t { digits; value} ->
+    fun t { digits; value } ->
       denc t digits;
       venc t value;
   | Array -> fun t x ->
@@ -240,7 +240,6 @@ and write_bits: type b c. int -> (b, c IO.output) spec -> c IO.output -> int -> 
     let encoder = encode Octet
     and writer = write spec in
     fun t v -> encoder t v; writer t
-
 
 let elem_to_string: type a. a elem -> string = function
   | Bit -> "Bit"

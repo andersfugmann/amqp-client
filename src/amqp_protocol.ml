@@ -4,21 +4,19 @@ open Amqp_types
 exception Unknown_frame of int
 exception Decode_error
 
-
 let protocol_header = "AMQP\x00\x00\x09\x01"
 
 let peer_properties = Table
 type peer_properties = table
 
 module Transport = struct
-  type t = { i: IO.input; o: unit IO.output; written: (unit -> int)}
+  type t = { i: IO.input; o: unit IO.output; }
 
   let connect () =
     let i, o = Unix.(open_connection ~autoclose:false (ADDR_INET (inet_addr_loopback, 5672))) in
-    IO.write_string o protocol_header;
+    IO.output o protocol_header 0 (String.length protocol_header) |> ignore;
     IO.flush o;
-    let o, written = IO.pos_out o in
-    { i; o; written }
+    { i; o; }
 
 end
 
@@ -63,20 +61,20 @@ module Framing = struct
   let read_content_header = read content_header
   let write_content_header  : (string IO.output -> 'a) = write content_header
 
-  let write output channel (hdr, message) =
+  let write output channel ((cid, mid), message) =
     let (data, tpe) = match message with
       | Method data -> data, Amqp_spec.frame_method
       | Body data -> data, Amqp_spec.frame_header (* TODO *)
     in
     let hdr_data =
-      let o = Tuple2.uncurry (write method_frame (IO.output_string ())) hdr in
-      (IO.close_out o)
+      write_method_frame (IO.output_string ()) cid mid
+      |> IO.close_out
     in
-    let os = IO.output_string () in
-    write_frame os tpe channel (hdr_data ^ data) frame_end |> ignore;
-    let bytes = IO.close_out os in
-    print_bytes bytes;
-    IO.nwrite output bytes;
+    write_frame (IO.output_string ()) tpe channel (hdr_data ^ data) frame_end
+    |> IO.close_out
+    |> tap print_bytes
+    |> (fun x -> IO.output output x 0 (String.length x))
+    |> ignore;
     IO.flush output
 
   let read input =
@@ -120,8 +118,7 @@ module Framing = struct
 
 end
 
-
-(* Uh. This is a cool method *)
+(* General method *)
 let reply (_class, _method, spec, make, _apply) (r_class, r_method, r_spec, _r_make, r_apply) =
   let read = read spec in
   let write = write r_spec in
@@ -133,6 +130,9 @@ let reply (_class, _method, spec, make, _apply) (r_class, r_method, r_spec, _r_m
 
 module Start = struct
   let handle = reply Amqp_spec.Connection.Start.def Amqp_spec.Connection.Start_ok.def
+end
+module Tune = struct
+  let handle = reply Amqp_spec.Connection.Tune.def Amqp_spec.Connection.Tune_ok.def
 end
 
 let handle_start {Amqp_spec.Connection.Start.version_major;
@@ -152,6 +152,18 @@ let handle_start {Amqp_spec.Connection.Start.version_major;
     locale = String.nsplit ~by:";" locales |> List.hd
   }
 
+let handle_tune { Amqp_spec.Connection.Tune.channel_max;
+                  frame_max; heartbeat; } =
+  Printf.printf "Channel max: %d\n" channel_max;
+  Printf.printf "Frame_max: %d\n" frame_max;
+  Printf.printf "Heartbeat: %d\n" heartbeat;
+  {
+    Amqp_spec.Connection.Tune_ok.channel_max;
+    frame_max;
+    heartbeat;
+  }
+
+
 (* How do we send a frame? *)
 let dispatch o channel hdr message =
   let data = match message with
@@ -162,6 +174,8 @@ let dispatch o channel hdr message =
     match hdr with
     | (10, 10)  ->
       Some (Start.handle handle_start data)
+    | (10, 30)  ->
+      Some (Tune.handle handle_tune data)
     | _ -> failwith "Not suported"
   in
   (* Ahhh. This is where we handle it all. *)
@@ -175,6 +189,5 @@ let init () =
   print_endline "Connected";
   Framing.register_callback 0 (dispatch t.Transport.o 0);
   Framing.read t.Transport.i;
-  Printf.printf "Written: %d\n" (t.Transport.written ());
   Framing.read t.Transport.i;
   ()
