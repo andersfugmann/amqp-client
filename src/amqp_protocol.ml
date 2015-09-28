@@ -6,9 +6,6 @@ exception Decode_error
 
 let protocol_header = "AMQP\x00\x00\x09\x01"
 
-let peer_properties = Table
-type peer_properties = table
-
 module Transport = struct
   type t = { i: IO.input; o: unit IO.output; }
 
@@ -17,12 +14,7 @@ module Transport = struct
     IO.output o protocol_header 0 (String.length protocol_header) |> ignore;
     IO.flush o;
     { i; o; }
-
 end
-
-let print_bytes bytes =
-  String.iter (fun c -> Printf.printf "%02x " (Char.code c)) bytes;
-  Printf.printf "\n%!";
 
 module Framing = struct
 
@@ -70,12 +62,8 @@ module Framing = struct
       write_method_frame (IO.output_string ()) cid mid
       |> IO.close_out
     in
-    write_frame (IO.output_string ()) tpe channel (hdr_data ^ data) frame_end
-    |> IO.close_out
-    |> tap print_bytes
-    |> (fun x -> IO.output output x 0 (String.length x))
-    |> ignore;
-    IO.flush output
+    write_frame output tpe channel (hdr_data ^ data) frame_end
+    |> IO.flush
 
   let read input =
     let (tpe, channel_id, data, magic) = read_frame (Tuple4.curry identity) input in
