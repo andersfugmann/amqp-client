@@ -230,27 +230,6 @@ let emit_method class_index { Method.name;
          (String.concat " " names) (String.concat "; " names) ;
   end;
   emit "let def = (%d, %d, spec, make, apply)" class_index index;
-  (*
-begin
-    (** Need ID and functions *)
-    match server with
-    | true ->
-      emit "let call = call%d ("
-        call = call (callback t:t -> unit) (callback t:t -> unit)
-
-  (*
-  let () =
-    match response, client, server with
-    | false, [], false -> emit "Need()" (* We need the chassis *)
-
-  let () =
-
-  in
-*)
-*)
-  emit "let t = { Amqp_types.class_id = %d; method_id = %d; spec = ESpec spec; content = %s }"
-       class_index index
-       (if content then "Some (ESpec Payload.spec)" else "None");
   decr indent;
   emit "end";
   ()
@@ -264,14 +243,6 @@ let emit_class { Class.name; content; index; methods } =
 
   List.iter (emit_method index) methods;
 
-  (* Emit decode dispatch *)
-  emit "let decode = function";
-  incr indent;
-  List.iter (fun {Method.name; index; _} -> emit "| %d -> (%s.t)" index (variant_name name)) methods;
-  emit "| d -> raise (Unknown_method_id d)";
-  decr indent;
-
-
   decr indent;
   emit "end";
   ()
@@ -279,17 +250,7 @@ let emit_class { Class.name; content; index; methods } =
 let _ =
   let xml = Xml.parse_file Sys.argv.(1) in
   print xml;
-  emit "open Amqp_types";
+  emit "open Types";
   let tree = xml |> parse_amqp |> emit_domains in
   emit_constants tree;
   List.iter (function Class x -> emit_class x | _ -> ()) tree;
-
-
-  (* emit global decode dispatch *)
-  emit "let decode = function";
-  incr indent;
-  tree
-  |> List.filter_map (function Class {Class.name; index; _} -> Some (name, index) | _ -> None)
-  |> List.iter (fun (name, index) -> emit "| %d -> %s.decode" index (variant_name name));
-  emit "| d -> raise (Unknown_class_id d)";
-  decr indent;

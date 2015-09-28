@@ -1,5 +1,5 @@
 open Batteries
-open Amqp_types
+open Types
 
 exception Unknown_frame of int
 exception Decode_error
@@ -55,8 +55,8 @@ module Framing = struct
 
   let write output channel ((cid, mid), message) =
     let (data, tpe) = match message with
-      | Method data -> data, Amqp_spec.frame_method
-      | Body data -> data, Amqp_spec.frame_header (* TODO *)
+      | Method data -> data, Spec.frame_method
+      | Body data -> data, Spec.frame_header (* TODO *)
     in
     let hdr_data =
       write_method_frame (IO.output_string ()) cid mid
@@ -71,13 +71,13 @@ module Framing = struct
     Printf.printf "Channel: %d\n%!" channel_id;
     let channel = Hashtbl.find channels channel_id in
     match tpe with
-    | n when n = Amqp_spec.frame_method ->
+    | n when n = Spec.frame_method ->
       (* Standard method message *)
       assert (channel.state = Ready);
       let hdr = read_method_frame (Tuple2.curry identity) (IO.input_string data) in
       let data = String.slice ~first:4 data in
       channel.callback hdr (Method data)
-    | n when n = Amqp_spec.frame_header ->
+    | n when n = Spec.frame_header ->
       assert (channel.state = Ready);
       (* Decode the header frame *)
       let cls_id, mth_id, size, _magic =
@@ -86,7 +86,7 @@ module Framing = struct
           (IO.input_string data)
       in
       channel.state <- Waiting ((cls_id, mth_id), size, Buffer.create size)
-    | n when n = Amqp_spec.frame_body ->
+    | n when n = Spec.frame_body ->
       begin
       match channel.state with
         | Ready -> failwith "Channel not expecting data frames"
@@ -97,7 +97,7 @@ module Framing = struct
             channel.state <- Ready
           end
       end
-    | n when n = Amqp_spec.frame_heartbeat ->
+    | n when n = Spec.frame_heartbeat ->
       ()
     | n -> raise (Unknown_frame n)
 
@@ -117,13 +117,13 @@ let reply (_class, _method, spec, make, _apply) (r_class, r_method, r_spec, _r_m
     ( (r_class, r_method), Framing.Method (IO.close_out out) )
 
 module Start = struct
-  let handle = reply Amqp_spec.Connection.Start.def Amqp_spec.Connection.Start_ok.def
+  let handle = reply Spec.Connection.Start.def Spec.Connection.Start_ok.def
 end
 module Tune = struct
-  let handle = reply Amqp_spec.Connection.Tune.def Amqp_spec.Connection.Tune_ok.def
+  let handle = reply Spec.Connection.Tune.def Spec.Connection.Tune_ok.def
 end
 
-let handle_start {Amqp_spec.Connection.Start.version_major;
+let handle_start {Spec.Connection.Start.version_major;
                   version_minor;
                   server_properties;
                   mechanisms;
@@ -134,19 +134,19 @@ let handle_start {Amqp_spec.Connection.Start.version_major;
   Printf.printf "Mechanisms: %s\n" mechanisms;
   Printf.printf "Locales: %s\n" locales;
   {
-    Amqp_spec.Connection.Start_ok.client_properties = server_properties;
+    Spec.Connection.Start_ok.client_properties = server_properties;
     mechanism = "PLAIN";(*String.nsplit ~by:" " mechanisms |> List.hd; *)
     response = "\x00guest\x00guest";
     locale = String.nsplit ~by:";" locales |> List.hd
   }
 
-let handle_tune { Amqp_spec.Connection.Tune.channel_max;
+let handle_tune { Spec.Connection.Tune.channel_max;
                   frame_max; heartbeat; } =
   Printf.printf "Channel max: %d\n" channel_max;
   Printf.printf "Frame_max: %d\n" frame_max;
   Printf.printf "Heartbeat: %d\n" heartbeat;
   {
-    Amqp_spec.Connection.Tune_ok.channel_max;
+    Spec.Connection.Tune_ok.channel_max;
     frame_max;
     heartbeat;
   }

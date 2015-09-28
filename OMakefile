@@ -11,7 +11,7 @@ vmount(-l, src, _build)
 mkdir -p _build
 .SUBDIRS: _build
     section:
-	.DEFAULT: $(OCamlProgram gen_protocol, gen_protocol)
+	.DEFAULT: $(OCamlProgram gen_spec, gen_spec)
 
     section:
 	AMQP_SPEC_URL=http://www.rabbitmq.com/resources/specs/amqp0-9-1.stripped.extended.xml
@@ -19,8 +19,9 @@ mkdir -p _build
 		mkdir -p data
 		curl $(AMQP_SPEC_URL) > $@
 
-	FILES[] = amqp_types amqp_spec amqp_protocol main
+	FILES[] = types spec protocol main
+
 	DATA_FILE=amqp0-9-1.stripped.xml
-	amqp_spec.ml: gen_protocol amqp0-9-1.stripped.xml
-		./gen_protocol amqp0-9-1.stripped.xml > $@
+	spec.ml: gen_spec amqp0-9-1.stripped.xml
+		./gen_spec amqp0-9-1.stripped.xml > $@
 	.DEFAULT: $(OCamlProgram test, $(FILES))
