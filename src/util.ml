@@ -10,12 +10,13 @@ let reply0 _ =
 let reply1 (cls, mth, spec, make, _apply) (r_class, r_method, r_spec, _r_make, r_apply) =
   let read = read spec in
   let write = write r_spec in
-  fun channel callback ->
+  fun channel ?(after=fun () -> ()) callback ->
     let callback data =
       let req = read make (IO.input_string data) in
       let rep = callback req in
       let out = r_apply (write (IO.output_string ())) rep in
-      Channel.send channel r_class r_method (IO.close_out out)
+      Channel.send channel r_class r_method (IO.close_out out);
+      after ()
     in
     Channel.receive channel cls mth callback
 

@@ -86,7 +86,7 @@ let read t =
         end
     end
   | n when n = Constants.frame_heartbeat ->
-    ()
+    failwith "Cannot handle heartbeat yet";
   | n -> raise (Unknown_frame_type n)
 
 let register_callback t channel callback =

@@ -29,7 +29,8 @@ and value =
   | VTimestamp of int
   | VUnit of unit
 
-let log fmt = Printf.fprintf stdout fmt
+let log fmt = Printf.ifprintf stdout (fmt ^^ "\n%!");
+
 
 exception Unknown_class_id of int
 exception Unknown_method_id of int
@@ -58,18 +59,18 @@ type (_, _) spec =
   | ::  : 'a elem * ('b, 'c) spec -> (('a -> 'b), 'c) spec
 
 let rec read_while t f =
-  match (try Some (f t) with e -> Printf.printf "%s\n" (Printexc.to_string e); None) with
-  | Some v -> Printf.printf "Field\n"; List.cons v (read_while t f)
+  match (try Some (f t) with e -> log "%s" (Printexc.to_string e); None) with
+  | Some v -> log "Field"; List.cons v (read_while t f)
   | None -> []
 
 
 let rec decode: type a. a elem -> IO.input -> a = fun elem t ->
   match elem with
-  | Bit -> IO.read_byte t = 1 |> tap (log "Bit %b\n%!")
-  | Octet -> IO.read_byte t |> tap (log "Octet 0x%02x\n%!")
-  | Short -> IO.BigEndian.read_ui16 t |> tap (log "Short 0x%04x\n%!")
-  | Long -> IO.BigEndian.read_i32 t |> tap (log "Long 0x%08x\n%!")
-  | Longlong -> IO.BigEndian.read_i64 t |> Int64.to_int |> tap (log "Longlong 0x%16x\n%!")
+  | Bit -> IO.read_byte t = 1 |> tap (log "Bit %b")
+  | Octet -> IO.read_byte t |> tap (log "Octet 0x%02x")
+  | Short -> IO.BigEndian.read_ui16 t |> tap (log "Short 0x%04x")
+  | Long -> IO.BigEndian.read_i32 t |> tap (log "Long 0x%08x")
+  | Longlong -> IO.BigEndian.read_i64 t |> Int64.to_int |> tap (log "Longlong 0x%16x")
   | Shortstr ->
     let len = decode Octet t in
     IO.really_nread t len

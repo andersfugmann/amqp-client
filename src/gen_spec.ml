@@ -236,7 +236,7 @@ let emit_method class_index { Method.name;
   let response = List.map variant_name response in
   if (synchronous && response != []) || not synchronous  then begin
     if client then
-      emit "let reply : C.t ->%s unit = reply%d def %s"
+      emit "let reply : C.t -> ?after:(unit -> unit) ->%s unit = reply%d def %s"
         (response |> List.map (Printf.sprintf " (t -> %s.t) ->") |> String.concat "")
         (List.length response)
         (response |> List.map (Printf.sprintf "%s.def") |> String.concat " ");
