@@ -21,7 +21,7 @@ end
 module Method = struct
   type t = { name: string; arguments: Field.t list;
              response: string list; content: bool;
-             index: int; synchronious: bool; server: bool; client: bool}
+             index: int; synchronous: bool; server: bool; client: bool}
 end
 module Class = struct
   type t = { name: string; content: Field.t list; index: int; methods: Method.t list }
@@ -79,11 +79,8 @@ let parse_method attrs nodes =
     |> List.filter (function Xml.Element ("response", _, _) -> true | _ -> false)
     |> List.map (function Xml.Element ("response", attrs, []) -> List.assoc "name" attrs | _ -> failwith "Error parsing response")
   in
-  let synchronious = List.Exceptionless.assoc "synchronious" attrs |> Option.map_default ((=) "1") false in
-  (*
+
   let synchronous = List.Exceptionless.assoc "synchronous" attrs |> Option.map_default ((=) "1") false in
-  assert (not synchronous || response <> None);
-  *)
   let content = List.Exceptionless.assoc "content" attrs |> Option.map_default ((=) "1") false in
   let arguments = map_elements "field" parse_field nodes in
 
@@ -95,7 +92,7 @@ let parse_method attrs nodes =
   let client = List.mem "client" chassis in
   let server = List.mem "server" chassis in
   decr indent;
-  { Method.name; arguments; response; content; index; synchronious; client; server }
+  { Method.name; arguments; response; content; index; synchronous; client; server }
 
 let parse_class attrs nodes =
   (* All field nodes goes into content *)
@@ -147,15 +144,15 @@ let rec print = function
 
 (* Remove domains *)
 let emit_domains tree =
-  emit "(* Domains *)";
   let domains = Hashtbl.create 0 in
   List.iter (function
       | Domain {Domain.name; amqp_type} when name <> amqp_type ->
         Hashtbl.add domains name amqp_type
       | _ -> ()) tree;
 
-  emit "(* Aliases *)";
+  emit "(* Domains *)";
   Hashtbl.iter (fun d t -> emit "let %s = %s" (bind_name d) (variant_name t)) domains;
+  emit "(* Aliases *)";
   Hashtbl.iter (fun d t -> emit "type %s = %s" (bind_name d) (bind_name t)) domains;
 
   (* Alter the tree *)
@@ -187,31 +184,31 @@ let emit_constants tree =
     (function Constant { Constant.name; value } -> emit "let %s = %d" (bind_name name) value | _ -> ())
     tree
 
+let spec_str arguments =
+  arguments
+  |> List.map (fun t -> t.Field.tpe)
+  |> flip List.append ["Nil"]
+  |> String.concat " :: "
+
 let emit_method class_index { Method.name;
                               arguments;
-                              response = _;
+                              response;
                               content;
                               index;
-                              synchronious = _;
+                              synchronous;
                               client;
                               server;
                             } =
   ignore content; ignore index; ignore server; ignore client; ignore class_index;
   emit "module %s = struct" (variant_name name);
   incr indent;
-  let spec_str =
-    arguments
-    |> List.map (fun t -> t.Field.tpe)
-    |> flip List.append ["Nil"]
-    |> String.concat " :: "
-  in
-  emit "let spec = %s" spec_str;
+  emit "let spec = %s" (spec_str arguments);
   begin
     match arguments with
     | [] ->
       emit "type t = ()";
-      emit "let apply f () = f ()"; (* Do we need unit on nil? *)
-      emit "let make () = ()" (* Do we need unit on nil? *)
+      emit "let apply f _ = f"; (* Do we need unit on nil? *)
+      emit "let make = ()" (* Do we need unit on nil? *)
     | _ ->
        arguments
        |> List.map
@@ -230,16 +227,58 @@ let emit_method class_index { Method.name;
          (String.concat " " names) (String.concat "; " names) ;
   end;
   emit "let def = (%d, %d, spec, make, apply)" class_index index;
+  emit "(* Name %s *)" name;
+  emit "(* Server %b *)" server;
+  emit "(* Client %b *)" client;
+  emit "(* Synchronous %b *)" synchronous;
+  emit "(* Response: [%s] *)" (response |> String.concat ";");
+
+  let response = List.map variant_name response in
+  if (synchronous && response != []) || not synchronous  then begin
+    if client then
+      emit "let reply : C.t ->%s unit = reply%d def %s"
+        (response |> List.map (Printf.sprintf " (t -> %s.t) ->") |> String.concat "")
+        (List.length response)
+        (response |> List.map (Printf.sprintf "%s.def") |> String.concat " ");
+    if server then
+      emit "let request : C.t -> t ->%s unit = request%d def %s"
+        (response |> List.map (Printf.sprintf " (%s.t -> unit) ->") |> String.concat "")
+        (List.length response)
+        (response |> List.map (Printf.sprintf "%s.def") |> String.concat " ");
+  end;
+
   decr indent;
   emit "end";
   ()
 
+
 let emit_class { Class.name; content; index; methods } =
+  (* Reorder modules based on dependencies *)
+  let rec reorder methods =
+    let rec move_down = function
+      | { Method.response; _} as m :: x :: xs when
+          List.exists (fun r -> List.exists (fun {Method.name; _} -> name = r) (x :: xs)) response -> x :: move_down (m :: xs)
+      | x :: xs -> x :: move_down xs
+      | [] -> []
+    in
+    let ms = move_down methods in
+    if ms = methods then ms
+    else reorder ms
+  in
+  let methods = reorder methods in
   emit "module %s = struct" (variant_name name);
   incr indent;
 
-  emit_method index { Method.name = "payload"; arguments = content; response = []; content = false; index = 0;
-                      synchronious = false; server=false; client=false};
+  if (content != []) then
+    emit_method index { Method.name = "payload";
+                        arguments = content;
+                        response = [];
+                        content = false;
+                        index = 0;
+                        synchronous = false;
+                        server=false;
+                        client=false
+                      };
 
   List.iter (emit_method index) methods;
 
@@ -249,8 +288,15 @@ let emit_class { Class.name; content; index; methods } =
 
 let _ =
   let xml = Xml.parse_file Sys.argv.(1) in
-  print xml;
+  emit "(***********************************)";
+  emit "(* AUTOGENERATED FILE: DO NOT EDIT *)";
+  emit "(* %s %s *)" Sys.argv.(0) Sys.argv.(1);
+  emit "(***********************************)";
+  emit "";
+  emit "";
   emit "open Types";
+  emit "open Util";
+  emit "module C = Channel";
   let tree = xml |> parse_amqp |> emit_domains in
   emit_constants tree;
   List.iter (function Class x -> emit_class x | _ -> ()) tree;

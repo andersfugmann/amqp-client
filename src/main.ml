@@ -1,3 +1,3 @@
 let _ =
-  print_endline "Hello";
-  Protocol.init ();
+  let connection = Connection.connect ~host:"127.0.0.1" () in
+  Connection.start connection

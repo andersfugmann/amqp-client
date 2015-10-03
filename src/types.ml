@@ -1,5 +1,7 @@
 open Batteries
 
+type message_id = int * int
+
 type bit = bool
 and octet = int
 and short = int
@@ -256,6 +258,3 @@ let elem_to_string: type a. a elem -> string = function
 let rec to_string: type a b. (a, b) spec -> string = function
   | x :: xs -> elem_to_string x ^ " :: " ^ to_string xs
   | Nil -> "Nil"
-
-type espec = ESpec: ('a, 'b) spec -> espec
-type message = { class_id: int; method_id: int; spec: espec; content: espec option;}

@@ -19,9 +19,11 @@ mkdir -p _build
 		mkdir -p data
 		curl $(AMQP_SPEC_URL) > $@
 
-	FILES[] = types spec protocol main
+	FILES[] = types spec transport channel framing constants util connection main
+
 
 	DATA_FILE=amqp0-9-1.stripped.xml
 	spec.ml: gen_spec amqp0-9-1.stripped.xml
 		./gen_spec amqp0-9-1.stripped.xml > $@
-	.DEFAULT: $(OCamlProgram test, $(FILES))
+
+	.DEFAULT: $(OCamlProgram main, $(FILES))
