@@ -7,5 +7,5 @@ clean:
 
 .PHONY: test
 test:
-	omake -w -j 4 _build/test
-	OCAMLRUNPARAM=b _build/test
+	omake -w -j 4 _build/main
+	OCAMLRUNPARAM=b _build/main

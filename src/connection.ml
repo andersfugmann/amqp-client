@@ -4,6 +4,7 @@ let log fmt = Printf.fprintf stdout (fmt ^^ "\n%!")
 
 type t = { framing: Framing.t;
            channel: Channel.t;
+           virtual_host: string;
          }
 
 let handle_start (username, password) {Spec.Connection.Start.version_major;
@@ -42,19 +43,18 @@ let handle_open_ok { Spec.Connection.Open_ok.reserved_1 } =
 
 
 
-let open_connection t () =
+let open_connection { channel; virtual_host; _ } () =
   let open Spec.Connection.Open in
-  request t.channel { virtual_host = "/";
-                      reserved_1 = "huh";
-                      reserved_2 = false }
-    handle_open_ok
+  request channel { virtual_host;
+                    reserved_1 = "";
+                    reserved_2 = false } handle_open_ok
 
-let connect ?(port=5672) ?(credentials=("guest", "guest")) ~host () =
+let connect ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ~host () =
   let transport = Transport.connect ~port ~host in
   let framing = Framing.init transport in
   let channel = Channel.init framing 0 in
 
-  let t = { framing; channel } in
+  let t = { framing; channel; virtual_host } in
   Spec.Connection.Start.reply channel (handle_start credentials);
   Spec.Connection.Tune.reply ~after:(open_connection t) channel handle_tune;
   t
