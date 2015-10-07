@@ -226,7 +226,7 @@ let emit_method class_index { Method.name;
        emit "let make %s = { %s }"
          (String.concat " " names) (String.concat "; " names) ;
   end;
-  emit "let def = (%d, %d, spec, make, apply)" class_index index;
+  emit "let def = ((%d, %d), spec, make, apply)" class_index index;
   emit "(* Name %s *)" name;
   emit "(* Server %b *)" server;
   emit "(* Client %b *)" client;
@@ -234,15 +234,15 @@ let emit_method class_index { Method.name;
   emit "(* Response: [%s] *)" (response |> String.concat ";");
 
   let response = List.map variant_name response in
-  if (synchronous && response != []) || not synchronous  then begin
+  if List.length response = 1 && ((synchronous && response != []) || not synchronous)  then begin
     if client then
-      emit "let reply : C.t -> ?after:(unit -> unit) ->%s unit = reply%d def %s"
-        (response |> List.map (Printf.sprintf " (t -> %s.t) ->") |> String.concat "")
+      emit "let reply : C.t -> (t -> %s.t D.t) -> unit D.t = reply%d def %s"
+        (List.hd response)
         (List.length response)
         (response |> List.map (Printf.sprintf "%s.def") |> String.concat " ");
     if server then
-      emit "let request : C.t -> t ->%s unit = request%d def %s"
-        (response |> List.map (Printf.sprintf " (%s.t -> unit) ->") |> String.concat "")
+      emit "let request : C.t -> t -> %s.t D.t = request%d def %s"
+        (List.hd response)
         (List.length response)
         (response |> List.map (Printf.sprintf "%s.def") |> String.concat " ");
   end;
@@ -297,6 +297,7 @@ let _ =
   emit "open Types";
   emit "open Util";
   emit "module C = Channel";
+  emit "module D = Async.Std.Deferred";
   let tree = xml |> parse_amqp |> emit_domains in
   emit_constants tree;
   List.iter (function Class x -> emit_class x | _ -> ()) tree;

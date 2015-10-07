@@ -1,42 +1,39 @@
 open Batteries
+open Async.Std
 open Types
 
-let request0 _ =
-  fun _ -> failwith "Not implemented"
-
-let reply0 _ =
-  fun _ -> failwith "Not implemented"
-
-let reply1 (cls, mth, spec, make, _apply) (r_class, r_method, r_spec, _r_make, r_apply) =
-  let read = read spec in
-  let write = write r_spec in
-  fun channel ?(after=fun () -> ()) callback ->
-    let callback data =
-      let req = read make (IO.input_string data) in
-      let rep = callback req in
-      let out = r_apply (write (IO.output_string ())) rep in
-      Channel.send channel r_class r_method (IO.close_out out);
-      after ()
-    in
-    Channel.receive channel cls mth callback
-
-let request1 (cls, mth, spec, _make, apply) (r_cls, r_mth, r_spec, r_make, _r_apply) : (Channel.t -> 'a -> ('b -> unit)) =
+let request0 (method_id, spec, _make, apply) =
   let write = write spec in
-  let read = read r_spec in
-  fun channel msg callback ->
+  fun channel msg ->
     let req =
       apply (write (IO.output_string ())) msg
       |> IO.close_out
     in
-    Channel.send channel cls mth req;
-    let callback data =
-      let rep = read r_make (IO.input_string data) in
-      callback rep
-    in
-    Channel.receive channel r_cls r_mth callback
+    Channel.send channel method_id req
 
-let request2 _ _ _ =
-  fun _ -> failwith "Not implemented"
+let reply0 (method_id, spec, make, _apply) =
+  let read = read spec in
+  fun channel ->
+    Channel.receive channel method_id |> Ivar.read >>= fun data ->
+    let resp = read make (IO.input_string data) in
+    return resp
 
-let reply2 _ _ _ =
-  fun _ -> failwith "Not implemented"
+
+let request1 req_spec rep_spec =
+  let req = request0 req_spec in
+  let rep = reply0 rep_spec in
+  fun channel msg ->
+    req channel msg;
+    rep channel
+
+let reply1 req_spec rep_spec =
+  let req = reply0 req_spec in
+  let rep = request0 rep_spec in
+  fun channel (handler : 'a -> 'b Deferred.t) ->
+    req channel >>= handler >>= fun msg ->
+    rep channel msg;
+    return ()
+
+let request2 a b _ = request1 a b
+
+let reply2 a b _ = reply1 a b

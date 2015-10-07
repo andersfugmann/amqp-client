@@ -29,7 +29,7 @@ and value =
   | VTimestamp of int
   | VUnit of unit
 
-let log fmt = Printf.ifprintf stdout (fmt ^^ "\n%!");
+let log fmt = Printf.ifprintf stdout (fmt ^^ "\n%!")
 
 
 exception Unknown_class_id of int

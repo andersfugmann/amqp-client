@@ -1,36 +1,43 @@
-open Batteries
+open Async.Std
+
 
 exception Busy
 exception Unhandled_message of Types.message_id
 
-type callback = (string -> unit)
+(* Callbacks are the reception of a string.
+   We use ivar for async
+*)
 type t = { framing: Framing.t;
+           input: (Types.message_id * Framing.message) Pipe.Reader.t;
            channel_no:int;
-           callbacks: (Types.message_id, callback) Hashtbl.t;
+           handlers: (Types.message_id, string Ivar.t) Hashtbl.t;
          }
 
-let send t cid mid data = Framing.write t.framing t.channel_no (cid, mid) (Framing.Method data)
-let send_body _t _cls _mth _data = ()
-let receive t cid mid callback =
-  if Hashtbl.mem t.callbacks (cid, mid) then raise Busy;
-  Hashtbl.add t.callbacks (cid, mid) callback
+let send t method_id data = Framing.write_frame t.framing t.channel_no method_id (Framing.Method data)
 
-let receive_body _t _cls _mth _callback = ()
+(* Reception is a continious repeat of reading messages and setting the correct ivar. *)
 
-let on_receive t message_id message =
-  match message with
-  | Framing.Method data ->
-    begin
-      match Hashtbl.find_option t.callbacks message_id with
-      | Some callback ->
-        callback data;
-        Hashtbl.remove t.callbacks message_id
-      | None -> raise (Unhandled_message message_id)
-    end
-  | Framing.Body _ -> failwith "Cannot handle body message"
+let read t =
+  Pipe.read t.input >>= function
+  | `Ok (message_id, Framing.Method data) ->
+    begin match BatHashtbl.find_option t.handlers message_id with
+      | Some var -> Ivar.fill var data
+      | None -> failwith "Unhandled message"
+    end;
+    return t
+  | `Ok (_, Framing.Body _) -> failwith "Cannot handle body message yet"
+  | `Eof -> failwith "Connection closed"
 
-let init framing channel_no =
-  let callbacks = Hashtbl.create 0 in
-  let t = { framing; channel_no; callbacks } in
-  Framing.register_callback framing channel_no (on_receive t);
+let receive t message_id =
+  if Hashtbl.mem t.handlers message_id then raise Busy;
+  let var = Ivar.create () in
+  Hashtbl.add t.handlers message_id var;
+  var
+
+let init framing input channel_no =
+  let handlers = Hashtbl.create 0 in
+  let t = { framing; input; channel_no; handlers } in
+  Deferred.forever t read;
   t
+
+let id { channel_no; _} = channel_no
