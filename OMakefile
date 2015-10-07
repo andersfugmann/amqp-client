@@ -6,7 +6,7 @@ BYTE_ENABLED = false
 
 OCAMLFLAGS = -thread -g -w @A-4-29-33-41-44-45-48 -bin-annot
 
-OCAMLPACKS[] = batteries xml-light async async_unix
+OCAMLPACKS[] = batteries xml-light async async_unix ocplib-endian
 
 vmount(-l, src, _build)
 mkdir -p _build
@@ -20,7 +20,7 @@ mkdir -p _build
 		mkdir -p data
 		curl $(AMQP_SPEC_URL) > $@
 
-	FILES[] = types spec channel framing constants util connection main
+	FILES[] = types spec channel framing constants util connection main protocol
 
 	DATA_FILE=amqp0-9-1.stripped.xml
 	spec.ml: gen_spec amqp0-9-1.stripped.xml

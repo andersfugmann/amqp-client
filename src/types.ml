@@ -1,4 +1,5 @@
 open Batteries
+open Protocol
 
 type message_id = int * int
 
@@ -58,28 +59,72 @@ type (_, _) spec =
   | Nil : ('a, 'a) spec
   | ::  : 'a elem * ('b, 'c) spec -> (('a -> 'b), 'c) spec
 
+let rec length: type a. a elem -> a -> int = function
+  | Boolean -> const 1
+  | Bit -> const 1
+  | Octet -> const 1
+  | Short -> const 2
+  | Shortshort -> const 2
+  | Long -> const 4
+  | Longlong -> const 8
+  | Shortstr ->
+    fun v ->
+      let len = String.length v in
+      length Octet len + len
+  | Longstr -> fun v ->
+    let len = String.length v in
+    length Long len + len
+  | Table -> fun t ->
+    let len = table_length t in
+    length Long len + len
+  | Array -> fun t ->
+    let len = array_length t in
+    length Long len + len
+  | Timestamp -> length Longlong
+  | Float -> const 4
+  | Double -> const 8
+  | Decimal -> const (1 + 8)
+  | Unit -> const 0
+and table_length t =
+  List.fold_left (fun acc (k,v) -> acc + length Shortstr k + field_length v) 0 t
+and array_length t = List.fold_left  (fun acc v -> acc + field_length v) 0 t
+and field_length = function
+  | VBoolean v    -> 1 + length Boolean v
+  | VShortshort v -> 1 + length Shortshort v
+  | VShort v      -> 1 + length Short v
+  | VLong v       -> 1 + length Long v
+  | VLonglong v   -> 1 + length Longlong v
+  | VShortstr v   -> 1 + length Shortstr v
+  | VLongstr v    -> 1 + length Longstr v
+  | VFloat v      -> 1 + length Float v
+  | VDouble v     -> 1 + length Double v
+  | VDecimal v    -> 1 + length Decimal v
+  | VTable v      -> 1 + length Table v
+  | VArray v      -> 1 + length Array v
+  | VTimestamp v  -> 1 + length Timestamp v
+  | VUnit v       -> 1 + length Unit v
+
 let rec read_while t f =
   match (try Some (f t) with e -> log "%s" (Printexc.to_string e); None) with
   | Some v -> log "Field"; List.cons v (read_while t f)
   | None -> []
 
-
-let rec decode: type a. a elem -> IO.input -> a = fun elem t ->
+let rec decode: type a. a elem -> Input.t -> a = fun elem t ->
   match elem with
-  | Bit -> IO.read_byte t = 1 |> tap (log "Bit %b")
-  | Octet -> IO.read_byte t |> tap (log "Octet 0x%02x")
-  | Short -> IO.BigEndian.read_ui16 t |> tap (log "Short 0x%04x")
-  | Long -> IO.BigEndian.read_i32 t |> tap (log "Long 0x%08x")
-  | Longlong -> IO.BigEndian.read_i64 t |> Int64.to_int |> tap (log "Longlong 0x%16x")
+  | Bit -> Input.octet t = 1 |> tap (log "Bit %b")
+  | Octet -> Input.octet t |> tap (log "Octet 0x%02x")
+  | Short -> Input.short t |> tap (log "Short 0x%04x")
+  | Long -> Input.long t |> tap (log "Long 0x%08x")
+  | Longlong -> Input.longlong t |> tap (log "Longlong 0x%16x")
   | Shortstr ->
     let len = decode Octet t in
-    IO.really_nread t len
+    Input.string t len
   | Longstr ->
     let len = decode Long t in
-    IO.really_nread t len
+    Input.string t len
   | Table ->
     let s = decode Longstr t in
-    let t = IO.input_string s in
+    let t = Input.create s in
     let read_table_value t =
       let key = decode Shortstr t in
       let value = decode_field t in
@@ -89,19 +134,19 @@ let rec decode: type a. a elem -> IO.input -> a = fun elem t ->
   | Timestamp -> decode Longlong t
   | Boolean -> decode Octet t = 1
   | Shortshort -> decode Octet t
-  | Float -> IO.BigEndian.read_float t
-  | Double -> IO.BigEndian.read_double t
+  | Float -> Input.float t
+  | Double -> Input.double t
   | Decimal ->
     let digits = decode Octet t in
     let value = decode Long t in
     { digits; value }
   | Array ->
     let data = decode Longstr t in
-    let is = IO.input_string data in
+    let is = Input.create data in
     read_while is decode_field
   | Unit -> ()
 and decode_field t =
-  match IO.read t with
+  match Input.octet t |> Char.chr with
   | 't' -> VBoolean (decode Boolean t)
   | 'b' | 'B' -> VShortshort (decode Shortshort t)
   | 'u' | 'U' -> VShort (decode Short t)
@@ -118,30 +163,29 @@ and decode_field t =
   | 'V' -> VUnit (decode Unit t)
   | _ -> failwith "Uknown table value"
 
-let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
-  | Bit -> fun t x -> IO.write_byte t (if x then 1 else 0)
-  | Octet -> IO.write_byte
-  | Short -> IO.BigEndian.write_ui16
-  | Long -> IO.BigEndian.write_i32
-  | Longlong -> fun t x -> Int64.of_int x |> IO.BigEndian.write_i64 t
+
+let rec encode: type a. a elem -> Output.t -> a -> unit = function
+  | Bit -> fun t x -> Output.octet t (if x then 1 else 0)
+  | Octet -> Output.octet
+  | Short -> Output.short
+  | Long -> Output.long
+  | Longlong -> Output.longlong
   | Shortstr ->
     let enc = encode Octet in
     fun t x ->
       enc t (String.length x);
-      IO.really_output t x 0 (String.length x) |> ignore
+      Output.string t x
   | Longstr ->
     let enc = encode Long in
     fun t x ->
       enc t (String.length x);
-      IO.really_output t x 0 (String.length x) |> ignore
+      Output.string t x
   | Table -> fun t x ->
-    let os = IO.output_string () in
+    Output.long t (table_length x);
     List.iter (fun (k, v) ->
-        encode Shortstr os k;
-        encode_field os v
+        encode Shortstr t k;
+        encode_field t v
       ) x;
-    IO.close_out os
-    |> encode Longstr t
   | Timestamp ->
     encode Longlong
   | Boolean ->
@@ -149,8 +193,8 @@ let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
     fun t x -> enc t (if x then 1 else 0)
   | Shortshort ->
     encode Octet
-  | Float -> IO.BigEndian.write_float
-  | Double -> IO.BigEndian.write_double
+  | Float -> Output.float
+  | Double -> Output.double
   | Decimal ->
     let denc = encode Octet in
     let venc = encode Long in
@@ -158,9 +202,8 @@ let rec encode: type a b. a elem -> b IO.output -> a -> unit = function
       denc t digits;
       venc t value;
   | Array -> fun t x ->
-    let os = IO.output_string () in
-    List.iter (encode_field os) x;
-    encode Longstr t (IO.close_out os)
+    Output.long t (array_length x);
+    List.iter (encode_field t) x;
   | Unit -> fun _ _ -> ()
 and encode_field t = function
   | VBoolean b ->

@@ -1,3 +1,12 @@
 Remove dependency on Batteries
-Pluggable engine - Async, Direct, Multicore (Algrbraic effects)
 Implement highlevel paradigms (Rpc, Direct, etc.)
+Build a async protocol writer.
+Get the length a spec + arg
+Recursive definition of spec's:
+
+Octet :: Sub (Octet :: Octet :: Nil) :: nil
+Octet :: LongSub (Octet :: Octet :: Nil) :: nil
+(Longsub will first write a long with the length of the sub.)
+
+Use ocplib-endian for endian conversion. Build own writer / reader
+Reader and writer must work on a string. Its ok that the framing layer must read bits a peices.
