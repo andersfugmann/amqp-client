@@ -8,9 +8,8 @@ type t = { framing: Framing.t;
            virtual_host: string;
          }
 
-let handle_channel_open_ok { Spec.Channel.Open_ok.reserved_1 } =
+let handle_channel_open_ok () =
   log "Open_ok";
-  log "Reserved_1: %s" reserved_1;
   return ()
 
 
@@ -45,9 +44,8 @@ let handle_tune { Spec.Connection.Tune.channel_max;
   }
 
 
-let handle_open_ok { Spec.Connection.Open_ok.reserved_1 } =
+let handle_open_ok () =
   log "Open_ok";
-  log "Reserved_1: %s" reserved_1;
   return ()
 
 let handle_close { Spec.Connection.Close.reply_code;
@@ -62,9 +60,7 @@ let handle_close { Spec.Connection.Close.reply_code;
 
 let open_connection { channel; virtual_host; _ } =
   let open Spec.Connection.Open in
-  request channel { virtual_host;
-                    reserved_1 = "";
-                    reserved_2 = false } >>= handle_open_ok
+  request channel { virtual_host } >>= handle_open_ok
 
 
 let connect ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ~host () =
@@ -80,16 +76,12 @@ let connect ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ~
   (* We cannot wait for connection close *)
   don't_wait_for (Spec.Connection.Close.reply channel handle_close);
 
-(*
-  Spec.Channel.Open.request channel { Spec.Channel.Open.reserved_1 = ""; } >>=
-  handle_channel_open_ok >>= fun () ->
-*)
   return t
 
 let open_channel { framing; _} n =
   let (reader, writer) = Pipe.create () in
   Framing.register_channel framing n writer;
   let c = Channel.init framing reader n in
-  Spec.Channel.Open.request c { Spec.Channel.Open.reserved_1 = ""; } >>=
+  Spec.Channel.Open.request c () >>=
   handle_channel_open_ok >>= fun () ->
   return c

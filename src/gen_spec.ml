@@ -1,5 +1,7 @@
 open Batteries
 
+let str fmt = Printf.sprintf fmt
+
 let indent = ref 0
 let emit fmt =
   let indent = String.make (!indent * 2) ' ' in
@@ -10,7 +12,7 @@ let log fmt =
   Printf.ifprintf "" ("%s" ^^ fmt ^^ "\n") indent
 
 module Field = struct
-  type t = { name: string; tpe: string } (* Reserved flag *)
+  type t = { name: string; tpe: string; reserved: bool }
 end
 module Constant = struct
   type t = { name: string; value: int }
@@ -50,7 +52,10 @@ let parse_field attrs nodes =
     | Some d -> d
     | None -> List.assoc "type" attrs
   in
-  { Field.name; tpe }
+
+  let open Option.Infix in
+  let reserved = List.Exceptionless.assoc "reserved" attrs |> ((=) (Some "1")) in
+  { Field.name; tpe; reserved }
 
 let parse_constant attrs nodes =
   assert (nodes = []);
@@ -203,29 +208,37 @@ let emit_method class_index { Method.name;
   emit "module %s = struct" (variant_name name);
   incr indent;
   emit "let spec = %s" (spec_str arguments);
-  begin
-    match arguments with
-    | [] ->
-      emit "type t = unit";
-      emit "let apply f _ = f"; (* Do we need unit on nil? *)
-      emit "let make = ()" (* Do we need unit on nil? *)
-    | _ ->
-       arguments
-       |> List.map
-            (fun t ->
-             Printf.sprintf
-               "%s: %s"
-               (bind_name t.Field.name)
-               (bind_name t.Field.tpe)
-            )
-       |> String.concat "; "
-       |> emit "type t = { %s }";
-       let names = List.map (fun t -> bind_name t.Field.name) arguments in
-       emit "let apply f { %s } = f %s"
-         (String.concat "; " names) (String.concat " " names);
-       emit "let make %s = { %s }"
-         (String.concat " " names) (String.concat "; " names) ;
-  end;
+  let t_args =
+    arguments
+    |> List.filter (fun t -> not t.Field.reserved)
+  in
+  let t_spec, t_args = match t_args with
+    | [] -> "unit", "()"
+    | args ->
+      let a = List.map (fun t -> (bind_name t.Field.name), (bind_name t.Field.tpe)) args in
+      (
+        a |> List.map (fun (a, b) -> a ^ ": " ^ b) |> String.concat "; " |> str "{ %s }",
+        a |> List.map (fun (a, _) -> a) |> String.concat "; " |> str "{ %s }"
+      )
+  in
+  let names =
+    arguments
+    |> List.map (function t when t.Field.reserved -> "_" | t -> bind_name t.Field.name)
+    |> String.concat " "
+  in
+  let values =
+    arguments
+    |> List.map (function
+        | t when t.Field.reserved ->
+          "(reserved_value " ^ t.Field.tpe ^ ")"
+        | t -> bind_name t.Field.name)
+    |> String.concat " "
+  in
+
+  emit "type t = %s" t_spec;
+  emit "let make %s = %s" names t_args;
+  emit "let apply f %s = f %s" t_args values;
+
   emit "let def = ((%d, %d), spec, make, apply)" class_index index;
   emit "(* Name %s *)" name;
   emit "(* Server %b *)" server;

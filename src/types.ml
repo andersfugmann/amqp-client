@@ -53,6 +53,22 @@ type _ elem =
   | Array: array elem
   | Unit: unit elem
 
+let reserved_value: type a. a elem -> a = function
+  | Bit -> false
+  | Octet -> 0
+  | Short -> 0
+  | Long -> 0
+  | Longlong -> 0
+  | Shortstr -> ""
+  | Longstr -> ""
+  | Float -> 0.0
+  | Double -> 0.0
+  | Decimal -> { digits = 0; value = 0 }
+  | Table -> []
+  | Timestamp -> 0
+  | Array -> []
+  | Unit -> ()
+
 type (_, _) spec =
   | Nil : ('a, 'a) spec
   | ::  : 'a elem * ('b, 'c) spec -> (('a -> 'b), 'c) spec
