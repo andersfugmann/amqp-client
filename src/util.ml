@@ -33,6 +33,13 @@ let reply1 req_spec rep_spec =
     rep channel msg;
     return ()
 
-let request2 a b _ = request1 a b
-
-let reply2 a b _ = reply1 a b
+let request2 req_spec rep_spec1 id1 rep_spec2 id2 =
+  (* Might be two difference replies *)
+  let req = request0 req_spec in
+  let rep1 = reply0 rep_spec1 in
+  let rep2 = reply0 rep_spec2 in
+  fun channel msg ->
+    req channel msg;
+    let r1 = rep1 channel >>= fun a -> return (id1 a) in
+    let r2 = rep2 channel >>= fun a -> return (id2 a) in
+    Deferred.any (List.cons r1 (List.cons r2 []))

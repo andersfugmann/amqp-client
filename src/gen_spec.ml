@@ -240,26 +240,31 @@ let emit_method class_index { Method.name;
   emit "let apply f %s = f %s" t_args values;
 
   emit "let def = ((%d, %d), spec, make, apply)" class_index index;
+(*
   emit "(* Name %s *)" name;
   emit "(* Server %b *)" server;
   emit "(* Client %b *)" client;
   emit "(* Synchronous %b *)" synchronous;
   emit "(* Response: [%s] *)" (response |> String.concat ";");
+*)
 
   let response = List.map variant_name response in
-  if List.length response = 1 && ((synchronous && response != []) || not synchronous)  then begin
+  if List.length response >= 0 && ((synchronous && response != []) || not synchronous)  then begin
+    let id r =
+      if List.length response > 1 then
+        "(fun m -> `" ^ r ^ " m)"
+      else
+        ""
+    in
     if client then
-      emit "let reply : C.t -> (t -> %s.t D.t) -> unit D.t = reply%d def %s"
-        (List.hd response)
+      emit "let reply = reply%d def %s"
         (List.length response)
-        (response |> List.map (Printf.sprintf "%s.def") |> String.concat " ");
+        (response |> List.map (fun s -> Printf.sprintf "%s.def %s" s (id s)) |> String.concat " ");
     if server then
-      emit "let request : C.t -> t -> %s.t D.t = request%d def %s"
-        (List.hd response)
+      emit "let request = request%d def %s"
         (List.length response)
-        (response |> List.map (Printf.sprintf "%s.def") |> String.concat " ");
+        (response |> List.map (fun s -> Printf.sprintf "%s.def %s" s (id s)) |> String.concat " ");
   end;
-
   decr indent;
   emit "end";
   ()
