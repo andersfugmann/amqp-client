@@ -8,6 +8,12 @@ type t = { framing: Framing.t;
            virtual_host: string;
          }
 
+let handle_channel_open_ok { Spec.Channel.Open_ok.reserved_1 } =
+  log "Open_ok";
+  log "Reserved_1: %s" reserved_1;
+  return ()
+
+
 let handle_start (username, password) {Spec.Connection.Start.version_major;
                   version_minor;
                   server_properties;
@@ -44,6 +50,16 @@ let handle_open_ok { Spec.Connection.Open_ok.reserved_1 } =
   log "Reserved_1: %s" reserved_1;
   return ()
 
+let handle_close { Spec.Connection.Close.reply_code;
+                   reply_text;
+                   class_id;
+                   method_id;
+                 } =
+  log "Reply code: %d" reply_code;
+  log "Reply test: %s" reply_text;
+  log "message_id: (%d, %d)" class_id method_id;
+  return ()
+
 let open_connection { channel; virtual_host; _ } =
   let open Spec.Connection.Open in
   request channel { virtual_host;
@@ -61,4 +77,19 @@ let connect ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ~
   Spec.Connection.Start.reply channel (handle_start credentials) >>= fun () ->
   Spec.Connection.Tune.reply channel handle_tune >>= fun () ->
   open_connection t >>= fun () ->
+  (* We cannot wait for connection close *)
+  don't_wait_for (Spec.Connection.Close.reply channel handle_close);
+
+(*
+  Spec.Channel.Open.request channel { Spec.Channel.Open.reserved_1 = ""; } >>=
+  handle_channel_open_ok >>= fun () ->
+*)
   return t
+
+let open_channel { framing; _} n =
+  let (reader, writer) = Pipe.create () in
+  Framing.register_channel framing n writer;
+  let c = Channel.init framing reader n in
+  Spec.Channel.Open.request c { Spec.Channel.Open.reserved_1 = ""; } >>=
+  handle_channel_open_ok >>= fun () ->
+  return c

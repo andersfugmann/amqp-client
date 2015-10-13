@@ -37,8 +37,6 @@ let read_method_frame = read (Short :: Short :: Nil)
 let content_header = Short :: Short :: Longlong :: Short :: Nil
 let read_content_header = read content_header
 
-let log fmt = printf (fmt ^^ "\n%!")
-
 (* Should register a monitor *)
 let (>>) a b =
   a >>= function `Eof _ -> raise Connection_closed
@@ -88,7 +86,6 @@ let read_frame t =
   let tpe = decode Octet input in
   let channel_no = decode Short input in
   let length = decode Long input in
-  log "Read: %d %d %d" tpe channel_no length;
   (* read the message *)
   let data = Bytes.create length in
   Reader.really_read t.input data >> fun () ->
@@ -113,20 +110,18 @@ let write_method_frame t channel_no (cid, mid) data =
   write t data;
   Writer.write_char t.output frame_end
 
+let register_channel { channels; _ } n writer =
+  let channel = { state = Ready; writer } in
+  Hashtbl.add channels n channel
+
 (** [writer] is channel 0 writer. It must be attached *)
 let init ~port ~host writer =
   let addr = Tcp.to_host_and_port host port in
   Tcp.connect addr >>= fun (_socket, input, output) ->
-      let channel = { state = Ready; writer } in
-      let channels =
-        let t = Hashtbl.create 0 in
-        Hashtbl.add t 0 channel;
-        t
-      in
+  let channels = Hashtbl.create 0 in
+  let t = { input; output; channels } in
+  register_channel t 0 writer;
+  Deferred.forever t read_frame;
 
-      let t = { input; output; channels } in
-      Deferred.forever t read_frame;
-
-      (* Send the connect string now *)
-      Writer.write output protocol_header;
-      return t
+  Writer.write output protocol_header;
+  return t

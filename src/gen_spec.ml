@@ -206,7 +206,7 @@ let emit_method class_index { Method.name;
   begin
     match arguments with
     | [] ->
-      emit "type t = ()";
+      emit "type t = unit";
       emit "let apply f _ = f"; (* Do we need unit on nil? *)
       emit "let make = ()" (* Do we need unit on nil? *)
     | _ ->
