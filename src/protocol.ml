@@ -15,13 +15,22 @@ module Input = struct
   let longlong t = read get_int64 8 t |> Int64.to_int
   let float = read get_float 4
   let double = read get_double 8
+  (* Special case to write the length at this point later *)
 end
 
 module Output = struct
   open EndianBytes.BigEndian
-  type t = { buf: Bytes.t; mutable offset: int }
-  let create ?(offset=0) buf = { buf; offset }
-  let write f n t v = f t.buf t.offset v; t.offset <- t.offset + n
+  type t = { mutable buf: Bytes.t; mutable offset: int }
+  let init ?(offset=0) buf = { buf; offset }
+  let create ?(size=256) () = { buf = Bytes.create size; offset = 0 }
+  let size_left {buf; offset} = Bytes.length buf - offset
+  let grow t =
+    t.buf <- Bytes.extend t.buf 0 (Bytes.length t.buf)
+  let write f n t v =
+    if size_left t < n then grow t;
+    f t.buf t.offset v; t.offset <- t.offset + n
+  let buffer t = t.buf
+  let length t = t.offset
 
   let string t s =
     let n = String.length s in
@@ -34,4 +43,9 @@ module Output = struct
   let longlong t v = write set_int64 8 t (Int64.of_int v)
   let float = write set_float 4
   let double = write set_double 8
+  let size_ref t =
+    let offset = t.offset in
+    long t 0;
+    fun () ->
+      set_int32 t.buf offset (Int32.of_int (t.offset - (offset + 4)))
 end

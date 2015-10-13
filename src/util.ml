@@ -1,23 +1,22 @@
 open Batteries
 open Async.Std
 open Types
+open Protocol
 
 let request0 (method_id, spec, _make, apply) =
   let write = write spec in
   fun channel msg ->
-    let req =
-      apply (write (IO.output_string ())) msg
-      |> IO.close_out
+    let data =
+      apply (write (Output.create ())) msg
     in
-    Channel.send channel method_id req
+    Channel.write_method channel method_id data
 
 let reply0 (method_id, spec, make, _apply) =
   let read = read spec in
   fun channel ->
     Channel.receive channel method_id |> Ivar.read >>= fun data ->
-    let resp = read make (IO.input_string data) in
+    let resp = read make data in
     return resp
-
 
 let request1 req_spec rep_spec =
   let req = request0 req_spec in
