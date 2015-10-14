@@ -29,13 +29,18 @@ type channel = { mutable state: channel_state;
 type t = { input: Reader.t; output: Writer.t;
            channels: (channel_no, channel) Hashtbl.t }
 
-let frame_end = '\xce'
+let frame_end = '\xce' (* Part of constants *)
 
 let protocol_header = "AMQP\x00\x00\x09\x01"
-let frame          = Octet :: Short :: Longstr :: Octet :: Nil
-let read_method_frame = read (Short :: Short :: Nil)
-let content_header = Short :: Short :: Longlong :: Short :: Nil
-let read_content_header = read content_header
+(* let frame          = Octet :: Short :: Longstr :: Octet :: Nil *)
+let read_method_frame =
+  let open Types.Spec in
+  read (Short :: Short :: Nil)
+let read_content_header =
+  let open Types.Spec in
+  read (Short :: Short :: Longlong :: Short :: Nil)
+
+(* read_content_header = read content_header *)
 
 (* Should register a monitor *)
 let (>>) a b =

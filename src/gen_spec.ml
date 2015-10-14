@@ -313,6 +313,7 @@ let _ =
   emit "";
   emit "";
   emit "open Types";
+  emit "open Types.Spec";
   emit "open Util";
   emit "module C = Channel";
   emit "module D = Async.Std.Deferred";

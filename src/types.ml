@@ -69,13 +69,15 @@ let reserved_value: type a. a elem -> a = function
   | Array -> []
   | Unit -> ()
 
-type (_, _) spec =
-  | Nil : ('a, 'a) spec
-  | ::  : 'a elem * ('b, 'c) spec -> (('a -> 'b), 'c) spec
+module Spec = struct
+  type (_, _) spec =
+    | Nil : ('a, 'a) spec
+    | ::  : 'a elem * ('b, 'c) spec -> (('a -> 'b), 'c) spec
+end
 
 let rec read_while t f =
   match (try Some (f t) with e -> log "%s" (Printexc.to_string e); None) with
-  | Some v -> log "Field"; List.cons v (read_while t f)
+  | Some v -> log "Field"; v :: (read_while t f)
   | None -> []
 
 let rec decode: type a. a elem -> Input.t -> a = fun elem t ->
@@ -213,6 +215,7 @@ and encode_field t = function
     encode Octet t (Char.code 'V');
     encode Unit t ()
 
+open Spec
 let rec read: type b c. (b, c) spec -> b -> Input.t -> c = function
   | (Bit :: _) as spec ->
     let reader = read_bits 8 spec
