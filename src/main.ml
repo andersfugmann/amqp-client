@@ -9,8 +9,8 @@ let _ =
     log "Connection started";
     Connection.open_channel connection 1 >>= fun channel ->
     log "Channel opened";
-    (* Queue.create channel "Anders" *)
-    ignore channel;
+    Queue.declare channel "Anders" >>= fun _ ->
+    log "Test complete";
     return ()
   in
   Scheduler.go ()

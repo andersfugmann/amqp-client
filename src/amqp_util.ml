@@ -1,6 +1,6 @@
 open Async.Std
-open Types
-open Protocol
+open Amqp_types
+open Amqp_protocol
 
 let request0 (method_id, spec, _make, apply) =
   let write = write spec in
@@ -8,12 +8,12 @@ let request0 (method_id, spec, _make, apply) =
     let data =
       apply (write (Output.create ())) msg
     in
-    Channel.write_method channel method_id data
+    Amqp_channel.write_method channel method_id data
 
 let reply0 (method_id, spec, make, _apply) =
   let read = read spec in
   fun channel ->
-    Channel.receive channel method_id |> Ivar.read >>= fun data ->
+    Amqp_channel.receive channel method_id |> Ivar.read >>= fun data ->
     let resp = read make data in
     return resp
 

@@ -1,6 +1,7 @@
 open Async.Std
-open Types
-open Protocol
+open Amqp_types
+open Spec
+open Amqp_protocol
 
 exception Unknown_frame_type of int
 exception Connection_closed
@@ -29,16 +30,12 @@ type channel = { mutable state: channel_state;
 type t = { input: Reader.t; output: Writer.t;
            channels: (channel_no, channel) Hashtbl.t }
 
-let frame_end = '\xce' (* Part of constants *)
+let frame_end = Char.chr (Amqp_constants.frame_end)
 
 let protocol_header = "AMQP\x00\x00\x09\x01"
 (* let frame          = Octet :: Short :: Longstr :: Octet :: Nil *)
-let read_method_frame =
-  let open Types.Spec in
-  read (Short :: Short :: Nil)
-let read_content_header =
-  let open Types.Spec in
-  read (Short :: Short :: Longlong :: Short :: Nil)
+let read_method_frame = read (Short :: Short :: Nil)
+let read_content_header = read (Short :: Short :: Longlong :: Short :: Nil)
 
 (* read_content_header = read content_header *)
 
@@ -52,21 +49,21 @@ let (>>) a b =
 let decode_message t tpe channel_no data =
   let channel = Hashtbl.find t.channels channel_no in
   match tpe with
-  | n when n = Constants.frame_method ->
+  | n when n = Amqp_constants.frame_method ->
     (* Standard method message *)
     assert (channel.state = Ready);
     let input = Input.create data in
     let message_id = read_method_frame (fun a b -> a, b) input in
     Pipe.write_without_pushback channel.writer
       { message_type = Method; message_id; data = input }
-  | n when n = Constants.frame_header ->
+  | n when n = Amqp_constants.frame_header ->
     assert (channel.state = Ready);
     (* Decode the header frame *)
     let message_id, size, _flags =
       read_content_header (fun a b c d -> (a, b), c, d) (Input.create data)
     in
     channel.state <- Waiting (message_id, size, Buffer.create size)
-  | n when n = Constants.frame_body ->
+  | n when n = Amqp_constants.frame_body ->
     begin
       match channel.state with
       | Ready -> failwith "Channel not expecting data frames"
@@ -79,7 +76,7 @@ let decode_message t tpe channel_no data =
           channel.state <- Ready
         end
     end
-  | n when n = Constants.frame_heartbeat ->
+  | n when n = Amqp_constants.frame_heartbeat ->
     failwith "Cannot handle heartbeat yet";
   | n -> raise (Unknown_frame_type n)
 
@@ -106,7 +103,7 @@ let write t data =
 
 let write_method_frame t channel_no (cid, mid) data =
   let output = Output.create ~size:(1+2+4+2+2) () in
-  encode Octet output Constants.frame_method;
+  encode Octet output Amqp_constants.frame_method;
   encode Short output channel_no;
   encode Long  output (Output.length data + 4);
   encode Short output cid;

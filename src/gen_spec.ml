@@ -312,10 +312,10 @@ let _ =
   emit "(***********************************)";
   emit "";
   emit "";
-  emit "open Types";
-  emit "open Types.Spec";
-  emit "open Util";
-  emit "module C = Channel";
+  emit "open Amqp_types";
+  emit "open Amqp_types.Spec";
+  emit "open Amqp_util";
+  emit "module C = Amqp_channel";
   emit "module D = Async.Std.Deferred";
   let tree = xml |> parse_amqp |> emit_domains in
   emit_constants tree;

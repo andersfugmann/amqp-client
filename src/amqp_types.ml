@@ -1,5 +1,5 @@
 open Batteries
-open Protocol
+open Amqp_protocol
 
 type message_id = int * int
 
