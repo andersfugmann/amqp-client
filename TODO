@@ -1,12 +1,12 @@
 Remove dependency on Batteries
 Implement highlevel paradigms (Rpc, Direct, etc.)
-Build a async protocol writer.
-Get the length a spec + arg
-Recursive definition of spec's:
 
-Octet :: Sub (Octet :: Octet :: Nil) :: nil
-Octet :: LongSub (Octet :: Octet :: Nil) :: nil
-(Longsub will first write a long with the length of the sub.)
+* Store frame max length
+* Handle heartbeat
+* Deregister handlers after reception of a message
 
-Use ocplib-endian for endian conversion. Build own writer / reader
-Reader and writer must work on a string. Its ok that the framing layer must read bits a peices.
+* Decode body frames
+* Recieve body frames
+* Send body frames
+
+* understand properties sent when starting the connection

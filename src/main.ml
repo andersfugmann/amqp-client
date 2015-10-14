@@ -1,5 +1,7 @@
 open Async.Std
-open Protocol
+open Amqp
+
+let log fmt = printf (fmt ^^ "\n%!")
 
 let _ =
   let _ =
