@@ -10,3 +10,7 @@ Implement highlevel paradigms (Rpc, Direct, etc.)
 * Send body frames
 
 * understand properties sent when starting the connection
+
+* Add id's for connecton, channel etc for debugging.
+* Allow creation of anonymous queue prefixed with correct names and pids and hostnames
+*
