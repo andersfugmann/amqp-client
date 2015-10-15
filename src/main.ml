@@ -15,7 +15,8 @@ let _ =
         dead_letter_exchange "amq.direct";
         maximum_priority 7 ]
     in
-    Queue.declare channel ~arguments "Anders" >>= fun _ ->
+    Queue.declare channel ~arguments "Anders" >>= fun queue ->
+    Queue.get ~no_ack:false channel queue >>= fun () ->
     log "Test complete";
     return ()
   in

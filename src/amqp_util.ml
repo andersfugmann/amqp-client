@@ -2,18 +2,22 @@ open Async.Std
 open Amqp_types
 open Amqp_protocol
 
-let request0 (method_id, spec, _make, apply) =
+let request0 (message_type, message_id, spec, _make, apply) =
   let write = write spec in
   fun channel msg ->
     let data =
       apply (write (Output.create ())) msg
     in
-    Amqp_channel.write_method channel method_id data
+    Amqp_channel.write channel message_type message_id data
 
-let reply0 (method_id, spec, make, _apply) =
+let cancel channel (_message_type, message_id, _spec, _make, _apply) =
+  Amqp_channel.cancel_receive channel (Amqp_framing.Method, message_id)
+
+let reply0 (message_type, message_id, spec, make, _apply) =
   let read = read spec in
   fun channel ->
-    Amqp_channel.receive channel method_id |> Ivar.read >>= fun data ->
+    Amqp_channel.receive channel (message_type, message_id) |> Ivar.read >>= fun data ->
+    Amqp_channel.cancel_receive channel (message_type, message_id);
     let resp = read make data in
     return resp
 
@@ -42,5 +46,6 @@ let request2 req_spec rep_spec1 id1 rep_spec2 id2 =
     let r2 = rep2 channel >>= fun a -> return (id2 a) in
     let open Pervasives in
     Deferred.any [r1; r2] >>= fun a ->
-    (* TODO: Remove all handlers *)
+    cancel channel rep_spec1;
+    cancel channel rep_spec2;
     return a

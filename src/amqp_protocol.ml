@@ -47,6 +47,6 @@ module Output = struct
   let size_ref t =
     let offset = t.offset in
     long t 0;
-    fun () ->
-      set_int32 t.buf offset (Int32.of_int (t.offset - (offset + 4)))
+    fun extra ->
+      set_int32 t.buf offset (Int32.of_int (t.offset - (offset + 4) + extra))
 end

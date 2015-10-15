@@ -98,19 +98,32 @@ let read_frame t =
   | `Ok c -> failwith (Printf.sprintf "Unexpected char : %x" (Char.code c))
   | `Eof -> failwith "Connection closed"
 
-let write t data =
-  Writer.write ~len:(Output.length data) t.output (Output.buffer data)
-
-let write_method_frame t channel_no (cid, mid) data =
-  let output = Output.create ~size:(1+2+4+2+2) () in
+let write_frame t channel_no premable premable_length data =
+  let output = Output.create ~size:(1+2+4+premable_length) () in
   encode Octet output Amqp_constants.frame_method;
   encode Short output channel_no;
-  encode Long  output (Output.length data + 4);
-  encode Short output cid;
-  encode Short output mid;
-  write t output;
-  write t data;
+  let sizer = Output.size_ref output in
+  premable output;
+  sizer (Output.length data);
+  Writer.write ~len:(Output.length output) t.output (Output.buffer output);
+  Writer.write ~len:(Output.length data) t.output (Output.buffer data);
   Writer.write_char t.output frame_end
+
+let write_method_frame t channel_no (cid, mid) data =
+  let premable output =
+    encode Short output cid;
+    encode Short output mid;
+  in
+  write_frame t channel_no premable (2+2) data
+
+let write_body_frame _t _channel_no (_cid, _mid) _data = ()
+
+let write_frame t channel_no message_type (cid, mid) data =
+  match message_type with
+  | Method -> write_method_frame t channel_no (cid, mid) data
+  | Body -> write_body_frame t channel_no (cid, mid) data
+
+
 
 let register_channel { channels; _ } n writer =
   let channel = { state = Ready; writer } in

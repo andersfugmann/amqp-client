@@ -195,15 +195,16 @@ let spec_str arguments =
   |> flip List.append ["Nil"]
   |> String.concat " :: "
 
-let emit_method class_index { Method.name;
-                              arguments;
-                              response;
-                              content;
-                              index;
-                              synchronous;
-                              client;
-                              server;
-                            } =
+let emit_method ?(body_frame=false) class_index
+    { Method.name;
+      arguments;
+      response;
+      content;
+      index;
+      synchronous;
+      client;
+      server;
+    } =
   ignore content; ignore index; ignore server; ignore client; ignore class_index;
   emit "module %s = struct" (variant_name name);
   incr indent;
@@ -234,12 +235,17 @@ let emit_method class_index { Method.name;
         | t -> bind_name t.Field.name)
     |> String.concat " "
   in
+  let frame_type =
+    match body_frame with
+    | true -> "Amqp_framing.Body"
+    | false -> "Amqp_framing.Method"
+  in
 
   emit "type t = %s" t_spec;
   emit "let make %s = %s" names t_args;
   emit "let apply f %s = f %s" t_args values;
 
-  emit "let def = ((%d, %d), spec, make, apply)" class_index index;
+  emit "let def = (%s, (%d, %d), spec, make, apply)" frame_type class_index index;
 (*
   emit "(* Name %s *)" name;
   emit "(* Server %b *)" server;
@@ -288,11 +294,11 @@ let emit_class { Class.name; content; index; methods } =
   incr indent;
 
   if (content != []) then
-    emit_method index { Method.name = "payload";
+    emit_method index { Method.name = "body";
                         arguments = content;
                         response = [];
                         content = false;
-                        index = 0;
+                        index = 0; (* Is this correct? Or should it inherit using method? *)
                         synchronous = false;
                         server=false;
                         client=false

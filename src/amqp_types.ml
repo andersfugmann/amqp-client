@@ -155,7 +155,7 @@ let rec encode: type a. a elem -> Output.t -> a -> unit = function
         encode Shortstr t k;
         encode_field t v
       ) x;
-    size_ref ()
+    size_ref 0
   | Timestamp ->
     encode Longlong
   | Float -> Output.float
@@ -169,7 +169,7 @@ let rec encode: type a. a elem -> Output.t -> a -> unit = function
   | Array -> fun t x ->
     let size_ref = Output.size_ref t in
     List.iter (encode_field t) x;
-    size_ref ()
+    size_ref 0
   | Unit -> fun _ _ -> ()
 and encode_field t = function
   | VBoolean b ->
