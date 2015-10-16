@@ -11,15 +11,19 @@ let request0 (message_type, message_id, spec, _make, apply) =
     Amqp_channel.write channel message_type message_id data
 
 let cancel channel (_message_type, message_id, _spec, _make, _apply) =
-  Amqp_channel.cancel_receive channel (Amqp_framing.Method, message_id)
+  Amqp_channel.remove_handler channel (Amqp_framing.Method, message_id)
 
-let reply0 (message_type, message_id, spec, make, _apply) =
+let reply0 ?(post_handler) (message_type, message_id, spec, make, _apply) =
   let read = read spec in
+  let var = Ivar.create () in
   fun channel ->
-    Amqp_channel.receive channel (message_type, message_id) |> Ivar.read >>= fun data ->
-    Amqp_channel.cancel_receive channel (message_type, message_id);
-    let resp = read make data in
-    return resp
+    let handler data =
+      read make data |> Ivar.fill var;
+      Amqp_channel.remove_handler channel (message_type, message_id);
+      match post_handler with Some h -> h channel | None -> ()
+    in
+    Amqp_channel.add_handler channel (message_type, message_id) handler;
+    Ivar.read var
 
 let request1 req_spec rep_spec =
   let req = request0 req_spec in
@@ -36,16 +40,19 @@ let reply1 req_spec rep_spec =
     rep channel msg;
     return ()
 
+
 let request2 req_spec rep_spec1 id1 rep_spec2 id2 =
   let req = request0 req_spec in
-  let rep1 = reply0 rep_spec1 in
-  let rep2 = reply0 rep_spec2 in
+
+  let unregister (message_type, message_id, _, _, _) channel =
+    Amqp_channel.remove_handler channel (message_type, message_id)
+  in
+  let rep1 = reply0 ~post_handler:(unregister rep_spec1) rep_spec1 in
+  let rep2 = reply0 ~post_handler:(unregister rep_spec1) rep_spec2 in
   fun channel msg ->
     req channel msg;
-    let r1 = rep1 channel >>= fun a -> return (id1 a) in
-    let r2 = rep2 channel >>= fun a -> return (id2 a) in
-    let open Pervasives in
-    Deferred.any [r1; r2] >>= fun a ->
-    cancel channel rep_spec1;
-    cancel channel rep_spec2;
-    return a
+    (* Choose either one *)
+    Deferred.any [
+      rep1 channel >>= (fun a -> return (id1 a));
+      rep2 channel >>= (fun a -> return (id2 a));
+    ]

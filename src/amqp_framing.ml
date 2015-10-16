@@ -14,7 +14,7 @@ type channel_state =
 
 type message_type =
   | Method
-  | Body
+  | Content
 
 type message = { message_type : message_type;
                  message_id : message_id;
@@ -28,7 +28,9 @@ type channel = { mutable state: channel_state;
                }
 
 type t = { input: Reader.t; output: Writer.t;
-           channels: (channel_no, channel) Hashtbl.t }
+           channels: (channel_no, channel) Hashtbl.t;
+           max_length: int;
+         }
 
 let frame_end = Char.chr (Amqp_constants.frame_end)
 
@@ -66,17 +68,18 @@ let decode_message t tpe channel_no data =
   | n when n = Amqp_constants.frame_body ->
     begin
       match channel.state with
-      | Ready -> failwith "Channel not expecting data frames"
+      | Ready -> failwith "Channel not expecting body frames"
       | Waiting (message_id, size, buffer) ->
         Buffer.add_string buffer data;
         if (size == Buffer.length buffer) then begin
           let data = Buffer.contents buffer in
           Pipe.write_without_pushback channel.writer
-            { message_type = Body; message_id; data = Input.create data };
+            { message_type = Content; message_id; data = Input.create data };
           channel.state <- Ready
         end
     end
   | n when n = Amqp_constants.frame_heartbeat ->
+    (* TODO: Send back a heartbeat frame *)
     failwith "Cannot handle heartbeat yet";
   | n -> raise (Unknown_frame_type n)
 
@@ -109,21 +112,37 @@ let write_frame t channel_no premable premable_length data =
   Writer.write ~len:(Output.length data) t.output (Output.buffer data);
   Writer.write_char t.output frame_end
 
-let write_method_frame t channel_no (cid, mid) data =
+let write_method t channel_no (cid, mid) data =
   let premable output =
     encode Short output cid;
     encode Short output mid;
   in
   write_frame t channel_no premable (2+2) data
 
-let write_body_frame _t _channel_no (_cid, _mid) _data = ()
+let write_content t channel_no (cid, mid) data =
+  let premable output =
+    encode Short output cid;
+    encode Short output mid;
+    encode Longlong output (Output.length data);
+    encode Short output 0
+  in
+  write_frame t channel_no premable (2+2+8+2) data;
 
-let write_frame t channel_no message_type (cid, mid) data =
+  (* TODO: Allow interleaving to avoid starvation *)
+  let rec send_data = function
+    | offset when offset < (Output.length data) ->
+      (* Send the next chunk *)
+      let sub = Output.sub ~start:offset ~length:t.max_length data in
+      write_frame t channel_no ignore 0 sub;
+      send_data (offset + t.max_length)
+    | _ -> ()
+  in
+  send_data 0
+
+let write_message t channel_no message_type (cid, mid) data =
   match message_type with
-  | Method -> write_method_frame t channel_no (cid, mid) data
-  | Body -> write_body_frame t channel_no (cid, mid) data
-
-
+  | Method -> write_method t channel_no (cid, mid) data
+  | Content -> write_content t channel_no (cid, mid) data
 
 let register_channel { channels; _ } n writer =
   let channel = { state = Ready; writer } in
@@ -134,7 +153,7 @@ let init ~port ~host writer =
   let addr = Tcp.to_host_and_port host port in
   Tcp.connect addr >>= fun (_socket, input, output) ->
   let channels = Hashtbl.create 0 in
-  let t = { input; output; channels } in
+  let t = { input; output; channels; max_length = 256 } in
   register_channel t 0 writer;
   Deferred.forever t read_frame;
 

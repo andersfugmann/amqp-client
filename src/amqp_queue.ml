@@ -43,6 +43,7 @@ let get ~no_ack channel { queue } =
     log "message_count: %d" message_count;
 
     (* Now read the contents *)
-
-
+    (*
+    type t = { content_type: shortstr; content_encoding: shortstr; headers: table; delivery_mode: octet; priority: octet; correlation_id: shortstr; reply_to: shortstr; expiration: shortstr; message_id: shortstr; timestamp: timestamp; amqp_type: shortstr; user_id: shortstr; app_id: shortstr; reserved: shortstr }
+*)
     return ()
