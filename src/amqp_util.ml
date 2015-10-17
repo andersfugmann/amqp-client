@@ -41,7 +41,7 @@ let rec list_create f = function
   | 0 -> []
   | n -> f () :: list_create f (n - 1)
 
-let write_content (message_id, spec, _make, apply) =
+let write_content ((cid, _), spec, _make, apply) =
   let write = Content.write spec in
   let property_bits = Content.length spec in
   let property_length = (property_bits + 14) / 15 in
@@ -53,7 +53,7 @@ let write_content (message_id, spec, _make, apply) =
     update_property_flags property_bits !property_flags property_words;
 
     (* Now send the data. *)
-    Amqp_channel.write_content channel (fst message_id) output message
+    Amqp_channel.write_content channel cid output message
 
 
 let read_content ((cid, _), spec, make, _apply) =
@@ -71,8 +71,7 @@ let read_content ((cid, _), spec, make, _apply) =
     Amqp_channel.add_content_handler channel cid handler;
     Ivar.read var
 
-
-let request (message_id, spec, _make, apply) =
+let write_method (message_id, spec, _make, apply) =
   let write = Spec.write spec in
   let request channel msg =
     let data =
@@ -82,16 +81,7 @@ let request (message_id, spec, _make, apply) =
   in
   request
 
-let request_content (message_id, spec, _make, apply) c_req =
-  let write = Spec.write spec in
-  let request channel (msg, content) =
-    apply (write (Output.create ())) msg
-    |> Amqp_channel.write_method channel message_id;
-    c_req channel content
-  in
-  request
-
-let reply (message_id, spec, make, _apply) =
+let read_method (message_id, spec, make, _apply) =
   let read = Spec.read spec in
   let var = Ivar.create () in
   let reply post_handler channel =
@@ -106,14 +96,22 @@ let reply (message_id, spec, make, _apply) =
   in
   (message_id, reply)
 
-let reply_content spec (_, c_rep) =
-  let tpe, reply = reply spec in
-  let reply post_handler channel =
-    reply post_handler channel >>= fun m ->
-    c_rep ignore channel >>= fun c ->
-    return (m, c)
+let request req = req
+
+let request_content req req_content =
+  fun channel (message, content, data) ->
+    req channel message;
+    req_content channel (content, data)
+
+let reply rep = rep
+
+let reply_content (message_id, rep) rep_content =
+  let rep post_handler channel =
+    rep post_handler channel >>= fun a ->
+    rep_content channel >>= fun b ->
+    return (a, b)
   in
-  (tpe, reply)
+  (message_id, rep)
 
 let request0 req = req
 

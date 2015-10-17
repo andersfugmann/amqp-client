@@ -208,19 +208,21 @@ let emit_method ?(is_content=false) class_index
     } =
   emit "module %s = struct" (variant_name name);
   incr indent;
-  if is_content && false then
-    emit "open Amqp_types.Content_spec"
+  if is_content then
+    emit "open Amqp_types.Content"
   else
     emit "open Amqp_types.Spec";
+
   emit "let spec = %s" (spec_str arguments);
   let t_args =
     arguments
     |> List.filter (fun t -> not t.Field.reserved)
   in
+  let option = if is_content then " option" else "" in
   let t_spec, t_args = match t_args with
     | [] -> "unit", "()"
     | args ->
-      let a = List.map (fun t -> (bind_name t.Field.name), (bind_name t.Field.tpe)) args in
+      let a = List.map (fun t -> (bind_name t.Field.name), (bind_name t.Field.tpe) ^ option) args in
       (
         a |> List.map (fun (a, b) -> a ^ ": " ^ b) |> String.concat "; " |> str "{ %s }",
         a |> List.map (fun (a, _) -> a) |> String.concat "; " |> str "{ %s }"
@@ -244,13 +246,22 @@ let emit_method ?(is_content=false) class_index
   emit "let make %s = %s" names t_args;
   emit "let apply f %s = f %s" t_args values;
   emit "let def = ((%d, %d), spec, make, apply)" class_index index;
+
+  begin match is_content with
+    | true ->
+      emit "let write = write_content def";
+      emit "let read = read_content def"
+    | false  ->
+      emit "let write = write_method def";
+      emit "let read = read_method def"
+  end;
   begin match content with
     | false ->
-      emit "let req = request def";
-      emit "let rep = reply def"
+      emit "let req = request write";
+      emit "let rep = reply read"
     | true ->
-      emit "let req = request_content def Content.req";
-      emit "let rep = reply_content def Content.rep"
+      emit "let req = request_content write Content.write";
+      emit "let rep = reply_content read Content.read"
   end;
   let response = List.map variant_name response in
   if List.length response >= 0 && ((synchronous && response != []) || not synchronous)  then begin
