@@ -10,16 +10,11 @@ type channel_no = int
 
 type channel_state =
   | Ready
-  | Waiting of message_id * int * Buffer.t
+  | Waiting of class_id * Input.t * int * Buffer.t
 
-type message_type =
-  | Method
-  | Content
-
-type message = { message_type : message_type;
-                 message_id : message_id;
-                 data : Input.t;
-               }
+type message =
+  | Method of message_id * Input.t
+  | Content of class_id * Input.t * string
 
 type data = Input.t
 
@@ -37,7 +32,7 @@ let frame_end = Char.chr (Amqp_constants.frame_end)
 let protocol_header = "AMQP\x00\x00\x09\x01"
 (* let frame          = Octet :: Short :: Longstr :: Octet :: Nil *)
 let read_method_frame = read (Short :: Short :: Nil)
-let read_content_header = read (Short :: Short :: Longlong :: Short :: Nil)
+let read_content_header = read (Short :: Short :: Longlong :: Nil)
 
 (* read_content_header = read content_header *)
 
@@ -57,31 +52,23 @@ let decode_message t tpe channel_no data =
     let input = Input.create data in
     let message_id = read_method_frame (fun a b -> a, b) input in
     Pipe.write_without_pushback channel.writer
-      { message_type = Method; message_id; data = input }
+      (Method (message_id, input))
   | n when n = Amqp_constants.frame_header ->
     assert (channel.state = Ready);
-    (* Decode the header frame *)
-    (* I think the flags may have some data we need.
-       The properties will tell os how many of the properties are given,
-       then based on this we read needed data.
-       It means that all parameters are option types....
-       And we should only decode those in there. *)
     let input = Input.create data in
-    let message_id, size, _property_flags =
-      read_content_header (fun a b c d -> (a, b), c, d) input
+    let class_id, _weight, size =
+      read_content_header (fun a b c -> a, b, c) input
     in
-    Amqp_types.log "Properties: %x. %d" _property_flags (Input.length input);
-    channel.state <- Waiting (message_id, size, Buffer.create size)
+    channel.state <- Waiting (class_id, input, size, Buffer.create size)
   | n when n = Amqp_constants.frame_body ->
     begin
       match channel.state with
       | Ready -> failwith "Channel not expecting body frames"
-      | Waiting (message_id, size, buffer) ->
+      | Waiting (class_id, content, size, buffer) ->
         Buffer.add_string buffer data;
-        if (size == Buffer.length buffer) then begin
-          let data = Buffer.contents buffer in
+        if (size = Buffer.length buffer) then begin
           Pipe.write_without_pushback channel.writer
-            { message_type = Content; message_id; data = Input.create data };
+            (Content (class_id, content, Buffer.contents buffer));
           channel.state <- Ready
         end
     end
@@ -126,14 +113,14 @@ let write_method t channel_no (cid, mid) data =
   in
   write_frame t channel_no premable (2+2) data
 
-let write_content t channel_no (cid, mid) data =
+let write_content t channel_no class_id content (data:string) =
+  let data = Output.init data in
   let premable output =
-    encode Short output cid;
-    encode Short output mid;
+    encode Short output class_id;
+    encode Short output 0;
     encode Longlong output (Output.length data);
-    encode Short output 0
   in
-  write_frame t channel_no premable (2+2+8+2) data;
+  write_frame t channel_no premable (2+2+8) content;
 
   (* TODO: Allow interleaving to avoid starvation *)
   let rec send_data = function
@@ -146,10 +133,6 @@ let write_content t channel_no (cid, mid) data =
   in
   send_data 0
 
-let write_message t channel_no message_type (cid, mid) data =
-  match message_type with
-  | Method -> write_method t channel_no (cid, mid) data
-  | Content -> write_content t channel_no (cid, mid) data
 
 let register_channel { channels; _ } n writer =
   let channel = { state = Ready; writer } in

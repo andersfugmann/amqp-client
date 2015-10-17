@@ -36,16 +36,22 @@ module Output = struct
   let length t = t.offset - t.start
 
   let string t s =
-    let n = String.length s in
-    Bytes.blit_string s 0 t.buf t.offset n;
-    t.offset <- t.offset + n
+    let len =String.length s in
+    begin match Bytes.length t.buf - t.offset with
+      | n when n < len ->
+        t.buf <- Bytes.extend t.buf 0 (len - n)
+      | _ -> ()
+    end;
+    Bytes.blit_string s 0 t.buf t.offset len;
+    t.offset <- t.offset + len
 
   let octet = write set_int8 1
 
   let short = write set_int16 2
-  let ref_short t =
+  let short_ref t =
     let offset = t.offset in
     short t 0;
+    (* evaluate t.buf late, as it might change before calling the function *)
     fun v -> set_int16 t.buf offset v
 
   let long t v = write set_int32 4 t (Int32.of_int v)
@@ -61,4 +67,5 @@ module Output = struct
   let sub t ~start ~length =
     let offset = min (start+length) (Bytes.length t.buf) in
     { start; offset; buf = t.buf }
+
 end

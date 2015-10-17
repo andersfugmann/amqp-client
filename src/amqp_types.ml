@@ -1,7 +1,9 @@
 open Batteries
 open Amqp_protocol
 
-type message_id = int * int
+type class_id = int
+type method_id = int
+type message_id = class_id * method_id
 
 type bit = bool
 and octet = int
@@ -268,9 +270,7 @@ module Spec = struct
   let rec to_string: type a b. (a, b) spec -> string = function
     | x :: xs -> elem_to_string x ^ " :: " ^ to_string xs
     | Nil -> "Nil"
-
 end
-
 
 module Content = struct
   type (_, _) spec =
@@ -285,8 +285,8 @@ module Content = struct
   | Bit :: tail ->
     let reader = read tail in
     fun b flags t ->
-      let value = flags land 1 = 1 in
-      reader (b (Some value)) (flags lsr 1) t
+      let value = if (flags land 1 = 1) then Some true else None in
+      reader (b value) (flags lsr 1) t
   | head :: tail ->
     let reader = read tail
     and decoder = decode head in
@@ -299,30 +299,27 @@ module Content = struct
       in
       reader (b value) (flags lsr 1) t
   | Nil ->
-    fun b _flags _t -> b
+    fun _b _flags _t -> _b
 
-  let rec write: type b. (b, Output.t) spec -> int -> Output.t -> b = function
+  let rec write: type b. (b, Output.t) spec -> int ref -> Output.t -> b = function
   | Bit :: tail ->
     let writer = write tail in
     fun flags t x ->
-      let flags = flags * 2 in
-      let flags = match x with
-        | Some true ->
-          (flags + 1)
-        | _ -> flags
-      in
+      flags := !flags * 2;
+      if x = Some true then incr flags;
       writer flags t
   | spec :: tail ->
     let encoder = encode spec
     and writer = write tail in
     fun flags t x ->
-      let flags = flags * 2 in
-      let flags = match x with
+      flags := !flags * 2;
+      begin
+        match x with
         | Some x ->
           encoder t x;
-          (flags + 1)
-        | None -> flags
-      in
+          incr flags
+        | None -> ()
+      end;
       writer flags t
-  | Nil -> fun _ r -> r
+  | Nil -> fun _flags _x -> _x
 end

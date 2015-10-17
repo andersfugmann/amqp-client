@@ -208,7 +208,7 @@ let emit_method ?(is_content=false) class_index
     } =
   emit "module %s = struct" (variant_name name);
   incr indent;
-  if content && false then
+  if is_content && false then
     emit "open Amqp_types.Content_spec"
   else
     emit "open Amqp_types.Spec";
@@ -239,16 +239,11 @@ let emit_method ?(is_content=false) class_index
         | t -> bind_name t.Field.name)
     |> String.concat " "
   in
-  let frame_type =
-    match is_content with
-    | true -> "Amqp_framing.Content"
-    | false -> "Amqp_framing.Method"
-  in
 
   emit "type t = %s" t_spec;
   emit "let make %s = %s" names t_args;
   emit "let apply f %s = f %s" t_args values;
-  emit "let def = (%s, (%d, %d), spec, make, apply)" frame_type class_index index;
+  emit "let def = ((%d, %d), spec, make, apply)" class_index index;
   begin match content with
     | false ->
       emit "let req = request def";
