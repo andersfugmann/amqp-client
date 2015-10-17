@@ -1,7 +1,8 @@
+module P = Printf
 open Async.Std
 open Batteries
 
-let log fmt = printf (fmt ^^ "\n%!")
+let log fmt = P.ifprintf stderr (fmt ^^ "\n%!")
 
 type t = { framing: Amqp_framing.t;
            channel: Amqp_channel.t;

@@ -2,7 +2,7 @@ module P = Printf
 open Async.Std
 open Amqp
 
-let log fmt = P.eprintf (fmt ^^ "\n%!")
+let log fmt = printf (fmt ^^ "\n%!")
 
 let _ =
   let _ =
@@ -15,7 +15,8 @@ let _ =
       [ maximum_priority 7 ]
     in
     Queue.declare channel ~arguments "Anders" >>= fun queue ->
-    Queue.get ~no_ack:true channel queue >>= fun () ->
+    Queue.get ~no_ack:false channel queue
+      (fun msg -> log "Received Message: %s" msg; return ()) >>= fun () ->
     log "Test complete";
     return ()
   in

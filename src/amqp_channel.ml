@@ -2,6 +2,7 @@ module P = Printf
 open Async.Std
 open Amqp_protocol
 
+
 exception Busy
 
 type method_handler = Input.t -> unit
@@ -25,7 +26,7 @@ let write_method t message_id data =
 let read t =
   Pipe.read t.input >>= function
   | `Ok (Amqp_framing.Method (message_id, data)) ->
-    P.eprintf "Received method: (%d, %d) on channel %d. Data length: %d\n%!"
+    log "Received method: (%d, %d) on channel %d. Data length: %d\n%!"
       (fst message_id) (snd message_id) t.channel_no (Input.length data);
     begin match Hashtbl.find t.method_handlers message_id with
       | handler ->
@@ -35,7 +36,7 @@ let read t =
         failwith (Printf.sprintf "Unhandled method: %d (%d, %d)" t.channel_no (fst message_id) (snd message_id))
     end
   | `Ok (Amqp_framing.Content (class_id, content, data)) ->
-    P.eprintf "Received content: %d on channel %d. Content: %d Data: %d\n%!"
+    log "Received content: %d on channel %d. Content: %d Data: %d\n%!"
       class_id t.channel_no (Input.length content) (String.length data);
     begin match Hashtbl.find t.content_handlers class_id with
       | handler ->

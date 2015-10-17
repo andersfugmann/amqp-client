@@ -1,3 +1,5 @@
+let log fmt = Printf.ifprintf stderr (fmt ^^ "\n%!")
+
 open Async.Std
 open Amqp_types
 open Spec

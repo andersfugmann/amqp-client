@@ -1,8 +1,7 @@
-module P = Printf
+let log fmt = Printf.ifprintf stderr (fmt ^^ "\n%!")
 open Async.Std
 type t = { queue: string }
 
-let log fmt = P.eprintf (fmt ^^ "\n%!")
 
 let message_ttl v = "x-message-ttl", Amqp_types.VLonglong v
 let auto_expire v = "x-expires", Amqp_types.VLonglong v
@@ -27,7 +26,7 @@ let declare channel ?(passive=false) ?(durable=false) ?(exclusive=false) ?(auto_
 let bind _ _  = ()
 let unbind _ _ = ()
 
-let get ~no_ack channel { queue } =
+let get ~no_ack channel { queue } handler =
   let open Amqp_spec.Basic in
   Get.request channel { Get.queue; no_ack } >>= function
   | `Get_empty () ->
@@ -49,5 +48,6 @@ let get ~no_ack channel { queue } =
 
 
     log "data: %s" data;
-
+    handler data >>= fun () ->
+    Ack.request channel { Ack.delivery_tag; multiple = false };
     return ()

@@ -3,7 +3,7 @@ open Async.Std
 open Amqp_types
 open Amqp_protocol
 
-let log fmt = P.eprintf (fmt ^^ "\n%!")
+let log fmt = P.ifprintf stderr (fmt ^^ "\n%!")
 
 
 let update_property_flags bits v words =

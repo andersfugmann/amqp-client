@@ -1,3 +1,5 @@
+let log fmt = Printf.ifprintf stderr (fmt ^^ "\n%!")
+
 open Batteries
 open Amqp_protocol
 
@@ -32,7 +34,6 @@ and value =
   | VTimestamp of int
   | VUnit of unit
 
-let log fmt = Printf.eprintf (fmt ^^ "\n%!")
 
 
 exception Unknown_class_id of int
