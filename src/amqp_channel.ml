@@ -1,3 +1,4 @@
+module P = Printf
 open Async.Std
 open Amqp_protocol
 
@@ -17,12 +18,11 @@ let write t message_type message_id data =
   log "Send method on channel: %d (%d, %d)" t.channel_no (fst message_id) (snd message_id);
   Amqp_framing.write_message t.framing t.channel_no message_type message_id data
 
-(* Reception is a continious repeat of reading messages and setting the correct ivar. *)
 let read t =
   Pipe.read t.input >>= function
   | `Ok { Amqp_framing.message_type; message_id; data } ->
-    log "Received method: (%d, %d) on channel %d"
-      (fst message_id) (snd message_id) t.channel_no;
+    P.eprintf "Received method: (%d, %d) on channel %d. Data length: %d\n%!"
+      (fst message_id) (snd message_id) t.channel_no (Input.length data);
     begin match Hashtbl.find t.handlers (message_type, message_id) with
       | handler ->
         handler data;

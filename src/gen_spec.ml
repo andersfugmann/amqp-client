@@ -206,9 +206,12 @@ let emit_method ?(is_content=false) class_index
       client;
       server;
     } =
-  ignore content; ignore index; ignore server; ignore client; ignore class_index;
   emit "module %s = struct" (variant_name name);
   incr indent;
+  if content && false then
+    emit "open Amqp_types.Content_spec"
+  else
+    emit "open Amqp_types.Spec";
   emit "let spec = %s" (spec_str arguments);
   let t_args =
     arguments
@@ -245,9 +248,15 @@ let emit_method ?(is_content=false) class_index
   emit "type t = %s" t_spec;
   emit "let make %s = %s" names t_args;
   emit "let apply f %s = f %s" t_args values;
-
   emit "let def = (%s, (%d, %d), spec, make, apply)" frame_type class_index index;
-
+  begin match content with
+    | false ->
+      emit "let req = request def";
+      emit "let rep = reply def"
+    | true ->
+      emit "let req = request_content def Content.req";
+      emit "let rep = reply_content def Content.rep"
+  end;
   let response = List.map variant_name response in
   if List.length response >= 0 && ((synchronous && response != []) || not synchronous)  then begin
     let id r =
@@ -257,13 +266,13 @@ let emit_method ?(is_content=false) class_index
         ""
     in
     if client then
-      emit "let reply = reply%d def %s"
+      emit "let reply = reply%d rep %s"
         (List.length response)
-        (response |> List.map (fun s -> Printf.sprintf "%s.def %s" s (id s)) |> String.concat " ");
+        (response |> List.map (fun s -> Printf.sprintf "%s.req %s" s (id s)) |> String.concat " ");
     if server then
-      emit "let request = request%d def %s"
+      emit "let request = request%d req %s"
         (List.length response)
-        (response |> List.map (fun s -> Printf.sprintf "%s.def %s" s (id s)) |> String.concat " ");
+        (response |> List.map (fun s -> Printf.sprintf "%s.rep %s" s (id s)) |> String.concat " ");
   end;
   decr indent;
   emit "end";
@@ -337,7 +346,6 @@ let () =
   emit "";
   emit "";
   emit "open Amqp_types";
-  emit "open Amqp_types.Spec";
   emit "open Amqp_util";
   emit "module C = Amqp_channel";
   emit "module D = Async.Std.Deferred";

@@ -1,7 +1,7 @@
 open Async.Std
 type t = { queue: string }
 
-let log = Amqp_types.log
+let log fmt = printf (fmt ^^ "\n%!")
 
 let message_ttl v = "x-message-ttl", Amqp_types.VLonglong v
 let auto_expire v = "x-expires", Amqp_types.VLonglong v
@@ -31,19 +31,15 @@ let get ~no_ack channel { queue } =
   Get.request channel { Get.queue; no_ack } >>= function
   | `Get_empty () ->
     log "No Data"; return ()
-  | `Get_ok { Get_ok.delivery_tag;
+  | `Get_ok ({ Get_ok.delivery_tag;
               redelivered;
               exchange;
               routing_key;
-              message_count; } ->
+              message_count; }, _content)  ->
     log "delivery_tag: %d" delivery_tag;
     log "redelivered: %b" redelivered;
     log "exchange: %s" exchange;
     log "routing_key: %s" routing_key;
     log "message_count: %d" message_count;
 
-    (* Now read the contents *)
-    (*
-    type t = { content_type: shortstr; content_encoding: shortstr; headers: table; delivery_mode: octet; priority: octet; correlation_id: shortstr; reply_to: shortstr; expiration: shortstr; message_id: shortstr; timestamp: timestamp; amqp_type: shortstr; user_id: shortstr; app_id: shortstr; reserved: shortstr }
-*)
     return ()

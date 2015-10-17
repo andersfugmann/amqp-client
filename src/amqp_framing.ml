@@ -61,9 +61,16 @@ let decode_message t tpe channel_no data =
   | n when n = Amqp_constants.frame_header ->
     assert (channel.state = Ready);
     (* Decode the header frame *)
-    let message_id, size, _flags =
-      read_content_header (fun a b c d -> (a, b), c, d) (Input.create data)
+    (* I think the flags may have some data we need.
+       The properties will tell os how many of the properties are given,
+       then based on this we read needed data.
+       It means that all parameters are option types....
+       And we should only decode those in there. *)
+    let input = Input.create data in
+    let message_id, size, _property_flags =
+      read_content_header (fun a b c d -> (a, b), c, d) input
     in
+    Amqp_types.log "Properties: %x. %d" _property_flags (Input.length input);
     channel.state <- Waiting (message_id, size, Buffer.create size)
   | n when n = Amqp_constants.frame_body ->
     begin

@@ -16,7 +16,7 @@ let _ =
         maximum_priority 7 ]
     in
     Queue.declare channel ~arguments "Anders" >>= fun queue ->
-    Queue.get ~no_ack:false channel queue >>= fun () ->
+    Queue.get ~no_ack:true channel queue >>= fun () ->
     log "Test complete";
     return ()
   in

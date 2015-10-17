@@ -1,8 +1,8 @@
 .PHONY: all
 
 USE_OCAMLFIND = true
-NATIVE_ENABLED = true
-BYTE_ENABLED = false
+NATIVE_ENABLED = false
+BYTE_ENABLED = true
 
 OCAMLFLAGS = -thread -g -w @A-4-29-33-41-44-45-48 -bin-annot
 

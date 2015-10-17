@@ -30,7 +30,7 @@ and value =
   | VTimestamp of int
   | VUnit of unit
 
-let log fmt = Printf.ifprintf stdout (fmt ^^ "\n%!")
+let log fmt = Printf.eprintf (fmt ^^ "\n%!")
 
 
 exception Unknown_class_id of int
@@ -69,12 +69,6 @@ let reserved_value: type a. a elem -> a = function
   | Array -> []
   | Unit -> ()
 
-module Spec = struct
-  type (_, _) spec =
-    | Nil : ('a, 'a) spec
-    | ::  : 'a elem * ('b, 'c) spec -> (('a -> 'b), 'c) spec
-end
-
 let rec read_while t f =
   match (try Some (f t) with e -> log "%s" (Printexc.to_string e); None) with
   | Some v -> log "Field"; v :: (read_while t f)
@@ -86,14 +80,17 @@ let rec decode: type a. a elem -> Input.t -> a = fun elem t ->
   | Octet -> Input.octet t |> tap (log "Octet 0x%02x")
   | Short -> Input.short t |> tap (log "Short 0x%04x")
   | Long -> Input.long t |> tap (log "Long 0x%08x")
-  | Longlong -> Input.longlong t |> tap (log "Longlong 0x%16x")
+  | Longlong -> Input.longlong t |> tap (log "Longlong 0x%016x")
   | Shortstr ->
+    log "Shortstr";
     let len = decode Octet t in
     Input.string t len
   | Longstr ->
+    log "Longstr";
     let len = decode Long t in
     Input.string t len
   | Table ->
+    log "Table";
     let s = decode Longstr t in
     let t = Input.create s in
     let read_table_value t =
@@ -215,44 +212,6 @@ and encode_field t = function
     encode Octet t (Char.code 'V');
     encode Unit t ()
 
-open Spec
-let rec read: type b c. (b, c) spec -> b -> Input.t -> c = function
-  | (Bit :: _) as spec ->
-    let reader = read_bits 8 spec
-    and decoder = decode Octet in
-    fun b t -> reader b (decoder t) t
-  | head :: tail ->
-    let reader = read tail
-    and decoder = decode head in
-    fun b t -> reader (b (decoder t)) t
-  | Nil ->
-    fun b _t -> b
-and read_bits: type b c. int -> (b, c) spec -> b -> int -> Input.t -> c = fun c -> function
-  | Bit :: tail when c > 0 ->
-    let reader = read_bits (c - 1) tail in
-    fun b v t -> reader (b (v mod 2 = 1)) (v/2) t
-  | spec ->
-    let reader = read spec in
-    fun b _v t -> reader b t
-
-
-let rec write: type b. (b, Output.t) spec -> Output.t -> b = function
-  | (Bit :: _) as spec ->
-    write_bits 8 spec 0
-  | spec :: tail ->
-    let encoder = encode spec
-    and writer = write tail in
-    fun t x -> encoder t x; writer t
-  | Nil -> identity
-and write_bits: type b. int -> (b, Output.t) spec -> int -> Output.t -> b = fun c -> function
-  | Bit :: tail when c > 0 ->
-    let writer = write_bits (c-1) tail in
-    fun v t x -> writer (v*2 + (if x then 1 else 0)) t
-  | spec ->
-    let encoder = encode Octet
-    and writer = write spec in
-    fun v t -> encoder t v; writer t
-
 let elem_to_string: type a. a elem -> string = function
   | Bit -> "Bit"
   | Octet -> "Octet"
@@ -265,6 +224,105 @@ let elem_to_string: type a. a elem -> string = function
   | Timestamp -> "Timestamp"
   | _ -> "Unknown"
 
-let rec to_string: type a b. (a, b) spec -> string = function
-  | x :: xs -> elem_to_string x ^ " :: " ^ to_string xs
-  | Nil -> "Nil"
+module Spec = struct
+  type (_, _) spec =
+    | Nil : ('a, 'a) spec
+    | ::  : 'a elem * ('b, 'c) spec -> (('a -> 'b), 'c) spec
+
+  let rec read: type b c. (b, c) spec -> b -> Input.t -> c = function
+    | (Bit :: _) as spec ->
+      let reader = read_bits 8 spec
+      and decoder = decode Octet in
+      fun b t -> reader b (decoder t) t
+    | head :: tail ->
+      let reader = read tail
+      and decoder = decode head in
+      fun b t -> reader (b (decoder t)) t
+    | Nil ->
+      fun b _t -> b
+  and read_bits: type b c. int -> (b, c) spec -> b -> int -> Input.t -> c = fun c -> function
+    | Bit :: tail when c > 0 ->
+      let reader = read_bits (c - 1) tail in
+      fun b v t -> reader (b (v mod 2 = 1)) (v/2) t
+    | spec ->
+      let reader = read spec in
+      fun b _v t -> reader b t
+
+  let rec write: type b. (b, Output.t) spec -> Output.t -> b = function
+    | (Bit :: _) as spec ->
+      write_bits 8 spec 0
+    | spec :: tail ->
+      let encoder = encode spec
+      and writer = write tail in
+      fun t x -> encoder t x; writer t
+    | Nil -> identity
+  and write_bits: type b. int -> (b, Output.t) spec -> int -> Output.t -> b = fun c -> function
+    | Bit :: tail when c > 0 ->
+      let writer = write_bits (c-1) tail in
+      fun v t x -> writer (v*2 + (if x then 1 else 0)) t
+    | spec ->
+      let encoder = encode Octet
+      and writer = write spec in
+      fun v t -> encoder t v; writer t
+
+  let rec to_string: type a b. (a, b) spec -> string = function
+    | x :: xs -> elem_to_string x ^ " :: " ^ to_string xs
+    | Nil -> "Nil"
+
+end
+
+
+module Content = struct
+  type (_, _) spec =
+    | Nil : ('a, 'a) spec
+    | ::  : 'a elem * ('b, 'c) spec -> (('a option -> 'b), 'c) spec
+
+  let rec length: type a b. (a, b) spec -> int = function
+    | _ :: tail -> 1 + length tail
+    | Nil -> 0
+
+  let rec read: type b c. (b, c) spec -> b -> int -> Input.t -> c = function
+  | Bit :: tail ->
+    let reader = read tail in
+    fun b flags t ->
+      let value = flags land 1 = 1 in
+      reader (b (Some value)) (flags lsr 1) t
+  | head :: tail ->
+    let reader = read tail
+    and decoder = decode head in
+    fun b flags t ->
+      let value =
+        if flags land 1 = 1 then
+          Some (decoder t)
+        else
+          None
+      in
+      reader (b value) (flags lsr 1) t
+  | Nil ->
+    fun b _flags _t -> b
+
+  let rec write: type b. (b, Output.t) spec -> int -> Output.t -> b = function
+  | Bit :: tail ->
+    let writer = write tail in
+    fun flags t x ->
+      let flags = flags * 2 in
+      let flags = match x with
+        | Some true ->
+          (flags + 1)
+        | _ -> flags
+      in
+      writer flags t
+  | spec :: tail ->
+    let encoder = encode spec
+    and writer = write tail in
+    fun flags t x ->
+      let flags = flags * 2 in
+      let flags = match x with
+        | Some x ->
+          encoder t x;
+          (flags + 1)
+        | None -> flags
+      in
+      writer flags t
+  | Nil -> fun _ r -> r
+end

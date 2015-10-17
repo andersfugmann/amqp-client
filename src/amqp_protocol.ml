@@ -1,5 +1,5 @@
 (* Simple reader and writer based on local buffers *)
-let log fmt = Async.Std.printf (fmt ^^ "\n%!")
+let log fmt = Async.Std.eprintf (fmt ^^ "\n%!")
 
 module Input = struct
   open EndianString.BigEndian
@@ -7,6 +7,7 @@ module Input = struct
   let create ?(offset=0) buf = { buf; offset }
   let read  f n t = let r = f t.buf t.offset in t.offset <- t.offset + n; r
   let string t n =
+    Printf.eprintf "string {buf:%d; offset:%d} %d\n%!" (String.length t.buf) t.offset n;
     let r = String.sub t.buf t.offset n in
     t.offset <- t.offset + n;
     r
@@ -16,7 +17,8 @@ module Input = struct
   let longlong t = read get_int64 8 t |> Int64.to_int
   let float = read get_float 4
   let double = read get_double 8
-  (* Special case to write the length at this point later *)
+
+  let length t = String.length t.buf - t.offset
 end
 
 module Output = struct
@@ -39,7 +41,13 @@ module Output = struct
     t.offset <- t.offset + n
 
   let octet = write set_int8 1
+
   let short = write set_int16 2
+  let ref_short t =
+    let offset = t.offset in
+    short t 0;
+    fun v -> set_int16 t.buf offset v
+
   let long t v = write set_int32 4 t (Int32.of_int v)
   let longlong t v = write set_int64 8 t (Int64.of_int v)
   let float = write set_float 4
