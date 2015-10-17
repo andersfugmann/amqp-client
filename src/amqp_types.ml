@@ -72,10 +72,16 @@ let reserved_value: type a. a elem -> a = function
   | Unit -> ()
 
 let rec read_while t f =
-  match (try Some (f t) with e -> log "%s" (Printexc.to_string e); None) with
+  match Input.has_data t with
+  | true ->
+    let v = f t in
+    v :: read_while t f
+  | false -> []
+(*
+  match (try Some (f t) with e -> log "End of table: %s" (Printexc.to_string e); None) with
   | Some v -> log "Field"; v :: (read_while t f)
   | None -> []
-
+*)
 let rec decode: type a. a elem -> Input.t -> a = fun elem t ->
   match elem with
   | Bit -> Input.octet t = 1 |> tap (log "Bit %b")

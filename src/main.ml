@@ -1,7 +1,8 @@
+module P = Printf
 open Async.Std
 open Amqp
 
-let log fmt = printf (fmt ^^ "\n%!")
+let log fmt = P.eprintf (fmt ^^ "\n%!")
 
 let _ =
   let _ =
@@ -11,9 +12,7 @@ let _ =
     log "Channel opened";
     let arguments =
       let open Queue in
-      [ message_ttl 2345678;
-        dead_letter_exchange "amq.direct";
-        maximum_priority 7 ]
+      [ maximum_priority 7 ]
     in
     Queue.declare channel ~arguments "Anders" >>= fun queue ->
     Queue.get ~no_ack:true channel queue >>= fun () ->

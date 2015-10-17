@@ -1,41 +1,48 @@
+module P = Printf
 open Async.Std
 open Amqp_types
 open Amqp_protocol
 
-let log fmt = printf (fmt ^^ "\n%!")
+let log fmt = P.eprintf (fmt ^^ "\n%!")
 
-(*
-Bits are pushed from the bottom - Oh, I need the bits when done
-So if only the first is set, it must become the 16 bit. (I hate them!)
-What if i convert it little endian???
-
-*)
 
 let update_property_flags bits v words =
   let v = v lsl ((List.length words) * 15 - bits) in
   let rec write first v = function
     | f :: xs ->
-      f ((v land 0x7f) lsl 1 + (if first then 0 else 1));
+      f ((v land 0x7f) * 2 + (if first then 0 else 1));
       write false (v lsr 15) xs
     | [] -> ()
   in
   write true v (List.rev words)
 
+let print_property_flags v flags =
+  log "Property flags: %X" (v land (1 lsr flags - 1));
+  let rec loop v = function
+    | 0 -> []
+    | n -> (if v land 1 = 1 then "1" else "0") :: loop (v lsr 1) (n-1)
+  in
+  log "Property_flags: %s" (String.concat "" (loop v flags))
+
+
 let read_property_flags input =
   let rec add_flags v flags = function
     | 0 -> v
     | n ->
-      add_flags ((v * 2) + (flags mod 2)) (flags / 2) (n - 1)
+      add_flags ((v lsl 1) lor (flags land 0x1)) (flags lsr 1) (n - 1)
   in
   let rec read_property_words v input =
-    let flags = Input.short input in
-    let v = add_flags v (flags / 2) 15 in
+    let flags = (decode Short input) land 0xffff in
+    log "Read flags: %x" (flags land 0xffff);
+    log "Read flags: %x" flags;
+    let v = add_flags v (flags lsr 1) 15 in
     if flags mod 2 = 1 then
       read_property_words v input
     else
       v
   in
   read_property_words 0 input
+
 
 let rec list_create f = function
   | 0 -> []
@@ -64,6 +71,7 @@ let read_content ((cid, _), spec, make, _apply) =
     let handler (content, data) =
       (* Read in all property flags *)
       let property_flags = read_property_flags content in
+      print_property_flags property_flags (Content.length spec);
       let header = read make property_flags content in
       Ivar.fill var (header, data);
       Amqp_channel.remove_content_handler channel cid;
@@ -96,16 +104,12 @@ let read_method (message_id, spec, make, _apply) =
   in
   (message_id, reply)
 
-let request req = req
-
-let request_content req req_content =
+let write_method_content req req_content =
   fun channel (message, content, data) ->
     req channel message;
     req_content channel (content, data)
 
-let reply rep = rep
-
-let reply_content (message_id, rep) rep_content =
+let read_method_content (message_id, rep) rep_content =
   let rep post_handler channel =
     rep post_handler channel >>= fun a ->
     rep_content channel >>= fun b ->

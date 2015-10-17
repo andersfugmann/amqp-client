@@ -1,7 +1,8 @@
+module P = Printf
 open Async.Std
 type t = { queue: string }
 
-let log fmt = printf (fmt ^^ "\n%!")
+let log fmt = P.eprintf (fmt ^^ "\n%!")
 
 let message_ttl v = "x-message-ttl", Amqp_types.VLonglong v
 let auto_expire v = "x-expires", Amqp_types.VLonglong v
@@ -35,11 +36,18 @@ let get ~no_ack channel { queue } =
               redelivered;
               exchange;
               routing_key;
-              message_count; }, _content)  ->
+              message_count; }, ({Content.content_type; _} , data))  ->
     log "delivery_tag: %d" delivery_tag;
     log "redelivered: %b" redelivered;
     log "exchange: %s" exchange;
     log "routing_key: %s" routing_key;
     log "message_count: %d" message_count;
+
+    log "*** Content ***";
+    log "Content_type: %s" (match content_type with Some s -> s | None -> "<None>");
+    log "*** Data ***";
+
+
+    log "data: %s" data;
 
     return ()

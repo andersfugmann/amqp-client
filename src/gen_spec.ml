@@ -247,21 +247,18 @@ let emit_method ?(is_content=false) class_index
   emit "let apply f %s = f %s" t_args values;
   emit "let def = ((%d, %d), spec, make, apply)" class_index index;
 
-  begin match is_content with
-    | true ->
+  begin match is_content, content with
+    | true, false ->
       emit "let write = write_content def";
       emit "let read = read_content def"
-    | false  ->
+    | false, false  ->
       emit "let write = write_method def";
       emit "let read = read_method def"
-  end;
-  begin match content with
-    | false ->
-      emit "let req = request write";
-      emit "let rep = reply read"
-    | true ->
-      emit "let req = request_content write Content.write";
-      emit "let rep = reply_content read Content.read"
+    | false, true ->
+      emit "let write = write_method_content (write_method def) Content.write";
+      emit "let read = read_method_content (read_method def) Content.read"
+    | true, true ->
+      failwith "Simply cannot happen"
   end;
   let response = List.map variant_name response in
   if List.length response >= 0 && ((synchronous && response != []) || not synchronous)  then begin
@@ -272,13 +269,13 @@ let emit_method ?(is_content=false) class_index
         ""
     in
     if client then
-      emit "let reply = reply%d rep %s"
+      emit "let reply = reply%d read %s"
         (List.length response)
-        (response |> List.map (fun s -> Printf.sprintf "%s.req %s" s (id s)) |> String.concat " ");
+        (response |> List.map (fun s -> Printf.sprintf "%s.write %s" s (id s)) |> String.concat " ");
     if server then
-      emit "let request = request%d req %s"
+      emit "let request = request%d write %s"
         (List.length response)
-        (response |> List.map (fun s -> Printf.sprintf "%s.rep %s" s (id s)) |> String.concat " ");
+        (response |> List.map (fun s -> Printf.sprintf "%s.read %s" s (id s)) |> String.concat " ");
   end;
   decr indent;
   emit "end";

@@ -59,7 +59,12 @@ let decode_message t tpe channel_no data =
     let class_id, _weight, size =
       read_content_header (fun a b c -> a, b, c) input
     in
-    channel.state <- Waiting (class_id, input, size, Buffer.create size)
+    if size = 0 then
+      (* Handle empty messages *)
+      Pipe.write_without_pushback channel.writer
+        (Content (class_id, input, ""))
+    else
+      channel.state <- Waiting (class_id, input, size, Buffer.create size)
   | n when n = Amqp_constants.frame_body ->
     begin
       match channel.state with

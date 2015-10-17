@@ -1,5 +1,5 @@
 (* Simple reader and writer based on local buffers *)
-let log fmt = Async.Std.eprintf (fmt ^^ "\n%!")
+let log fmt = Printf.eprintf (fmt ^^ "\n%!")
 
 module Input = struct
   open EndianString.BigEndian
@@ -19,6 +19,8 @@ module Input = struct
   let double = read get_double 8
 
   let length t = String.length t.buf - t.offset
+  let has_data t = log "length: %d" (length t);
+    length t > 0
 end
 
 module Output = struct
