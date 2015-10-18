@@ -227,7 +227,6 @@ let emit_method ?(is_content=false) class_index
   let names =
     arguments
     |> List.map (function t when t.Field.reserved -> "_" | t -> bind_name t.Field.name)
-    |> String.concat " "
   in
   let values =
     arguments
@@ -239,9 +238,14 @@ let emit_method ?(is_content=false) class_index
   in
 
   emit "type t = %s" t_spec;
-  emit "let make %s = %s" names t_args;
+  emit "let make %s = %s" (String.concat " " names) t_args;
   emit "let apply f %s = f %s" t_args values;
   emit "let def = ((%d, %d), spec, make, apply)" class_index index;
+
+  (* Helper for content frames. *)
+  if is_content then begin
+    emit "let init ?%s () = make %s" (String.concat " ?" names) (String.concat " " names)
+  end;
 
   begin match is_content, content with
     | true, false ->

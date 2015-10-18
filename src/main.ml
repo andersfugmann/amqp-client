@@ -1,4 +1,3 @@
-module P = Printf
 open Async.Std
 open Amqp
 
@@ -14,9 +13,11 @@ let _ =
       let open Queue in
       [ maximum_priority 7 ]
     in
-    Queue.declare channel ~arguments "Anders" >>= fun queue ->
+    Queue.declare channel ~arguments "anders" >>= fun queue ->
+    Queue.publish channel queue "Hullubullu";
     Queue.get ~no_ack:false channel queue
       (fun msg -> log "Received Message: %s" msg; return ()) >>= fun () ->
+
     log "Test complete";
     return ()
   in

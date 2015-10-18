@@ -1,15 +1,8 @@
-Implement highlevel paradigms (Rpc, Direct, etc.)
+* Implement highlevel paradigms (Rpc, Direct, etc.)
 
-* Store frame max length
+* Store frame max length (Use use it corretly)
 * Handle heartbeat
-* Deregister handlers after reception of a message
+* Disable nagle algorithm.
+* Allow setting tcp heartbeat
 
-* Decode body frames
-* Recieve body frames
-* Send body frames
-
-* understand properties sent when starting the connection
-
-* Add id's for connecton, channel etc for debugging.
-* Allow creation of anonymous queue prefixed with correct names and pids and hostnames
-*
+* Clean the amqp_spec interface

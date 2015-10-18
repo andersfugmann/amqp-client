@@ -1,5 +1,5 @@
 (* Simple reader and writer based on local buffers *)
-let log fmt = Printf.ifprintf stderr (fmt ^^ "\n%!")
+let log fmt = Async.Std.printf (fmt ^^ "\n%!")
 
 module Input = struct
   open EndianString.BigEndian

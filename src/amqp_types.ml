@@ -1,5 +1,3 @@
-let log fmt = Printf.ifprintf stderr (fmt ^^ "\n%!")
-
 open Amqp_protocol
 
 type class_id = int
@@ -265,7 +263,12 @@ module Spec = struct
   and write_bits: type b. int -> (b, Output.t) spec -> int -> Output.t -> b = fun c -> function
     | Bit :: tail when c > 0 ->
       let writer = write_bits (c-1) tail in
-      fun v t x -> writer (v*2 + (if x then 1 else 0)) t
+      fun v t x ->
+        let v = match x with
+          | false -> v
+          | true -> v lor (1 lsl 8-c)
+        in
+        writer v t
     | spec ->
       let encoder = encode Octet
       and writer = write spec in

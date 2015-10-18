@@ -1,5 +1,3 @@
-let log fmt = Printf.ifprintf stderr (fmt ^^ "\n%!")
-
 open Async.Std
 open Amqp_types
 open Spec
@@ -102,9 +100,9 @@ let read_frame t =
   | `Ok c -> failwith (Printf.sprintf "Unexpected char : %x" (Char.code c))
   | `Eof -> failwith "Connection closed"
 
-let write_frame t channel_no premable premable_length data =
+let write_frame t channel_no tpe premable premable_length data =
   let output = Output.create ~size:(1+2+4+premable_length) () in
-  encode Octet output Amqp_constants.frame_method;
+  encode Octet output tpe;
   encode Short output channel_no;
   let sizer = Output.size_ref output in
   premable output;
@@ -118,23 +116,23 @@ let write_method t channel_no (cid, mid) data =
     encode Short output cid;
     encode Short output mid;
   in
-  write_frame t channel_no premable (2+2) data
+  write_frame t channel_no Amqp_constants.frame_method premable (2+2) data
 
-let write_content t channel_no class_id content (data:string) =
-  let data = Output.init data in
+let write_content t channel_no class_id content (data_s:string) =
+  let data = Output.init ~offset:(String.length data_s) data_s in
   let premable output =
     encode Short output class_id;
     encode Short output 0;
     encode Longlong output (Output.length data);
   in
-  write_frame t channel_no premable (2+2+8) content;
+  write_frame t channel_no Amqp_constants.frame_header premable (2+2+8) content;
 
   (* TODO: Allow interleaving to avoid starvation *)
   let rec send_data = function
     | offset when offset < (Output.length data) ->
       (* Send the next chunk *)
       let sub = Output.sub ~start:offset ~length:t.max_length data in
-      write_frame t channel_no ignore 0 sub;
+      write_frame t channel_no Amqp_constants.frame_body ignore 0 sub;
       send_data (offset + t.max_length)
     | _ -> ()
   in

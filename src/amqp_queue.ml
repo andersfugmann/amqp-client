@@ -1,5 +1,5 @@
-let log fmt = Printf.ifprintf stderr (fmt ^^ "\n%!")
 open Async.Std
+let log = Amqp_protocol.log
 type t = { queue: string }
 
 
@@ -51,3 +51,7 @@ let get ~no_ack channel { queue } handler =
     handler data >>= fun () ->
     Ack.request channel { Ack.delivery_tag; multiple = false };
     return ()
+
+let publish channel { queue } data =
+  let open Amqp_spec.Basic in
+  Publish.request channel {Publish.exchange = ""; routing_key=queue; mandatory=true; immediate=false} (Content.init ~content_type:"x-test-data" ()) data

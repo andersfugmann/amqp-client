@@ -1,7 +1,6 @@
-module P = Printf
 open Async.Std
 
-let log fmt = P.ifprintf stderr (fmt ^^ "\n%!")
+let log = Amqp_protocol.log
 
 type t = { framing: Amqp_framing.t;
            channel: Amqp_channel.t;

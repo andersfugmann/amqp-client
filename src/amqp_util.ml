@@ -3,26 +3,26 @@ open Async.Std
 open Amqp_types
 open Amqp_protocol
 
-let log fmt = P.ifprintf stderr (fmt ^^ "\n%!")
-
+let print_property_flags v flags =
+  log "***** Property flags: %X" (v land (1 lsr flags - 1));
+  let rec loop acc v = function
+    | 0 -> acc
+    | n -> loop ((if v land 1 = 1 then "1" else "0") :: acc) (v lsr 1) (n-1)
+  in
+  log "***** Property_flags: %s" (String.concat "" (loop [] v flags))
 
 let update_property_flags bits v words =
-  let v = v lsl ((List.length words) * 15 - bits) in
+  print_property_flags v bits;
+  (* let v = v lsr ((List.length words) * 15 - bits) in *)
   let rec write first v = function
     | f :: xs ->
-      f ((v land 0x7f) * 2 + (if first then 0 else 1));
+      let p = ((v land 0x7fff) * 2 + (if first then 0 else 1)) in
+      log "Write property flags: %x" p;
+      f p;
       write false (v lsr 15) xs
     | [] -> ()
   in
   write true v (List.rev words)
-
-let print_property_flags v flags =
-  log "Property flags: %X" (v land (1 lsr flags - 1));
-  let rec loop v = function
-    | 0 -> []
-    | n -> (if v land 1 = 1 then "1" else "0") :: loop (v lsr 1) (n-1)
-  in
-  log "Property_flags: %s" (String.concat "" (loop v flags))
 
 
 let read_property_flags input =
@@ -105,7 +105,7 @@ let read_method (message_id, spec, make, _apply) =
   (message_id, reply)
 
 let write_method_content req req_content =
-  fun channel (message, content, data) ->
+  fun channel message content data ->
     req channel message;
     req_content channel (content, data)
 

@@ -1,7 +1,5 @@
-module P = Printf
 open Async.Std
 open Amqp_protocol
-
 
 exception Busy
 
