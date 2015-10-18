@@ -31,26 +31,10 @@ let get ~no_ack channel { queue } handler =
   Get.request channel { Get.queue; no_ack } >>= function
   | `Get_empty () ->
     log "No Data"; return ()
-  | `Get_ok ({ Get_ok.delivery_tag;
-              redelivered;
-              exchange;
-              routing_key;
-              message_count; }, ({Content.content_type; _} , data))  ->
-    log "delivery_tag: %d" delivery_tag;
-    log "redelivered: %b" redelivered;
-    log "exchange: %s" exchange;
-    log "routing_key: %s" routing_key;
-    log "message_count: %d" message_count;
-
-    log "*** Content ***";
-    log "Content_type: %s" (match content_type with Some s -> s | None -> "<None>");
-    log "*** Data ***";
-
-
-    log "data: %s" data;
-    handler data >>= fun () ->
+  | `Get_ok (mth, (hdr, data))  ->
+    handler mth hdr data >>= fun () ->
     if no_ack = false then
-      Ack.request channel { Ack.delivery_tag; multiple = false }
+      Ack.request channel { Ack.delivery_tag = mth.Get_ok.delivery_tag; multiple = false }
     else
       return ()
 
