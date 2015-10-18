@@ -21,24 +21,30 @@ let write_method t message_id data =
   log "Send method on channel: %d (%d, %d)" t.channel_no (fst message_id) (snd message_id);
   Amqp_framing.write_method t.framing t.channel_no message_id data
 
+let print_handlers t =
+  Hashtbl.iter (fun (cid, mid) _ -> log "Method Handler: (%d, %d)" cid mid) t.method_handlers;
+  Hashtbl.iter (fun cid _ -> log "Content Handler: (%d)\n" cid) t.content_handlers
+
 let read t =
   Pipe.read t.input >>= function
   | `Ok (Amqp_framing.Method (message_id, data)) ->
-    log "Received method: (%d, %d) on channel %d. Data length: %d\n%!"
+    log "Received method: (%d, %d) on channel %d. Data length: %d"
       (fst message_id) (snd message_id) t.channel_no (Input.length data);
     begin match Hashtbl.find t.method_handlers message_id with
       | handler ->
         handler data;
+        print_handlers t;
         return t
       | exception Not_found ->
         failwith (Printf.sprintf "Unhandled method: %d (%d, %d)" t.channel_no (fst message_id) (snd message_id))
     end
   | `Ok (Amqp_framing.Content (class_id, content, data)) ->
-    log "Received content: %d on channel %d. Content: %d Data: %d\n%!"
+    log "Received content: %d on channel %d. Content: %d Data: %d"
       class_id t.channel_no (Input.length content) (String.length data);
     begin match Hashtbl.find t.content_handlers class_id with
       | handler ->
         handler (content, data);
+        print_handlers t;
         return t
       | exception Not_found ->
         failwith (Printf.sprintf "Unhandled content: %d %d" t.channel_no class_id)

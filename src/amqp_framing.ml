@@ -146,7 +146,8 @@ let register_channel { channels; _ } n writer =
 (** [writer] is channel 0 writer. It must be attached *)
 let init ~port ~host writer =
   let addr = Tcp.to_host_and_port host port in
-  Tcp.connect addr >>= fun (_socket, input, output) ->
+  Tcp.connect addr >>= fun (socket, input, output) ->
+  Socket.setopt socket Socket.Opt.nodelay true;
   let channels = Hashtbl.create 0 in
   let t = { input; output; channels; max_length = 256 } in
   register_channel t 0 writer;

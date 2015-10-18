@@ -64,9 +64,8 @@ let write_content ((cid, _), spec, _make, apply) =
 
 let read_content ((cid, _), spec, make, _apply) =
   let read = Content.read spec in
-  let var = Ivar.create () in
-
   fun channel ->
+    let var = Ivar.create () in
     let handler (content, data) =
       (* Read in all property flags *)
       let property_flags = read_property_flags content in
@@ -89,8 +88,8 @@ let write_method (message_id, spec, _make, apply) =
 
 let read_method (message_id, spec, make, _apply) =
   let read = Spec.read spec in
-  let var = Ivar.create () in
   let reply post_handler channel =
+    let var = Ivar.create () in
     let handler data =
       let req = read make data in
       Ivar.fill var req;

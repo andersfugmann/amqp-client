@@ -1,5 +1,7 @@
 (* Simple reader and writer based on local buffers *)
-let log fmt = Async.Std.printf (fmt ^^ "\n%!")
+let log fmt =
+  (* Async.Std.printf (fmt ^^ "\n%!") *)
+    Printf.ifprintf stderr fmt
 
 module Input = struct
   open EndianString.BigEndian
@@ -7,7 +9,6 @@ module Input = struct
   let create ?(offset=0) buf = { buf; offset }
   let read  f n t = let r = f t.buf t.offset in t.offset <- t.offset + n; r
   let string t n =
-    log "string {buf:%d; offset:%d} %d\n%!" (String.length t.buf) t.offset n;
     let r = String.sub t.buf t.offset n in
     t.offset <- t.offset + n;
     r

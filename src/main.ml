@@ -14,11 +14,12 @@ let _ =
       [ maximum_priority 7 ]
     in
     Queue.declare channel ~arguments "anders" >>= fun queue ->
-    Queue.publish channel queue "Hullubullu" >>= fun () ->
-    Queue.get ~no_ack:false channel queue
-      (fun msg -> log "Received Message: %s" msg; return ()) >>= fun () ->
-
-    log "Test complete";
-    return ()
+    let rec loop i =
+      Queue.publish channel queue (Printf.sprintf "Message: %d" i) >>= fun () ->
+      Queue.get ~no_ack:false channel queue
+        (fun msg -> log "Received Message: %s" msg; return ()) >>= fun () ->
+      loop (i+1)
+    in
+    loop 1
   in
   Scheduler.go ()

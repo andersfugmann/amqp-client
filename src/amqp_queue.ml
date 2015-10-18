@@ -49,7 +49,10 @@ let get ~no_ack channel { queue } handler =
 
     log "data: %s" data;
     handler data >>= fun () ->
-    Ack.request channel { Ack.delivery_tag; multiple = false }
+    if no_ack = false then
+      Ack.request channel { Ack.delivery_tag; multiple = false }
+    else
+      return ()
 
 
 let publish channel { queue } data =
