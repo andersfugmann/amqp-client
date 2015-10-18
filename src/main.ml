@@ -16,8 +16,7 @@ let _ =
     Queue.declare channel ~arguments "anders" >>= fun queue ->
     let rec loop i =
       Queue.publish channel queue (Printf.sprintf "Message: %d" i) >>= fun () ->
-      Queue.get ~no_ack:false channel queue
-        (fun msg -> log "Received Message: %s" msg; return ()) >>= fun () ->
+      Queue.get ~no_ack:false channel queue (fun msg -> log "Received: %s" msg; return ()) >>= fun () ->
       loop (i+1)
     in
     loop 1
