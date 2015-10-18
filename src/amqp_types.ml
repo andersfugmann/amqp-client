@@ -1,6 +1,5 @@
 let log fmt = Printf.ifprintf stderr (fmt ^^ "\n%!")
 
-open Batteries
 open Amqp_protocol
 
 type class_id = int
@@ -56,6 +55,8 @@ type _ elem =
   | Array: array elem
   | Unit: unit elem
 
+let tap a b = a b; b
+
 let reserved_value: type a. a elem -> a = function
   | Bit -> false
   | Octet -> 0
@@ -78,11 +79,7 @@ let rec read_while t f =
     let v = f t in
     v :: read_while t f
   | false -> []
-(*
-  match (try Some (f t) with e -> log "End of table: %s" (Printexc.to_string e); None) with
-  | Some v -> log "Field"; v :: (read_while t f)
-  | None -> []
-*)
+
 let rec decode: type a. a elem -> Input.t -> a = fun elem t ->
   match elem with
   | Bit -> Input.octet t = 1 |> tap (log "Bit %b")
@@ -264,7 +261,7 @@ module Spec = struct
       let encoder = encode spec
       and writer = write tail in
       fun t x -> encoder t x; writer t
-    | Nil -> identity
+    | Nil -> fun a -> a
   and write_bits: type b. int -> (b, Output.t) spec -> int -> Output.t -> b = fun c -> function
     | Bit :: tail when c > 0 ->
       let writer = write_bits (c-1) tail in

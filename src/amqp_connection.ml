@@ -1,6 +1,5 @@
 module P = Printf
 open Async.Std
-open Batteries
 
 let log fmt = P.ifprintf stderr (fmt ^^ "\n%!")
 
@@ -13,6 +12,12 @@ let handle_channel_open_ok () =
   log "Open_ok";
   return ()
 
+let rec string_split ?(offset=0) ~by s =
+  match String.index_from s offset by with
+  | n ->
+    String.sub s offset (n - offset) :: string_split ~offset:(n+1) ~by s
+  | exception Not_found -> [ String.sub s offset (String.length s - offset) ]
+  | exception Invalid_argument _ -> []
 
 let handle_start (username, password) {Amqp_spec.Connection.Start.version_major;
                   version_minor;
@@ -21,7 +26,7 @@ let handle_start (username, password) {Amqp_spec.Connection.Start.version_major;
                   locales } =
   log "Connection start";
   log "Id: %d %d" version_major version_minor;
-  log "Properties: %s(%d)" (dump server_properties) (List.length server_properties);
+  log "Properties: (%d)" (List.length server_properties);
   log "Mechanisms: %s" mechanisms;
   log "Locales: %s" locales;
   log "Send start_ok";
@@ -29,7 +34,7 @@ let handle_start (username, password) {Amqp_spec.Connection.Start.version_major;
     Amqp_spec.Connection.Start_ok.client_properties = server_properties;
     mechanism = "PLAIN";
     response = "\x00" ^ username ^ "\x00" ^ password;
-    locale = String.nsplit ~by:";" locales |> List.hd
+    locale = string_split ~by:';' locales |> List.hd
   }
 
 let handle_tune { Amqp_spec.Connection.Tune.channel_max;

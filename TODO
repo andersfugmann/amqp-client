@@ -1,4 +1,3 @@
-Remove dependency on Batteries
 Implement highlevel paradigms (Rpc, Direct, etc.)
 
 * Store frame max length

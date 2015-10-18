@@ -1,5 +1,3 @@
-open Batteries
-
 let str fmt = Printf.sprintf fmt
 
 let indent = ref 0
@@ -49,13 +47,12 @@ let parse_field attrs nodes =
   in
   log "Parsing field %s" name;
   let tpe =
-    match List.Exceptionless.assoc "domain" attrs with
-    | Some d -> d
-    | None -> List.assoc "type" attrs
+    match List.assoc "domain" attrs with
+    | d -> d
+    | exception Not_found -> List.assoc "type" attrs
   in
 
-  let open Option.Infix in
-  let reserved = List.Exceptionless.assoc "reserved" attrs |> ((=) (Some "1")) in
+  let reserved = List.mem ("reserved", "1")  attrs in
   { Field.name; tpe; reserved }
 
 let parse_constant attrs nodes =
@@ -86,14 +83,15 @@ let parse_method attrs nodes =
     |> List.map (function Xml.Element ("response", attrs, []) -> List.assoc "name" attrs | _ -> failwith "Error parsing response")
   in
 
-  let synchronous = List.Exceptionless.assoc "synchronous" attrs |> Option.map_default ((=) "1") false in
-  let content = List.Exceptionless.assoc "content" attrs |> Option.map_default ((=) "1") false in
+  let synchronous = List.mem ("synchronous", "1") attrs in
+  let content = List.mem ("content", "1") attrs in
   let arguments = map_elements "field" parse_field nodes in
 
-  let chassis = List.filter_map (function
-      | Xml.Element ("chassis", attrs, _) ->
-        List.Exceptionless.assoc "name" attrs
-      | _ -> None) nodes
+  let chassis =
+    List.fold_left
+      (fun acc -> function Xml.Element ("chassis", attrs, _) -> acc @ attrs | _ -> acc) [] nodes
+    |> List.filter (fun (n, _) -> n = "name")
+    |> List.map snd
   in
   let client = List.mem "client" chassis in
   let server = List.mem "server" chassis in
@@ -125,7 +123,7 @@ let parse_amqp = function
   | _ -> failwith "Error parsing"
 
 let bind_name str =
-  String.nreplace ~str ~sub:"-" ~by:"_" |> String.lowercase
+  String.map (function '-' -> '_' | c -> Char.lowercase c) str
 
 let variant_name str =
   bind_name str
@@ -133,8 +131,6 @@ let variant_name str =
 
 let pvariant_name str =
   "`" ^ (variant_name str)
-
-
 
 let rec print = function
   | Xml.Element (n, attrs, nodes) ->
@@ -182,7 +178,7 @@ let emit_domains tree =
         in
         Some (Class { c with Class.methods; content = replace content })
   in
-  List.filter_map map tree
+  List.fold_left (fun acc e -> match map e with Some x -> x :: acc | None -> acc) [] tree
 
 let emit_constants tree =
   emit "(* Constants *)";
@@ -193,7 +189,7 @@ let emit_constants tree =
 let spec_str arguments =
   arguments
   |> List.map (fun t -> t.Field.tpe)
-  |> flip List.append ["Nil"]
+  |> fun a -> List.append a ["Nil"]
   |> String.concat " :: "
 
 let emit_method ?(is_content=false) class_index
