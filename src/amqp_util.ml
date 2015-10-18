@@ -3,16 +3,16 @@ open Async.Std
 open Amqp_types
 open Amqp_protocol
 
-let print_property_flags v flags =
-  log "***** Property flags: %X" (v land (1 lsr flags - 1));
+let bit_string v length =
   let rec loop acc v = function
     | 0 -> acc
     | n -> loop ((if v land 1 = 1 then "1" else "0") :: acc) (v lsr 1) (n-1)
   in
-  log "***** Property_flags: %s" (String.concat "" (loop [] v flags))
+  String.concat "" (loop [] v length)
 
-let update_property_flags bits v words =
-  print_property_flags v bits;
+let update_property_flags _bits v words =
+  (* TODO: If there are more than 15 fields, this function may not work. *)
+  assert (List.length words = 1);
   (* let v = v lsr ((List.length words) * 15 - bits) in *)
   let rec write first v = function
     | f :: xs ->
@@ -23,7 +23,6 @@ let update_property_flags bits v words =
     | [] -> ()
   in
   write true v (List.rev words)
-
 
 let read_property_flags input =
   let rec add_flags v flags = function
@@ -71,7 +70,6 @@ let read_content ((cid, _), spec, make, _apply) =
     let handler (content, data) =
       (* Read in all property flags *)
       let property_flags = read_property_flags content in
-      print_property_flags property_flags (Content.length spec);
       let header = read make property_flags content in
       Ivar.fill var (header, data);
       Amqp_channel.remove_content_handler channel cid;

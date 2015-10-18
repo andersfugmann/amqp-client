@@ -266,7 +266,7 @@ module Spec = struct
       fun v t x ->
         let v = match x with
           | false -> v
-          | true -> v lor (1 lsl 8-c)
+          | true -> v lor (1 lsl (8-c))
         in
         writer v t
     | spec ->
