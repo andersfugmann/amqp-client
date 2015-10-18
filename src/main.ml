@@ -14,7 +14,7 @@ let _ =
       [ maximum_priority 7 ]
     in
     Queue.declare channel ~arguments "anders" >>= fun queue ->
-    Queue.publish channel queue "Hullubullu";
+    Queue.publish channel queue "Hullubullu" >>= fun () ->
     Queue.get ~no_ack:false channel queue
       (fun msg -> log "Received Message: %s" msg; return ()) >>= fun () ->
 

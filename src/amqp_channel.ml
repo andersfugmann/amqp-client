@@ -43,9 +43,9 @@ let read t =
       | exception Not_found ->
         failwith (Printf.sprintf "Unhandled content: %d %d" t.channel_no class_id)
     end
-
-
   | `Eof -> failwith "Connection closed"
+
+let flush t = Amqp_framing.flush t.framing
 
 let add_method_handler t message_id handler =
   Hashtbl.add t.method_handlers message_id handler

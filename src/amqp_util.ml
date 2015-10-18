@@ -103,7 +103,7 @@ let read_method (message_id, spec, make, _apply) =
   (message_id, reply)
 
 let write_method_content req req_content =
-  fun channel message content data ->
+  fun channel (message, content, data) ->
     req channel message;
     req_content channel (content, data)
 
@@ -115,20 +115,24 @@ let read_method_content (message_id, rep) rep_content =
   in
   (message_id, rep)
 
-let request0 req = req
+let request0 req =
+  fun channel msg ->
+    req channel msg;
+    Amqp_channel.flush channel
 
 let reply0 (_, rep) = rep
 
 let request1 req (_, rep) =
   fun channel msg ->
     req channel msg;
+    Amqp_channel.flush channel >>= fun () ->
     rep ignore channel
 
 let reply1 (_, rep) req =
   fun channel (handler : 'a -> 'b Deferred.t) ->
     rep ignore channel >>= handler >>= fun msg ->
     req channel msg;
-    return ()
+    Amqp_channel.flush channel
 
 let request2 req (mid1, rep1) id1 (mid2, rep2) id2 =
   let unregister mid channel =
@@ -136,6 +140,7 @@ let request2 req (mid1, rep1) id1 (mid2, rep2) id2 =
   in
   fun channel msg ->
     req channel msg;
+    Amqp_channel.flush channel >>= fun () ->
     (* Choose either one *)
     Deferred.any [
       rep1 (unregister mid2) channel >>= (fun a -> return (id1 a));

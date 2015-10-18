@@ -30,11 +30,8 @@ type t = { input: Reader.t; output: Writer.t;
 let frame_end = Char.chr (Amqp_constants.frame_end)
 
 let protocol_header = "AMQP\x00\x00\x09\x01"
-(* let frame          = Octet :: Short :: Longstr :: Octet :: Nil *)
 let read_method_frame = read (Short :: Short :: Nil)
 let read_content_header = read (Short :: Short :: Longlong :: Nil)
-
-(* read_content_header = read content_header *)
 
 (* Should register a monitor *)
 let (>>) a b =
@@ -110,6 +107,9 @@ let write_frame t channel_no tpe premable premable_length data =
   Writer.write ~len:(Output.length output) t.output (Output.buffer output);
   Writer.write ~len:(Output.length data) t.output (Output.buffer data);
   Writer.write_char t.output frame_end
+
+let flush t =
+  Writer.flushed t.output
 
 let write_method t channel_no (cid, mid) data =
   let premable output =
