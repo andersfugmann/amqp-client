@@ -17,7 +17,6 @@ let consume channel queue =
   in
   Queue.consume channel queue handler
 
-
 let _ =
   let _ =
     Connection.connect ~host:"127.0.0.1" () >>= fun connection ->
