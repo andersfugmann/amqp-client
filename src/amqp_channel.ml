@@ -1,75 +1,58 @@
 open Async.Std
 open Amqp_protocol
+open Amqp_spec
 
-exception Busy
+type message = Basic.Deliver.t * Basic.Content.t * string
+type consumers = (string, message -> unit) Hashtbl.t
+type t = { framing: Amqp_framing.t; channel_no: int; consumers: consumers }
 
-type method_handler = Input.t -> unit
-type content_handler = Input.t * string -> unit
+let handle_channel_open_ok () =
+  log "Open_ok";
+  return ()
 
-type t = { framing: Amqp_framing.t;
-           input: Amqp_framing.message Pipe.Reader.t;
-           channel_no: int;
-           method_handlers: (Amqp_types.message_id, method_handler) Hashtbl.t;
-           content_handlers: (Amqp_types.class_id, content_handler) Hashtbl.t;
-         }
+let channel { framing; channel_no; _ } = (framing, channel_no)
 
-let write_content t class_id content data =
-  log "Send content on channel: %d (%d)" t.channel_no class_id;
-  Amqp_framing.write_content t.framing t.channel_no class_id content data
+let register_deliver_handler =
+  let open Amqp_spec.Basic in
+  let ((c_class_id, _), c_spec, c_make, _apply) = Content.def in
+  let (message_id, spec, make, _apply) = Deliver.def in
 
-let write_method t message_id data =
-  log "Send method on channel: %d (%d, %d)" t.channel_no (fst message_id) (snd message_id);
-  Amqp_framing.write_method t.framing t.channel_no message_id data
+  let c_read = Amqp_types.Content.read c_spec in
+  let read = Amqp_types.Spec.read spec in
 
-let print_handlers t =
-  Hashtbl.iter (fun (cid, mid) _ -> log "Method Handler: (%d, %d)" cid mid) t.method_handlers;
-  Hashtbl.iter (fun cid _ -> log "Content Handler: (%d)\n" cid) t.content_handlers
+  let content_handler channel handler deliver (content, data) =
+    let property_flags = Amqp_util.read_property_flags content in
+    let header = c_read c_make property_flags content in
 
-let read t =
-  Pipe.read t.input >>= function
-  | `Ok (Amqp_framing.Method (message_id, data)) ->
-    log "Received method: (%d, %d) on channel %d. Data length: %d"
-      (fst message_id) (snd message_id) t.channel_no (Input.length data);
-    begin match Hashtbl.find t.method_handlers message_id with
-      | handler ->
-        handler data;
-        print_handlers t;
-        return t
-      | exception Not_found ->
-        failwith (Printf.sprintf "Unhandled method: %d (%d, %d)" t.channel_no (fst message_id) (snd message_id))
-    end
-  | `Ok (Amqp_framing.Content (class_id, content, data)) ->
-    log "Received content: %d on channel %d. Content: %d Data: %d"
-      class_id t.channel_no (Input.length content) (String.length data);
-    begin match Hashtbl.find t.content_handlers class_id with
-      | handler ->
-        handler (content, data);
-        print_handlers t;
-        return t
-      | exception Not_found ->
-        failwith (Printf.sprintf "Unhandled content: %d %d" t.channel_no class_id)
-    end
-  | `Eof -> failwith "Connection closed"
+    handler (deliver, header, data);
+    Amqp_framing.deregister_content_handler channel c_class_id
+  in
+  let deliver_handler channel consumers input =
+    let deliver = read make input in
+    try
+      let handler = Hashtbl.find consumers deliver.Deliver.consumer_tag in
+      Amqp_framing.register_content_handler channel c_class_id (content_handler channel handler deliver)
+    (* Keep the current handler *)
+    with
+    | Not_found -> failwith ("No consumers for: " ^ deliver.Deliver.consumer_tag)
+  in
+  fun t ->
+    let channel = channel t in
+    Amqp_framing.register_method_handler channel message_id (deliver_handler channel t.consumers)
 
-let flush t = Amqp_framing.flush t.framing
+let register_consumer_handler t consumer_tag handler =
+  if Hashtbl.mem t.consumers consumer_tag then raise Amqp_framing.Busy;
+  Hashtbl.add t.consumers consumer_tag handler
 
-let add_method_handler t message_id handler =
-  Hashtbl.add t.method_handlers message_id handler
+let deregister_consumer_handler t consumer_tag =
+  Hashtbl.remove t.consumers consumer_tag
 
-let remove_method_handler t message_id =
-  Hashtbl.remove t.method_handlers message_id
-
-let add_content_handler t class_id handler =
-  Hashtbl.add t.content_handlers class_id handler
-
-let remove_content_handler t class_id =
-  Hashtbl.remove t.content_handlers class_id
-
-let init framing input channel_no =
-  let method_handlers = Hashtbl.create 0 in
-  let content_handlers = Hashtbl.create 0 in
-  let t = { framing; input; channel_no; method_handlers; content_handlers } in
-  Deferred.forever t read;
-  t
-
-let id { channel_no; _} = channel_no
+let init framing channel_no =
+  let consumers = Hashtbl.create 0 in
+  let t = { framing; channel_no; consumers } in
+  (* Open the channel *)
+  Amqp_framing.open_channel (channel t);
+  Amqp_spec.Channel.Open.request (channel t) () >>=
+  handle_channel_open_ok >>= fun () ->
+  register_deliver_handler t;
+  return t

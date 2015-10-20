@@ -1,8 +1,6 @@
 * Implement highlevel paradigms (Rpc, Direct, etc.)
 
-* Store frame max length (Use use it corretly)
+* Store frame max length (Use it corretly)
 * Handle heartbeat
-* Disable nagle algorithm.
 * Allow setting tcp heartbeat
-
-* Clean the amqp_spec interface
+* Clean the amqp_spec interface (Maybe derive the interface and remove spec et. al)

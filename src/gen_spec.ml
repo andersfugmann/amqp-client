@@ -350,8 +350,6 @@ let () =
   emit "";
   emit "open Amqp_types";
   emit "open Amqp_util";
-  emit "module C = Amqp_channel";
-  emit "module D = Async.Std.Deferred";
   let tree = xml |> parse_amqp |> emit_domains in
   emit_constants tree;
   List.iter (function Class x -> emit_class x | _ -> ()) tree;
