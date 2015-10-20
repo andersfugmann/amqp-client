@@ -8,14 +8,19 @@ let rec sync_loop channel queue i =
   Queue.get ~no_ack:false channel queue (fun _ _ msg -> log "Received: %s" msg; return ()) >>= fun () ->
   sync_loop channel queue (i+1)
 
-let consume channel queue =
+let rec consume channel queue =
   let i = ref 0 in
   let handler _ _ data =
     log "Received: %s" data;
     incr i;
     Queue.publish channel queue (Printf.sprintf "Message: %d" !i)
   in
-  Queue.consume channel queue handler
+  Queue.consume channel queue handler >>= fun stop ->
+  after (Core.Span.of_sec 5.) >>= fun () ->
+  stop () >>= fun () ->
+  after (Core.Span.of_sec 1.) >>= fun () ->
+  consume channel queue
+
 
 let _ =
   let _ =
