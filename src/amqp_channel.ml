@@ -2,7 +2,7 @@ open Async.Std
 open Amqp_protocol
 open Amqp_spec
 
-type message = Basic.Deliver.t * Basic.Content.t * string
+type message = Basic.Deliver.t * (Basic.Content.t * string)
 type consumers = (string, message -> unit) Hashtbl.t
 type t = { framing: Amqp_framing.t; channel_no: int; consumers: consumers }
 
@@ -23,9 +23,8 @@ let register_deliver_handler =
   let content_handler channel handler deliver (content, data) =
     let property_flags = Amqp_util.read_property_flags content in
     let header = c_read c_make property_flags content in
-
-    handler (deliver, header, data);
-    Amqp_framing.deregister_content_handler channel c_class_id
+    Amqp_framing.deregister_content_handler channel c_class_id;
+    handler (deliver, (header, data))
   in
   let deliver_handler channel consumers input =
     let deliver = read make input in
@@ -47,7 +46,7 @@ let register_consumer_handler t consumer_tag handler =
 let deregister_consumer_handler t consumer_tag =
   Hashtbl.remove t.consumers consumer_tag
 
-let init framing channel_no =
+let init framing channel_no  =
   let consumers = Hashtbl.create 0 in
   let t = { framing; channel_no; consumers } in
   (* Open the channel *)

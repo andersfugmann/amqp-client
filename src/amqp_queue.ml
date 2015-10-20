@@ -45,4 +45,48 @@ let publish channel { queue } data =
      (Content.init ~content_type:"x-test-data" ()),
      data)
 
-let consume = ()
+(* How do we handle ack. *)
+let consume ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { queue } handler =
+  let open Amqp_spec.Basic in
+  let (reader, writer) = Pipe.create () in
+
+  let rec handle_messages channel reader handler =
+    Pipe.read reader >>= function
+    | `Eof -> return ()
+    | `Ok (mth, (header, body)) ->
+      handler mth header body >>= fun () ->
+      let ack =
+        if no_ack = false then
+          Ack.request channel { Ack.delivery_tag = mth.Deliver.delivery_tag; multiple = false }
+        else
+          return ()
+      in
+      ack >>= fun () ->
+      handle_messages channel reader handler
+  in
+
+  let on_receive channel consume_ok =
+    Amqp_channel.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag
+      (Pipe.write_without_pushback writer)
+  in
+  let req = { Consume.queue;
+              consumer_tag = ""; (* TODO: Do not autoselect for tracability *)
+              no_local;
+              no_ack;
+              exclusive;
+              no_wait = false;
+              arguments = [] (* TODO: Understand rabbitmq arguments *);
+            }
+  in
+  let cancel channel consumer_tag () =
+    Cancel.request channel { Cancel.consumer_tag; no_wait = false } >>= fun _rep ->
+    Pipe.close writer;
+    return ()
+  in
+
+
+  Consume.request ~post_handler:(on_receive channel) (Amqp_channel.channel channel) req >>= fun rep ->
+  (* Start message handling *)
+  don't_wait_for (handle_messages (Amqp_channel.channel channel) reader handler);
+  let consumer_tag = rep.Consume_ok.consumer_tag in
+  return (cancel (Amqp_channel.channel channel) consumer_tag)
