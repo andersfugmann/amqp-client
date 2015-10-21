@@ -2,3 +2,7 @@
 
 * Handle heartbeat
 * Allow setting tcp heartbeat
+* Error handing / monitors
+* Document interfaces
+
+* Unit / integration testing

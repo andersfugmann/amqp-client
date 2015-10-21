@@ -90,3 +90,10 @@ let consume ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { queue
   don't_wait_for (handle_messages (Amqp_channel.channel channel) reader handler);
   let consumer_tag = rep.Consume_ok.consumer_tag in
   return (cancel (Amqp_channel.channel channel) consumer_tag)
+
+(* This will require an exchange *)
+let bind = ()
+let unbind = ()
+
+let purge = ()
+let delete = ()
