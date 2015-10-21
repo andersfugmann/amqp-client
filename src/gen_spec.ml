@@ -238,28 +238,37 @@ let emit_method ?(is_content=false) class_index
   in
 
   emit "type t = %s" t_spec;
+  emit "module I = struct";
+  incr indent;
+
   emit "let make %s = %s" (String.concat " " names) t_args;
   emit "let apply f %s = f %s" t_args values;
   emit "let def = ((%d, %d), spec, make, apply)" class_index index;
 
-  (* Helper for content frames. *)
-  if is_content then begin
-    emit "let init ?%s () = make %s" (String.concat " ?" names) (String.concat " " names)
-  end;
 
   begin match is_content, content with
-    | true, false ->
-      emit "let write = write_content def";
-      emit "let read = read_content def"
     | false, false  ->
       emit "let write = write_method def";
       emit "let read = read_method def"
     | false, true ->
-      emit "let write = write_method_content (write_method def) Content.write";
-      emit "let read = read_method_content (read_method def) Content.read"
-    | true, true ->
-      failwith "Simply cannot happen"
+      emit "let write = write_method_content def Content.I.def";
+      emit "let read = read_method_content def Content.I.def"
+    | true, _ ->
+      ()
   end;
+
+  decr indent;
+  emit "end";
+  let inames = List.filter ((<>) "_") names in
+  begin match is_content with
+    | true ->
+      emit "let init %s () = I.make %s" (List.map (fun n -> "?" ^ n) inames |> String.concat " ") (String.concat " " inames)
+    | false ->
+      emit "let init %s () = I.make %s" (List.map (fun n -> "~" ^ n) inames |> String.concat " ") (String.concat " " inames)
+  end;
+
+
+
   let response = List.map variant_name response in
   if List.length response >= 0 && ((synchronous && response != []) || not synchronous)  then begin
     let id r =
@@ -269,13 +278,13 @@ let emit_method ?(is_content=false) class_index
         ""
     in
     if client then
-      emit "let reply = reply%d read %s"
+      emit "let reply = reply%d I.read %s"
         (List.length response)
-        (response |> List.map (fun s -> Printf.sprintf "%s.write %s" s (id s)) |> String.concat " ");
+        (response |> List.map (fun s -> Printf.sprintf "%s.I.write %s" s (id s)) |> String.concat " ");
     if server then
-      emit "let request = request%d write %s"
+      emit "let request = request%d I.write %s"
         (List.length response)
-        (response |> List.map (fun s -> Printf.sprintf "%s.read %s" s (id s)) |> String.concat " ");
+        (response |> List.map (fun s -> Printf.sprintf "%s.I.read %s" s (id s)) |> String.concat " ");
   end;
   decr indent;
   emit "end";

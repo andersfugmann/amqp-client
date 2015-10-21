@@ -8,19 +8,19 @@ let rec sync_loop channel queue i =
   Queue.get ~no_ack:false channel queue (fun _ _ msg -> log "Received: %s" msg; return ()) >>= fun () ->
   sync_loop channel queue (i+1)
 
-let rec consume channel queue =
-  let i = ref 0 in
-  let handler _ _ data =
-    log "Received: %s" data;
-    incr i;
-    Queue.publish channel queue (Printf.sprintf "Message: %d" !i)
+let consume channel queue =
+  let handler _ _ = function
+    | "Message: 1" -> log "Done";
+      return ()
+    | _ -> return ()
   in
-  Queue.consume channel queue handler >>= fun stop ->
-  after (Core.Span.of_sec 5.) >>= fun () ->
-  stop () >>= fun () ->
-  after (Core.Span.of_sec 1.) >>= fun () ->
-  consume channel queue
+  Queue.consume channel queue handler >>= fun _stop ->
+  return ()
 
+let rec produce channel queue = function
+  | 0 -> return ();
+  | n -> Queue.publish channel queue (Printf.sprintf "Message: %d" n) >>= fun () ->
+    produce channel queue (n-1)
 
 let _ =
   let _ =
@@ -33,8 +33,8 @@ let _ =
       [ maximum_priority 7 ]
     in
     Queue.declare channel ~arguments "anders" >>= fun queue ->
-    Queue.publish channel queue "Message: 0" >>= fun () ->
     (* sync_loop channel queue 1 *)
-    consume channel queue;
+    don't_wait_for (consume channel queue);
+    produce channel queue 100000
   in
   Scheduler.go ()

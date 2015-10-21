@@ -14,15 +14,15 @@ let channel { framing; channel_no; _ } = (framing, channel_no)
 
 let register_deliver_handler =
   let open Amqp_spec.Basic in
-  let ((c_class_id, _), c_spec, c_make, _apply) = Content.def in
-  let (message_id, spec, make, _apply) = Deliver.def in
+  let ((c_class_id, _), c_spec, c_make, _apply) = Content.I.def in
+  let (message_id, spec, make, _apply) = Deliver.I.def in
 
   let c_read = Amqp_types.Content.read c_spec in
   let read = Amqp_types.Spec.read spec in
 
   let content_handler channel handler deliver (content, data) =
-    let property_flags = Amqp_util.read_property_flags content in
-    let header = c_read c_make property_flags content in
+    let property_flag = Amqp_util.read_property_flag (Input.short content) in
+    let header = c_read c_make property_flag content in
     Amqp_framing.deregister_content_handler channel c_class_id;
     handler (deliver, (header, data))
   in
