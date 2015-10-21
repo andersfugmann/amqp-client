@@ -9,10 +9,15 @@ let rec sync_loop channel queue i =
   sync_loop channel queue (i+1)
 
 let consume channel queue =
-  let handler _ _ = function
-    | "Message: 1" -> log "Done";
-      return ()
-    | _ -> return ()
+  let handler _ _ msg =
+    let i = Scanf.sscanf msg "Message: %d" (fun i -> i) in
+    begin match i with
+      | i when i mod 1000 = 0 ->
+        log "%i" i
+      | 1 -> log "Done"
+      | _ -> ()
+    end;
+    return ()
   in
   Queue.consume channel queue handler >>= fun _stop ->
   return ()
@@ -35,6 +40,8 @@ let _ =
     Queue.declare channel ~arguments "anders" >>= fun queue ->
     (* sync_loop channel queue 1 *)
     don't_wait_for (consume channel queue);
-    produce channel queue 100000
+    produce channel queue 100000 >>= fun () ->
+    log "Done producing";
+    return ();
   in
   Scheduler.go ()

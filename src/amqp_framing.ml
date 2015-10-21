@@ -26,11 +26,13 @@ type method_handler = data -> unit
 type channel = { mutable state: channel_state;
                  method_handlers: (message_id, method_handler) Hashtbl.t;
                  content_handlers: (class_id, content_handler) Hashtbl.t;
+                 writer: (Writer.t -> unit) Pipe.Writer.t;
                }
 
 type t = { input: Reader.t; output: Writer.t;
+           multiplex: (Writer.t -> unit) Pipe.Reader.t Pipe.Writer.t;
            channels: (channel_no, channel) Hashtbl.t;
-           max_length: int;
+           mutable max_length: int;
          }
 
 type channel_t =  t * channel_no
@@ -113,17 +115,19 @@ let read_frame t =
   | `Eof -> failwith "Connection closed"
 
 let write_frame t channel_no tpe premable premable_length data =
+  let channel = Hashtbl.find t.channels channel_no in
   let output = Output.create ~size:(1+2+4+premable_length) () in
   encode Octet output tpe;
   encode Short output channel_no;
   let sizer = Output.size_ref output in
   premable output;
   sizer (Output.length data);
-  Writer.write ~len:(Output.length output) t.output (Output.buffer output);
-  Writer.write ~len:(Output.length data) t.output (Output.buffer data);
-  Writer.write_char t.output frame_end
-
-
+  let write out =
+    Writer.write ~len:(Output.length output) out (Output.buffer output);
+    Writer.write ~len:(Output.length data) out (Output.buffer data);
+    Writer.write_char out frame_end
+  in
+  Pipe.write_without_pushback channel.writer write
 
 let write_method (t, channel_no) (cid, mid) data =
   log "Send method on channel: %d (%d, %d)" channel_no cid mid;
@@ -133,6 +137,7 @@ let write_method (t, channel_no) (cid, mid) data =
     encode Short output mid;
   in
   write_frame t channel_no Amqp_constants.frame_method premable (2+2) data
+
 
 let write_content (t, channel_no) class_id content (data_s:string) =
   log "Send content on channel: %d (%d)" channel_no class_id;
@@ -176,25 +181,49 @@ let deregister_content_handler (t, channel_no) class_id =
   Hashtbl.remove c.content_handlers class_id
 
 
-let open_channel (t, channel_no) =
+let open_channel t channel_no =
+  let reader, writer = Pipe.create () in
   Hashtbl.add t.channels channel_no
     { state = Ready;
       method_handlers = Hashtbl.create 0;
       content_handlers = Hashtbl.create 0;
-    }
+      writer;
+    };
+
+  Pipe.write t.multiplex reader
+
+let close_channel t channel_no =
+  let channel = Hashtbl.find t.channels channel_no in
+  Pipe.close channel.writer;
+  Hashtbl.remove t.channels channel_no
 
 let flush t = Writer.flushed t.output
+
+let rec start_writer output channels =
+  Pipe.read channels >>= function
+  | `Ok f ->
+    f output;
+    start_writer output channels
+  | `Eof -> return ()
 
 (** [writer] is channel 0 writer. It must be attached *)
 let init ~port ~host =
   let addr = Tcp.to_host_and_port host port in
   Tcp.connect addr >>= fun (socket, input, output) ->
   Socket.setopt socket Socket.Opt.nodelay true;
-  let t = { input; output; max_length = 256;
-            channels = Hashtbl.create 0;
-          }
+  let multiplex = Pipe.create () in
+  don't_wait_for (start_writer output (Pipe.interleave_pipe (fst multiplex)));
+  let t =
+    { input; output;
+      max_length = 256;
+      channels = Hashtbl.create 0;
+      multiplex = (snd multiplex);
+    }
   in
-  open_channel (t, 0);
-  Deferred.forever t read_frame;
   Writer.write output protocol_header;
+  Deferred.forever t read_frame;
+  open_channel t 0 >>= fun () ->
   return t
+
+let set_max_length t max_length =
+  t.max_length <- max_length;

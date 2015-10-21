@@ -49,9 +49,11 @@ let deregister_consumer_handler t consumer_tag =
 let init framing channel_no  =
   let consumers = Hashtbl.create 0 in
   let t = { framing; channel_no; consumers } in
-  (* Open the channel *)
-  Amqp_framing.open_channel (channel t);
+  Amqp_framing.open_channel framing channel_no >>= fun () ->
   Amqp_spec.Channel.Open.request (channel t) () >>=
   handle_channel_open_ok >>= fun () ->
   register_deliver_handler t;
   return t
+
+let close { framing; channel_no; _ } =
+  Amqp_framing.close_channel framing channel_no
