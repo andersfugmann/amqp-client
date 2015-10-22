@@ -24,14 +24,14 @@ let consume channel queue =
 
 let rec produce channel queue = function
   | 0 -> return ();
-  | n -> Queue.publish channel queue (Printf.sprintf "Message: %d" n) >>= fun () ->
+  | n -> Queue.publish channel queue ~message_id:"vilde dyr" (Printf.sprintf "Message: %d" n) >>= fun () ->
     produce channel queue (n-1)
 
 let _ =
   let _ =
-    Connection.connect ~host:"127.0.0.1" () >>= fun connection ->
+    Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
     log "Connection started";
-    Connection.open_channel connection 1 >>= fun channel ->
+    Connection.open_channel ~id:"test" connection >>= fun channel ->
     log "Channel opened";
     let arguments =
       let open Queue in

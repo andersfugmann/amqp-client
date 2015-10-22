@@ -13,9 +13,9 @@ let maximum_priority v = "x-max-priotity", Amqp_types.VLonglong v
 
 
 
-let declare channel ?(passive=false) ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(arguments=[]) queue =
+let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(arguments=[]) queue =
   let channel = Amqp_channel.channel channel in
-  let req = { Amqp_spec.Queue.Declare.queue; passive; durable; exclusive;
+  let req = { Amqp_spec.Queue.Declare.queue; passive=false; durable; exclusive;
               auto_delete; no_wait=false; arguments }
   in
   Amqp_spec.Queue.Declare.request channel req >>= fun rep ->
@@ -36,14 +36,28 @@ let get ~no_ack channel { queue } handler =
     else
       return ()
 
-
-let publish channel { queue } data =
+let publish channel { queue }
+    ?content_type
+    ?content_encoding
+    ?correlation_id
+    ?message_id
+    ?(mandatory=false)
+    ?reply_to
+    ?expiration
+    ?(persistent=false)
+    data =
   let open Amqp_spec.Basic in
-  let channel = Amqp_channel.channel channel in
-  Publish.request channel
-    ({Publish.exchange = ""; routing_key=queue; mandatory=true; immediate=false},
-     (Content.init ~content_type:"x-test-data" ()),
-     data)
+  let delivery_mode = if persistent then Some 2 else None in
+  Publish.request (Amqp_channel.channel channel)
+    ({Publish.exchange = ""; routing_key=queue; mandatory; immediate=false},
+     (Content.init ?content_type
+        ?content_encoding
+        ?correlation_id
+        ?reply_to
+        ?message_id
+        ?delivery_mode
+        ~app_id:(Amqp_channel.id channel)
+        ?expiration ()), data)
 
 (* How do we handle ack. *)
 let consume ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { queue } handler =

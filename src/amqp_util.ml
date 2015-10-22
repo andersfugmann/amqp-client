@@ -11,10 +11,8 @@ let bit_string v length =
   in
   String.concat "" (loop [] v length)
 
-let update_property_flag v word =
-  let p = (v land 0x7fff) * 2 in
-  log "Write property flags: %x" p;
-  word p
+let update_property_flag v word flags =
+  word ((v lsl (16 - flags)) land 0xffff)
 
 let read_property_flag word =
   let word = word land 0xffff in
@@ -68,7 +66,7 @@ let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec
     let property_flags = ref 0 in
     let property_word = Output.short_ref output in
     c_apply (c_write property_flags output) content;
-    update_property_flag !property_flags property_word;
+    update_property_flag !property_flags property_word property_bits;
 
     (* Now send the data. *)
     Amqp_framing.write_content channel c_method output data

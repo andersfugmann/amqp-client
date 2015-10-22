@@ -4,7 +4,12 @@ open Amqp_spec
 
 type message = Basic.Deliver.t * (Basic.Content.t * string)
 type consumers = (string, message -> unit) Hashtbl.t
-type t = { framing: Amqp_framing.t; channel_no: int; consumers: consumers }
+type t = { framing: Amqp_framing.t;
+           channel_no: int;
+           consumers: consumers;
+           id: string;
+           mutable counter: int;
+         }
 
 let handle_channel_open_ok () =
   log "Open_ok";
@@ -46,9 +51,10 @@ let register_consumer_handler t consumer_tag handler =
 let deregister_consumer_handler t consumer_tag =
   Hashtbl.remove t.consumers consumer_tag
 
-let init framing channel_no  =
+let init ~id framing channel_no  =
   let consumers = Hashtbl.create 0 in
-  let t = { framing; channel_no; consumers } in
+  let id = Printf.sprintf "%s.%s" (Amqp_framing.id framing) id in
+  let t = { framing; channel_no; consumers; id; counter = 0 } in
   Amqp_framing.open_channel framing channel_no >>= fun () ->
   Amqp_spec.Channel.Open.request (channel t) () >>=
   handle_channel_open_ok >>= fun () ->
@@ -57,3 +63,12 @@ let init framing channel_no  =
 
 let close { framing; channel_no; _ } =
   Amqp_framing.close_channel framing channel_no
+
+let next_counter t =
+  t.counter <- t.counter + 1;
+  t.counter
+
+let id t = t.id
+
+let unique_id t =
+  Printf.sprintf "%s.%d" t.id (next_counter t);

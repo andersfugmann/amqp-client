@@ -5,6 +5,7 @@ let log = Amqp_protocol.log
 
 type t = { framing: Amqp_framing.t;
            virtual_host: string;
+           mutable channel: int
          }
 
 
@@ -15,19 +16,26 @@ let rec string_split ?(offset=0) ~by s =
   | exception Not_found -> [ String.sub s offset (String.length s - offset) ]
   | exception Invalid_argument _ -> []
 
-let handle_start (username, password) {Start.version_major;
-                  version_minor;
-                  server_properties;
-                  mechanisms;
-                  locales } =
-  log "Connection start";
-  log "Id: %d %d" version_major version_minor;
-  log "Properties: (%d)" (List.length server_properties);
+let handle_start id (username, password) {Start.version_major;
+                                       version_minor;
+                                       server_properties = _;
+                                       mechanisms;
+                                       locales } =
+  let open Amqp_types in
+  log "Server version: %d %d" version_major version_minor;
   log "Mechanisms: %s" mechanisms;
-  log "Locales: %s" locales;
-  log "Send start_ok";
+
+  let properties =
+      [
+        "platform", VLongstr (Sys.os_type);
+        "library", VLongstr "ocaml-amqp";
+        "version", VLongstr "0.0.1";
+        "client id", VLongstr id;
+      ]
+  in
+
   return {
-    Start_ok.client_properties = server_properties;
+    Start_ok.client_properties = properties;
     mechanism = "PLAIN";
     response = "\x00" ^ username ^ "\x00" ^ password;
     locale = string_split ~by:';' locales |> List.hd
@@ -64,13 +72,12 @@ let handle_close { Close.reply_code;
 let open_connection { framing; virtual_host; _ } =
   Open.request (framing, 0) { Open.virtual_host } >>= handle_open_ok
 
-let connect ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ~host () =
-  Amqp_framing.init ~port ~host >>= fun framing ->
-
-  let t = { framing; virtual_host } in
+let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) host =
+  Amqp_framing.init ~id ~port host >>= fun framing ->
+  let t = { framing; virtual_host; channel = 0 } in
 
   (* Ok. Lets try to start the thing. *)
-  Start.reply (framing, 0) (handle_start credentials) >>= fun () ->
+  Start.reply (framing, 0) (handle_start (Amqp_framing.id framing) credentials) >>= fun () ->
   Tune.reply (framing, 0) (handle_tune framing) >>= fun () ->
   open_connection t >>= fun () ->
 
@@ -78,5 +85,6 @@ let connect ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ~
   don't_wait_for (Close.reply (framing, 0) handle_close);
   return t
 
-let open_channel { framing; _ } n =
-  Amqp_channel.init framing n
+let open_channel ~id t =
+  t.channel <- t.channel + 1;
+  Amqp_channel.init ~id t.framing t.channel;

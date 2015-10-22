@@ -21,7 +21,7 @@ and value =
   | VShort of int
   | VLong of int
   | VLonglong of int
-  | VShortstr of string
+  | VShortstr of string (* Not accepted by rabbitmq *)
   | VLongstr of string
   | VFloat of float
   | VDouble of float

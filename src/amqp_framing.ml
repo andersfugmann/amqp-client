@@ -33,6 +33,7 @@ type t = { input: Reader.t; output: Writer.t;
            multiplex: (Writer.t -> unit) Pipe.Reader.t Pipe.Writer.t;
            channels: (channel_no, channel) Hashtbl.t;
            mutable max_length: int;
+           id: string
          }
 
 type channel_t =  t * channel_no
@@ -206,8 +207,11 @@ let rec start_writer output channels =
     start_writer output channels
   | `Eof -> return ()
 
+let id {id; _} = id
+
 (** [writer] is channel 0 writer. It must be attached *)
-let init ~port ~host =
+let init ~id ~port host =
+  let id = Printf.sprintf "%s.%s.%s.%s" id (Unix.gethostname ()) (Unix.getpid () |> Core.Std.Pid.to_string) (Sys.executable_name |> Filename.basename) in
   let addr = Tcp.to_host_and_port host port in
   Tcp.connect addr >>= fun (socket, input, output) ->
   Socket.setopt socket Socket.Opt.nodelay true;
@@ -218,6 +222,7 @@ let init ~port ~host =
       max_length = 256;
       channels = Hashtbl.create 0;
       multiplex = (snd multiplex);
+      id;
     }
   in
   Writer.write output protocol_header;
