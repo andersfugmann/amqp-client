@@ -1,12 +1,14 @@
+module P = Printf
 open Async.Std
 open Amqp_types
-open Spec
+open Amqp_types.Spec
 open Amqp_protocol
 
 exception Unknown_frame_type of int
 exception Connection_closed
 exception Busy
-exception Unhandled_message
+exception Unhandled_method of message_id
+exception Unhandled_header of class_id
 
 type channel_no = int
 
@@ -108,7 +110,9 @@ let decode_message t tpe channel_no data =
     begin
       match Hashtbl.find channel.method_handlers message_id with
       | handler -> handler input
-      | exception Not_found -> raise Unhandled_message
+      | exception Not_found ->
+        P.eprintf "No handler: (%d, %d)\n%!" (fst message_id) (snd message_id);
+        raise (Unhandled_method message_id)
     end
   | Ready, n when n = Amqp_constants.frame_header ->
     let input = Input.create data in
@@ -122,7 +126,7 @@ let decode_message t tpe channel_no data =
       match Hashtbl.find channel.content_handlers class_id with
         | handler ->
           handler (input, "")
-        | exception Not_found -> raise Unhandled_message
+        | exception Not_found -> raise (Unhandled_header class_id)
       end
     else
       channel.state <- Waiting (class_id, input, size, Buffer.create size)
@@ -136,7 +140,7 @@ let decode_message t tpe channel_no data =
       match Hashtbl.find channel.content_handlers class_id with
       | handler ->
         handler (content, Buffer.contents buffer);
-      | exception Not_found -> raise Unhandled_message
+      | exception Not_found -> raise (Unhandled_header class_id)
     end
   | _, n when n = Amqp_constants.frame_heartbeat ->
     write_frame t 0 Amqp_constants.frame_heartbeat ignore 0 (Output.create ~size:0 ())
