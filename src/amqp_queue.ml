@@ -45,8 +45,14 @@ let publish channel { queue }
     ?reply_to
     ?expiration
     ?(persistent=false)
+    ?app_id
     data =
   let open Amqp_spec.Basic in
+  let app_id = match app_id with
+    | Some "" -> None
+    | Some n -> Some n
+    | None -> Some (Amqp_channel.id channel)
+  in
   let delivery_mode = if persistent then Some 2 else None in
   Publish.request (Amqp_channel.channel channel)
     ({Publish.exchange = ""; routing_key=queue; mandatory; immediate=false},
@@ -56,7 +62,7 @@ let publish channel { queue }
         ?reply_to
         ?message_id
         ?delivery_mode
-        ~app_id:(Amqp_channel.id channel)
+        ?app_id
         ?expiration ()), data)
 
 (* How do we handle ack. *)
