@@ -87,4 +87,4 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
 
 let open_channel ~id t =
   t.channel <- t.channel + 1;
-  Amqp_channel.init ~id t.framing t.channel;
+  Amqp_channel.init ~id t.framing t.channel

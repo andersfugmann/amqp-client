@@ -46,6 +46,7 @@ let publish channel { queue }
     ?expiration
     ?(persistent=false)
     ?app_id
+    ?headers
     data =
   let open Amqp_spec.Basic in
   let app_id = match app_id with
@@ -63,6 +64,7 @@ let publish channel { queue }
         ?message_id
         ?delivery_mode
         ?app_id
+        ?headers
         ?expiration ()), data)
 
 (* How do we handle ack. *)
@@ -112,8 +114,10 @@ let consume ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { queue
   return (cancel (Amqp_channel.channel channel) consumer_tag)
 
 (* This will require an exchange *)
-let bind = ()
-let unbind = ()
+let bind _t _exchange = return ()
+let unbind _t _exchange = return ()
 
-let purge = ()
-let delete = ()
+let purge _t = return ()
+let delete _t = return ()
+
+let name { queue } = queue

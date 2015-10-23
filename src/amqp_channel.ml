@@ -53,7 +53,7 @@ let deregister_consumer_handler t consumer_tag =
 
 let init ~id framing channel_no  =
   let consumers = Hashtbl.create 0 in
-  let id = Printf.sprintf "%s.%s" (Amqp_framing.id framing) id in
+  let id = Printf.sprintf "%s.%s.%d" (Amqp_framing.id framing) id channel_no in
   let t = { framing; channel_no; consumers; id; counter = 0 } in
   Amqp_framing.open_channel framing channel_no >>= fun () ->
   Amqp_spec.Channel.Open.request (channel t) () >>=
@@ -62,7 +62,22 @@ let init ~id framing channel_no  =
   return t
 
 let close { framing; channel_no; _ } =
-  Amqp_framing.close_channel framing channel_no
+  let open Amqp_spec.Channel.Close in
+  request (framing, channel_no)
+    { reply_code=200;
+      reply_text="Closed on user request";
+      class_id=0;
+      method_id=0; } >>= fun () ->
+  Amqp_framing.close_channel framing channel_no;
+  return ()
+
+(** Register an on return handler. *)
+let on_return t handler =
+  let open Amqp_spec.Basic.Return in
+  let rec read () =
+    don't_wait_for (reply (channel t) ~post_handler:(fun _ -> read ()) >>= fun msg -> handler msg) in
+  read ()
+
 
 let next_counter t =
   t.counter <- t.counter + 1;
@@ -70,5 +85,7 @@ let next_counter t =
 
 let id t = t.id
 
+let channel_no t = t.channel_no
+
 let unique_id t =
-  Printf.sprintf "%s.%d" t.id (next_counter t);
+  Printf.sprintf "%s.%d" t.id (next_counter t)

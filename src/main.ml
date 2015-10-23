@@ -38,9 +38,6 @@ let _ =
       [ maximum_priority 7 ]
     in
     Queue.declare channel ~arguments "anders" >>= fun queue ->
-    Queue.declare channel "amq.rabbitmq.reply-to" >>= fun reply_queue ->
-    Queue.consume channel reply_queue ~no_ack:true (fun _ _ _ -> return ()) >>= fun _stop ->
-    Queue.consume channel reply_queue ~no_ack:true (fun _ _ _ -> return ()) >>= fun _stop ->
 
     (* sync_loop channel queue 1 *)
     don't_wait_for (consume channel queue);

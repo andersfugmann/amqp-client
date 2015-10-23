@@ -30,6 +30,8 @@ mkdir -p _build
             amqp_protocol
             amqp_connection
             amqp_queue
+            amqp_rpc
+	    amqp_exchange
             amqp
 
 
