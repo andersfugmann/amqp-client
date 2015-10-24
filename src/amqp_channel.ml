@@ -18,7 +18,7 @@ let handle_channel_open_ok () =
 let channel { framing; channel_no; _ } = (framing, channel_no)
 
 let register_deliver_handler =
-  let open Amqp_spec.Basic in
+  let open Basic in
   let ((c_class_id, _), c_spec, c_make, _apply) = Content.I.def in
   let (message_id, spec, make, _apply) = Deliver.I.def in
 
@@ -52,18 +52,28 @@ let register_consumer_handler t consumer_tag handler =
 let deregister_consumer_handler t consumer_tag =
   Hashtbl.remove t.consumers consumer_tag
 
+let handle_close channel_no close =
+  printf "Channel closed: %d\n" channel_no;
+  printf "Reply code: %d\n" close.Channel.Close.reply_code;
+  printf "Reply text: %s\n" close.Channel.Close.reply_text;
+  printf "Message: (%d, %d)\n" close.Channel.Close.class_id close.Channel.Close.method_id;
+  Shutdown.shutdown 1;
+  return ()
+
 let init ~id framing channel_no  =
   let consumers = Hashtbl.create 0 in
   let id = Printf.sprintf "%s.%s.%d" (Amqp_framing.id framing) id channel_no in
   let t = { framing; channel_no; consumers; id; counter = 0 } in
   Amqp_framing.open_channel framing channel_no >>= fun () ->
-  Amqp_spec.Channel.Open.request (channel t) () >>=
+  Channel.Open.request (channel t) () >>=
   handle_channel_open_ok >>= fun () ->
   register_deliver_handler t;
+  don't_wait_for (Channel.Close.reply (framing, channel_no) (handle_close channel_no));
+
   return t
 
 let close { framing; channel_no; _ } =
-  let open Amqp_spec.Channel.Close in
+  let open Channel.Close in
   request (framing, channel_no)
     { reply_code=200;
       reply_text="Closed on user request";
@@ -74,7 +84,7 @@ let close { framing; channel_no; _ } =
 
 (** Register an on return handler. *)
 let on_return t handler =
-  let open Amqp_spec.Basic.Return in
+  let open Basic.Return in
   let rec read () =
     don't_wait_for (reply (channel t) ~post_handler:(fun _ -> read ()) >>= fun msg -> handler msg) in
   read ()
@@ -90,3 +100,13 @@ let channel_no t = t.channel_no
 
 let unique_id t =
   Printf.sprintf "%s.%d" t.id (next_counter t)
+
+(** Set prefetch counters for a channel to globally
+    Note that on rabbitmq, prefetch only affects consumers on the channel.
+    In this case, setting the global flag will have the limit set on the channel.
+    If the flag is false (using rabbitmq) the limits will be per consumer.
+*)
+let set_prefetch ?(count=0) ?(size=0) ?(global=false) t =
+  Basic.Qos.request (channel t) { Basic.Qos.prefetch_count=count;
+                      prefetch_size=size;
+                      global }

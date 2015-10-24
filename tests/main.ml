@@ -14,17 +14,19 @@ let consume channel queue =
     begin match i with
       | i when i mod 1000 = 0 ->
         log "%i" i
-      | 1 -> log "Done"
+      | 1 ->
+        log "Done";
+        Shutdown.shutdown 0
       | _ -> ()
     end;
     return ()
   in
-  Queue.consume ~id:"test" channel queue handler >>= fun _stop ->
+  Queue.consume ~no_ack:true ~id:"test" channel queue handler >>= fun _stop ->
   return ()
 
 let rec produce channel queue = function
   | 0 -> return ();
-  | n -> Queue.publish channel queue ~message_id:"vilde dyr" (Printf.sprintf "Message: %d" n) >>= fun () ->
+  | n -> Queue.publish channel queue  (Printf.sprintf "Message: %d" n) >>= fun () ->
     produce channel queue (n-1)
 
 let _ =
@@ -32,6 +34,7 @@ let _ =
     Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
     log "Connection started";
     Connection.open_channel ~id:"test" connection >>= fun channel ->
+    Channel.set_prefetch channel ~count:100 >>= fun () ->
     log "Channel opened";
     let arguments =
       let open Queue in

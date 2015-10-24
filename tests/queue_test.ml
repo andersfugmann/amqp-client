@@ -12,6 +12,8 @@ let test =
   log "Channel opened";
   Queue.declare channel ~auto_delete:true "test" >>= fun queue ->
   log "Queue declared";
+  Channel.set_prefetch channel ~count:100 >>= fun () ->
+  log "Prefetch set";
   Queue.purge channel queue >>= fun () ->
   log "Queue purged";
   let var = Ivar.create () in
@@ -37,9 +39,9 @@ let test =
   assert (Ivar.is_full var);
   log "Message recieved";
 
-  Queue.delete channel queue >>= fun () ->
+  Queue.delete channel queue >>| fun () ->
   log "Queue deleted";
-  return ()
+  Shutdown.shutdown 0
 
 let _ =
   Scheduler.go ()
