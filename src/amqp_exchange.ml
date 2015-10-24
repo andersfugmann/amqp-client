@@ -32,9 +32,9 @@ let declare ?(passive=false) ?(durable=false) ?(auto_delete=false) ?(internal=fa
       arguments = [] } >>= fun () ->
   return { name }
 
-let delete ?(if_unused=false) channel { name } =
+let delete ?(if_unused=false) channel t =
   Delete.request (Channel.channel channel)
-    { Delete.exchange = name;
+    { Delete.exchange = t.name;
       if_unused;
       no_wait = false;
     }
@@ -59,7 +59,7 @@ let unbind channel t ~routing_key source =
       arguments = [];
     }
 
-let publish channel { name }
+let publish channel t
     ?content_type
     ?content_encoding
     ?correlation_id
@@ -80,7 +80,10 @@ let publish channel { name }
   in
   let delivery_mode = if persistent then Some 2 else None in
   Publish.request (Amqp_channel.channel channel)
-    ({Publish.exchange = name; routing_key=routing_key; mandatory; immediate=false},
+    ({Publish.exchange = t.name;
+      routing_key=routing_key;
+      mandatory;
+      immediate=false},
      (Content.init ?content_type
         ?content_encoding
         ?correlation_id

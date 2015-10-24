@@ -6,7 +6,7 @@ open Amqp_spec.Queue
 
 let log = Amqp_protocol.log
 
-type t = { queue: string }
+type t = { name: string }
 
 let message_ttl v = "x-message-ttl", Amqp_types.VLonglong v
 let auto_expire v = "x-expires", Amqp_types.VLonglong v
@@ -16,19 +16,19 @@ let dead_letter_exchange v = "x-dead-letter-exchange", Amqp_types.VLongstr v
 let dead_letter_routing_key v = "x-dead-letter-routing-key", Amqp_types.VLongstr v
 let maximum_priority v = "x-max-priotity", Amqp_types.VLonglong v
 
-let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(arguments=[]) queue =
+let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(arguments=[]) name =
   let channel = Amqp_channel.channel channel in
-  let req = { Declare.queue; passive=false; durable; exclusive;
+  let req = { Declare.queue=name; passive=false; durable; exclusive;
               auto_delete; no_wait=false; arguments }
   in
   Declare.request channel req >>= fun rep ->
-  assert (rep.Declare_ok.queue = queue);
-  return { queue }
+  assert (rep.Declare_ok.queue = name);
+  return { name }
 
-let get ~no_ack channel { queue } handler =
+let get ~no_ack channel t handler =
   let open Amqp_spec.Basic in
   let channel = Channel.channel channel in
-  Get.request channel { Get.queue; no_ack } >>= function
+  Get.request channel { Get.queue=t.name; no_ack } >>= function
   | `Get_empty () ->
     log "No Data"; return ()
   | `Get_ok (mth, (hdr, data))  ->
@@ -39,7 +39,7 @@ let get ~no_ack channel { queue } handler =
       return ()
 
 (** Publish a message directly to a queue *)
-let publish channel { queue }
+let publish channel t
     ?content_type
     ?content_encoding
     ?correlation_id
@@ -62,11 +62,12 @@ let publish channel { queue }
     ?persistent
     ?app_id
     ?headers
-    ~routing_key:queue
+    ~routing_key:t.name
     data
 
 (** Consume message from a queue. *)
-let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { queue } handler =
+let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t
+    handler =
   let open Amqp_spec.Basic in
   let (reader, writer) = Pipe.create () in
   let consumer_tag = Printf.sprintf "%s.%s" (Channel.id channel) id in
@@ -90,7 +91,7 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { q
     Channel.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag
       (Pipe.write_without_pushback writer)
   in
-  let req = { Consume.queue;
+  let req = { Consume.queue=t.name;
               consumer_tag;
               no_local;
               no_ack;
@@ -117,7 +118,7 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { q
 *)
 let bind channel t ~routing_key exchange =
   Bind.request (Channel.channel channel)
-    { Bind.queue = t.queue;
+    { Bind.queue = t.name;
       exchange = (Exchange.name exchange);
       routing_key;
       no_wait = false;
@@ -126,7 +127,7 @@ let bind channel t ~routing_key exchange =
 
 let unbind channel t ~routing_key exchange =
   Unbind.request (Channel.channel channel)
-    { Unbind.queue = t.queue;
+    { Unbind.queue = t.name;
       exchange = (Exchange.name exchange);
       routing_key;
       arguments = []
@@ -135,7 +136,7 @@ let unbind channel t ~routing_key exchange =
 (** Purge the queue *)
 let purge channel t =
   Purge.request (Channel.channel channel)
-    { Purge.queue = t.queue;
+    { Purge.queue = t.name;
       no_wait = false;
     } >>= fun _rep ->
   return ()
@@ -143,12 +144,15 @@ let purge channel t =
 (** Delete the queue. *)
 let delete ?(if_unused=false) ?(if_empty=false) channel t =
   Delete.request (Channel.channel channel)
-    { Delete.queue = t.queue;
+    { Delete.queue = t.name;
       if_unused;
       if_empty;
       no_wait = false;
     } >>= fun _rep -> return ()
 
-let name { queue } = queue
 
-let fake _channel name = return { queue=name }
+(** Name of the queue *)
+let name t = t.name
+
+(** Construct a queue without any validation *)
+let fake _channel name = return { name }

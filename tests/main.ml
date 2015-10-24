@@ -37,7 +37,7 @@ let _ =
       let open Queue in
       [ maximum_priority 7 ]
     in
-    Queue.declare channel ~arguments "anders" >>= fun queue ->
+    Queue.declare channel ~arguments ~auto_delete:true "anders" >>= fun queue ->
 
     (* sync_loop channel queue 1 *)
     don't_wait_for (consume channel queue);
