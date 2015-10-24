@@ -15,7 +15,7 @@ let rec request t queue i =
     request t queue (i+1)
 
 
-let start =
+let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
   log "Connection started";
   Connection.open_channel ~id:"test" connection >>= fun channel ->

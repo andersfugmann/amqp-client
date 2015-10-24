@@ -51,6 +51,8 @@ vmount(-l, tests, _build)
 	OCamlProgram(main, main)
 	OCamlProgram(rpc_server, rpc_server)
 	OCamlProgram(rpc_client, rpc_client)
+	OCamlProgram(channel, channel_test)
+	OCamlProgram(queue, queue_test)
+	OCamlProgram(exchange, exchange_test)
 
-
-	.DEFAULT: main rpc_server rpc_client
+	.DEFAULT: main rpc_server rpc_client channel queue exchange

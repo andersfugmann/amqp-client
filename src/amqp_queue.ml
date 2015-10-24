@@ -137,7 +137,8 @@ let purge channel t =
   Purge.request (Channel.channel channel)
     { Purge.queue = t.queue;
       no_wait = false;
-    }
+    } >>= fun _rep ->
+  return ()
 
 (** Delete the queue. *)
 let delete ?(if_unused=false) ?(if_empty=false) channel t =
