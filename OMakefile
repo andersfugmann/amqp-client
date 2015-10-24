@@ -8,13 +8,13 @@ OCAMLFLAGS = -thread -g -w @A-4-29-33-41-44-45-48 -bin-annot
 
 OCAMLPACKS[] = xml-light async async_unix ocplib-endian
 
-vmount(-l, src, _build)
 mkdir -p _build
-.SUBDIRS: _build
-    section:
-	.DEFAULT: $(OCamlProgram gen_spec, gen_spec)
+vmount(-l, src, _build)
 
-    section:
+.SUBDIRS: _build
+	OCamlProgram(gen_spec, gen_spec)
+
+	#OCAMLFLAGS += -for-pack
 	AMQP_SPEC_URL=http://www.rabbitmq.com/resources/specs/amqp0-9-1.stripped.extended.xml
 	amqp0-9-1.stripped.xml:
 		mkdir -p data
@@ -35,8 +35,22 @@ mkdir -p _build
             amqp
 
 
-	DATA_FILE=amqp0-9-1.stripped.xml
 	amqp_spec.ml: gen_spec amqp0-9-1.stripped.xml
 		./gen_spec amqp0-9-1.stripped.xml > $@
 
-	.DEFAULT: $(OCamlProgram main, main $(FILES))
+	#OCamlPackage(plibamqp, $(FILES))
+	OCamlLibrary(libamqp, $(FILES))
+
+
+vmount(-l, tests, _build)
+.SUBDIRS: _build
+	OCAML_LINK_FLAGS = -linkpkg
+	#OCAMLINCLUDES += ../_build
+	OCAML_LIBS += libamqp
+
+	OCamlProgram(main, main)
+	OCamlProgram(rpc_server, rpc_server)
+	OCamlProgram(rpc_client, rpc_client)
+
+
+	.DEFAULT: main rpc_server rpc_client

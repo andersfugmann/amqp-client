@@ -1,6 +1,7 @@
 open Async.Std
 open Amqp
 
+let log fmt = printf (fmt ^^ "\n%!")
 
 let rec sync_loop channel queue i =
   Queue.publish channel queue (Printf.sprintf "Message: %d" i) >>= fun () ->
@@ -28,7 +29,7 @@ let rec produce channel queue = function
 
 let _ =
   let _ =
-    Coannection.connect ~id:"fugmann" "localhost" >>= fun connection ->
+    Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
     log "Connection started";
     Connection.open_channel ~id:"test" connection >>= fun channel ->
     log "Channel opened";
