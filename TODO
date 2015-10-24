@@ -1,19 +1,17 @@
 * Implement highlevel paradigms (Rpc, Direct, etc.)
 
-* Handle heartbeat
 * Allow setting tcp heartbeat
 * Error handing / monitors
 * Document interfaces
 
 * Unit / integration testing
-* Add names for all identifiers to help tracing in a live distributed system.
-  - Correlation ids on messages
-
 
 * Enable / Allow publisher confirms (Confirm.Select) per channel
   (A publisher would wait for the next ack. We need to keep a window of send, but not yet ack'ed messages)
 
-* Handle immediate flag in publish (Return messages - requires an async handler)
+* Handle immediate flag in publish
+  (Return messages - requires an async handler)
 
 * Handle flow on channels
+
 * Handle channel close (callback with error code)
