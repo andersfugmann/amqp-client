@@ -64,7 +64,7 @@ module Client = struct
   (** Release resources *)
   let close t =
     Hashtbl.iter (fun _ var -> Ivar.fill var `Timedout) t.outstanding;
-    Queue.delete t.queue >>= fun () ->
+    Amqp_queue.delete t.channel t.queue >>= fun () ->
     Channel.close t.channel >>= fun () ->
     return ()
 end

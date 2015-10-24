@@ -1,3 +1,6 @@
+module Connection = Amqp_connection
+module Channel = Amqp_channel
+
 open Amqp_spec.Exchange
 
 type t = { name : string }
@@ -7,12 +10,52 @@ let amq_direct = { name = "amq.direct" }
 let amq_fanout = { name = "amq.fanout" }
 let amq_topic = { name = "amq.topic" }
 
-let init = () (* declare *)
-let delete = ()
+type exchange_type = Direct | Fanout | Topic | Headers
 
-(* Bind exchanges *)
-let bind = ()
-let unbind = ()
+let string_of_exchange_type = function
+  | Direct -> "direct"
+  | Fanout -> "fanout"
+  | Topic -> "topic"
+  | Headers -> "headers"
+
+(** Declare an exchange. *)
+let declare ?(passive=false) ?(durable=false) ?(auto_delete=false) ?(internal=false) channel name exchange_type =
+  Declare.request (Channel.channel channel)
+    { Declare.exchange = name;
+      amqp_type = (string_of_exchange_type exchange_type);
+      passive;
+      durable;
+      auto_delete;
+      internal;
+      no_wait = false;
+      arguments = [] }
+
+let delete ?(if_unused=false) channel { name } =
+  Delete.request (Channel.channel channel)
+    { Delete.exchange = name;
+      if_unused;
+      no_wait = false;
+    }
+
+(** Bind exchange t to exchange using [routing_key] so messages are routed from exhange to t *)
+
+let bind channel t ~routing_key source =
+  Bind.request (Channel.channel channel)
+    { Bind.destination = t.name;
+      source = source.name;
+      routing_key;
+      no_wait = false;
+      arguments = [];
+    }
+
+let unbind channel t ~routing_key source =
+  Unbind.request (Channel.channel channel)
+    { Unbind.destination = t.name;
+      source = source.name;
+      routing_key;
+      no_wait = false;
+      arguments = [];
+    }
 
 let publish channel { name }
     ?content_type
@@ -45,3 +88,5 @@ let publish channel { name }
         ?app_id
         ?headers
         ?expiration ()), data)
+
+let name t = t.name

@@ -2,7 +2,7 @@ open Async.Std
 module Connection = Amqp_connection
 module Channel = Amqp_channel
 module Exchange = Amqp_exchange
-
+open Amqp_spec.Queue
 
 let log = Amqp_protocol.log
 
@@ -16,17 +16,14 @@ let dead_letter_exchange v = "x-dead-letter-exchange", Amqp_types.VLongstr v
 let dead_letter_routing_key v = "x-dead-letter-routing-key", Amqp_types.VLongstr v
 let maximum_priority v = "x-max-priotity", Amqp_types.VLonglong v
 
-
-
 let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(arguments=[]) queue =
   let channel = Amqp_channel.channel channel in
-  let req = { Amqp_spec.Queue.Declare.queue; passive=false; durable; exclusive;
+  let req = { Declare.queue; passive=false; durable; exclusive;
               auto_delete; no_wait=false; arguments }
   in
-  Amqp_spec.Queue.Declare.request channel req >>= fun rep ->
-  assert (rep.Amqp_spec.Queue.Declare_ok.queue = queue);
+  Declare.request channel req >>= fun rep ->
+  assert (rep.Declare_ok.queue = queue);
   return { queue }
-
 
 let get ~no_ack channel { queue } handler =
   let open Amqp_spec.Basic in
@@ -114,12 +111,42 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { q
   let consumer_tag = rep.Consume_ok.consumer_tag in
   return (cancel (Channel.channel channel) consumer_tag)
 
-(* This will require an exchange *)
-let bind _t _exchange = return ()
-let unbind _t _exchange = return ()
+(** Bind a queue to an exhange.
+    Messages posted on the exchange which match the routing key
+    will be routed to the queue
+*)
+let bind channel t ~routing_key exchange =
+  Bind.request (Channel.channel channel)
+    { Bind.queue = t.queue;
+      exchange = (Exchange.name exchange);
+      routing_key;
+      no_wait = false;
+      arguments = []
+    }
 
-let purge _t = return ()
-let delete _t = return ()
+let unbind channel t ~routing_key exchange =
+  Unbind.request (Channel.channel channel)
+    { Unbind.queue = t.queue;
+      exchange = (Exchange.name exchange);
+      routing_key;
+      arguments = []
+    }
+
+(** Purge the queue *)
+let purge channel t =
+  Purge.request (Channel.channel channel)
+    { Purge.queue = t.queue;
+      no_wait = false;
+    }
+
+(** Delete the queue. *)
+let delete ?(if_unused=false) ?(if_empty=false) channel t =
+  Delete.request (Channel.channel channel)
+    { Delete.queue = t.queue;
+      if_unused;
+      if_empty;
+      no_wait = false;
+    } >>= fun _rep -> return ()
 
 let name { queue } = queue
 
