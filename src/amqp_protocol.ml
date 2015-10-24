@@ -9,9 +9,14 @@ module Input = struct
   let create ?(offset=0) buf = { buf; offset }
   let read  f n t = let r = f t.buf t.offset in t.offset <- t.offset + n; r
   let string t n =
-    let r = String.sub t.buf t.offset n in
-    t.offset <- t.offset + n;
-    r
+    try
+      let r = String.sub t.buf t.offset n in
+      t.offset <- t.offset + n;
+      r
+    with
+    | _ -> failwith
+           (Printf.sprintf "Sub string: offset: %d len: %d. size: %d"
+              t.offset n (String.length t.buf))
   let octet = read get_uint8 1
   let short = read get_int16 2
   let long t = read get_int32 4 t |> Int32.to_int

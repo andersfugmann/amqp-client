@@ -14,8 +14,8 @@ let bit_string v length =
 let update_property_flag v word flags =
   word ((v lsl (16 - flags)) land 0xffff)
 
-let read_property_flag word =
-  let word = word land 0xffff in
+let read_property_flag word flags =
+  let word = (word land 0xffff) lsr (16 - flags) in
 
   (* Reverse the bits *)
   let rec rev v word = function
@@ -23,7 +23,7 @@ let read_property_flag word =
     | n ->
       rev ((v lsl 1) lor (word land 0x1)) (word lsr 1) (n - 1)
   in
-  rev 0 word 15
+  rev 0 word flags
 
 let rec list_create f = function
   | 0 -> []
@@ -74,11 +74,12 @@ let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec
 let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec, c_make, _c_apply) =
   let read = Spec.read spec in
   let c_read = Content.read c_spec in
+  let flags = Content.length c_spec in
 
   let reply ?(post_handler : 'a post_handler) channel =
     let var = Ivar.create () in
     let c_handler req (content, data) =
-      let property_flags = read_property_flag (Input.short content) in
+      let property_flags = read_property_flag (Input.short content) flags in
       let header = c_read c_make property_flags content in
       let message = (req, (header, data)) in
       Ivar.fill var message;

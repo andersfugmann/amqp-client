@@ -1,7 +1,12 @@
 open Async.Std
-let log = Amqp_protocol.log
-type t = { queue: string }
+module Connection = Amqp_connection
+module Channel = Amqp_channel
+module Exchange = Amqp_exchange
 
+
+let log = Amqp_protocol.log
+
+type t = { queue: string }
 
 let message_ttl v = "x-message-ttl", Amqp_types.VLonglong v
 let auto_expire v = "x-expires", Amqp_types.VLonglong v
@@ -25,7 +30,7 @@ let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(a
 
 let get ~no_ack channel { queue } handler =
   let open Amqp_spec.Basic in
-  let channel = Amqp_channel.channel channel in
+  let channel = Channel.channel channel in
   Get.request channel { Get.queue; no_ack } >>= function
   | `Get_empty () ->
     log "No Data"; return ()
@@ -36,41 +41,38 @@ let get ~no_ack channel { queue } handler =
     else
       return ()
 
+(** Publish a message directly to a queue *)
 let publish channel { queue }
     ?content_type
     ?content_encoding
     ?correlation_id
     ?message_id
-    ?(mandatory=false)
+    ?mandatory
     ?reply_to
     ?expiration
-    ?(persistent=false)
+    ?persistent
     ?app_id
     ?headers
     data =
-  let open Amqp_spec.Basic in
-  let app_id = match app_id with
-    | Some "" -> None
-    | Some n -> Some n
-    | None -> Some (Amqp_channel.id channel)
-  in
-  let delivery_mode = if persistent then Some 2 else None in
-  Publish.request (Amqp_channel.channel channel)
-    ({Publish.exchange = ""; routing_key=queue; mandatory; immediate=false},
-     (Content.init ?content_type
-        ?content_encoding
-        ?correlation_id
-        ?reply_to
-        ?message_id
-        ?delivery_mode
-        ?app_id
-        ?headers
-        ?expiration ()), data)
+  Exchange.publish channel Exchange.default
+    ?content_type
+    ?content_encoding
+    ?correlation_id
+    ?message_id
+    ?mandatory
+    ?reply_to
+    ?expiration
+    ?persistent
+    ?app_id
+    ?headers
+    ~routing_key:queue
+    data
 
-(* How do we handle ack. *)
-let consume ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { queue } handler =
+(** Consume message from a queue. *)
+let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { queue } handler =
   let open Amqp_spec.Basic in
   let (reader, writer) = Pipe.create () in
+  let consumer_tag = Printf.sprintf "%s.%s" (Channel.id channel) id in
 
   let rec handle_messages channel reader handler =
     Pipe.read reader >>= function
@@ -88,11 +90,11 @@ let consume ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { queue
   in
 
   let on_receive channel consume_ok =
-    Amqp_channel.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag
+    Channel.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag
       (Pipe.write_without_pushback writer)
   in
   let req = { Consume.queue;
-              consumer_tag = ""; (* TODO: Do not autoselect for tracability *)
+              consumer_tag;
               no_local;
               no_ack;
               exclusive;
@@ -106,12 +108,11 @@ let consume ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel { queue
     return ()
   in
 
-
-  Consume.request ~post_handler:(on_receive channel) (Amqp_channel.channel channel) req >>= fun rep ->
+  Consume.request ~post_handler:(on_receive channel) (Channel.channel channel) req >>= fun rep ->
   (* Start message handling *)
-  don't_wait_for (handle_messages (Amqp_channel.channel channel) reader handler);
+  don't_wait_for (handle_messages (Channel.channel channel) reader handler);
   let consumer_tag = rep.Consume_ok.consumer_tag in
-  return (cancel (Amqp_channel.channel channel) consumer_tag)
+  return (cancel (Channel.channel channel) consumer_tag)
 
 (* This will require an exchange *)
 let bind _t _exchange = return ()
@@ -121,3 +122,5 @@ let purge _t = return ()
 let delete _t = return ()
 
 let name { queue } = queue
+
+let fake _channel name = return { queue=name }

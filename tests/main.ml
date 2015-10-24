@@ -19,7 +19,7 @@ let consume channel queue =
     end;
     return ()
   in
-  Queue.consume channel queue handler >>= fun _stop ->
+  Queue.consume ~id:"test" channel queue handler >>= fun _stop ->
   return ()
 
 let rec produce channel queue = function
