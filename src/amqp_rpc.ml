@@ -30,7 +30,6 @@ module Client = struct
       end
     | None -> failwith "No correlation id set"
 
-  (** Initialize a client with the [id] for tracing *)
   let init ~id connection =
     Connection.open_channel ~id:"rpc_client" connection >>= fun channel ->
     let id = Printf.sprintf "%s.%s" (Channel.id channel) id in
@@ -45,9 +44,6 @@ module Client = struct
     Channel.on_return channel (fun (_, (h, d)) -> handle_reply t false h d);
     return t
 
-  (** Make an rpc call to the given queue.
-      [ttl] is the message timeout.
-  *)
   let call t ~ttl queue request =
     let correlation_id = Printf.sprintf "%s.%d" t.id t.counter in
     t.counter <- t.counter + 1;
@@ -75,7 +71,7 @@ module Server = struct
   (* The server needs a queue name and a handler *)
 
   type t = { consumer: Queue.consumer }
-  let init channel queue handler =
+  let start channel queue handler =
     let handler _deliver content request =
 
       let routing_key = match content.Content.reply_to with
