@@ -1,17 +1,20 @@
-* Implement highlevel paradigms (Rpc, Direct, etc.)
-
 * Allow setting tcp heartbeat
+* Make sure we choose the ip address at random (if the host resolves to multiple servers)
 * Error handing / monitors
-* Document interfaces
-
-* Unit / integration testing
 
 * Enable / Allow publisher confirms (Confirm.Select) per channel
-  (A publisher would wait for the next ack. We need to keep a window of send, but not yet ack'ed messages)
+  - A publisher would wait for the next ack.
+  - Keep track of all messages in a window of send, but not yet ack'ed messages
+  - Discard returned messages
 
 * Handle immediate flag in publish
   (Return messages - requires an async handler)
 
 * Handle flow on channels
 
-* Handle channel close (callback with error code)
+* Support immutable strings
+
+* Setup RCP to cancel on message timeout
+  - Add a header for return path (reply-to)
+  - Setup the rpc server x-dead-letter-exchange to be amq.header
+  - Bind the reply queue to amq.header when the reply-to header is ours.
