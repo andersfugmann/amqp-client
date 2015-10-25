@@ -5,7 +5,6 @@ clean:
 	find . -name \*~ -delete
 	$(RM) -r .omake*
 
-.PHONY: test
-test:
-	omake -w -j 4 _build/main
-	OCAMLRUNPARAM=b _build/main
+.PHONY: $(MAKECMDGOALS)
+$(MAKECMDGOALS):
+	omake -w -j 4 $(MAKECMDGOALS)

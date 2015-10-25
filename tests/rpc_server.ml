@@ -16,7 +16,7 @@ let start =
   log "Channel opened";
   let arguments = [Queue.dead_letter_exchange ""] in
   Queue.declare channel ~arguments "rpc.server.echo_reply" >>= fun queue ->
-  Rpc.Server.init channel queue handler >>= fun _server ->
+  Rpc.Server.start channel queue handler >>= fun _server ->
   log "Listening for requsts";
 
   return ()
