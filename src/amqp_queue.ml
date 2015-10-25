@@ -65,6 +65,8 @@ let publish channel t
     ~routing_key:t.name
     data
 
+type consumer = { channel: Channel.t; tag: string; writer: Channel.message Pipe.Writer.t }
+
 (** Consume message from a queue. *)
 let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t
     handler =
@@ -100,17 +102,18 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t
               arguments = [] (* TODO: Understand rabbitmq arguments *);
             }
   in
-  let cancel channel consumer_tag () =
-    Cancel.request channel { Cancel.consumer_tag; no_wait = false } >>= fun _rep ->
-    Pipe.close writer;
-    return ()
-  in
 
   Consume.request ~post_handler:(on_receive channel) (Channel.channel channel) req >>= fun rep ->
   (* Start message handling *)
   don't_wait_for (handle_messages (Channel.channel channel) reader handler);
-  let consumer_tag = rep.Consume_ok.consumer_tag in
-  return (cancel (Channel.channel channel) consumer_tag)
+  let tag = rep.Consume_ok.consumer_tag in
+  return { channel; tag; writer }
+
+let cancel consumer =
+  let open Amqp_spec.Basic in
+  Cancel.request (Channel.channel consumer.channel) { Cancel.consumer_tag = consumer.tag; no_wait = false } >>= fun _rep ->
+  Pipe.close consumer.writer;
+  return ()
 
 (** Bind a queue to an exhange.
     Messages posted on the exchange which match the routing key

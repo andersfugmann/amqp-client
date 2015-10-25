@@ -8,10 +8,9 @@ let test =
   log "Connection started";
   Connection.open_channel ~id:"test" connection >>= fun channel ->
   log "Channel opened";
-  Channel.close channel >>= fun () ->
+  Channel.close channel >>| fun () ->
   log "Channel closed";
-
-  return ()
+  Shutdown.shutdown 0
 
 let _ =
   Scheduler.go ()

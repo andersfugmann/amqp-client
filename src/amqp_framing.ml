@@ -38,8 +38,6 @@ type t = { input: Reader.t; output: Writer.t;
            id: string
          }
 
-type channel_t =  t * channel_no
-
 let frame_end = Char.chr (Amqp_constants.frame_end)
 
 let protocol_header = "AMQP\x00\x00\x09\x01"

@@ -74,7 +74,7 @@ module Server = struct
   open Amqp_spec.Basic
   (* The server needs a queue name and a handler *)
 
-  type t = { cancel: (unit -> unit Deferred.t) }
+  type t = { consumer: Queue.consumer }
   let init channel queue handler =
     let handler _deliver content request =
 
@@ -94,9 +94,9 @@ module Server = struct
         reply
     in
     (* Start consuming *)
-    Queue.consume ~id:"rpc_server" channel queue handler >>= fun cancel ->
-    return { cancel }
+    Queue.consume ~id:"rpc_server" channel queue handler >>= fun consumer ->
+    return { consumer }
 
   let stop t =
-    t.cancel
+    Queue.cancel t.consumer
 end
