@@ -1,3 +1,4 @@
+open Async.Std
 exception Unknown_frame_type of int
 exception Connection_closed
 exception Busy
@@ -31,14 +32,14 @@ val deregister_method_handler :
 val deregister_content_handler :
   t * channel_no -> Amqp_types.class_id -> unit
 
-val open_channel : t -> channel_no -> unit Async_kernel.Deferred.t
+val open_channel : t -> channel_no -> unit Deferred.t
 
 val close_channel : t -> channel_no -> unit
 
-val flush : t -> unit Async_unix.Import.Deferred.t
+val flush : t -> unit Deferred.t
 
 val id : t -> string
 
-val init : id:string -> port:int -> string -> t Async.Std.Deferred.t
+val init : id:string -> port:int -> string -> t Deferred.t
 
 val set_max_length : t -> int -> unit

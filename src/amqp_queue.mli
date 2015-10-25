@@ -11,6 +11,7 @@ val dead_letter_exchange : string -> string * Amqp_types.value
 val dead_letter_routing_key : string -> string * Amqp_types.value
 val maximum_priority : int -> string * Amqp_types.value
 
+(** Declare a queue *)
 val declare :
   Amqp_channel.t ->
   ?durable:Amqp_types.bit ->
@@ -19,6 +20,12 @@ val declare :
   ?arguments:Amqp_types.table ->
   Amqp_spec.queue_name -> t Async.Std.Deferred.t
 
+(** Get a single message from the queue.
+    The function automatically handles ack.
+
+    If [no_ack] is false (default), the message is requsted with expicit
+    ack, and the function will ack the message when the hander returns
+*)
 val get :
   no_ack:Amqp_spec.no_ack ->
   Amqp_channel.t ->
@@ -27,6 +34,7 @@ val get :
    Amqp_spec.Basic.Content.t -> string -> unit Deferred.t) ->
   unit Deferred.t
 
+(** Publish a message directly to a queue *)
 val publish :
   Amqp_channel.t ->
   t ->
@@ -41,6 +49,9 @@ val publish :
   ?app_id:string ->
   ?headers:Amqp_types.table -> string -> unit Deferred.t
 
+(** Setup consumption of a queue.
+    The function handles ack when [no_ack] is false.
+*)
 val consume :
   id:string ->
   ?no_local:bool ->
@@ -52,27 +63,33 @@ val consume :
    Amqp_spec.Basic.Content.t -> string -> unit Async.Std.Deferred.t) ->
   consumer Deferred.t
 
+(** Cancel consumption. *)
 val cancel : consumer -> unit Deferred.t
 
+(** Bind a queue to an exhange *)
 val bind :
   Amqp_channel.t ->
   t ->
   routing_key:Amqp_types.shortstr ->
   Amqp_exchange.t -> unit Deferred.t
 
+(** Remove a binding from an exhange to a queue *)
 val unbind :
   Amqp_channel.t ->
   t ->
   routing_key:Amqp_types.shortstr ->
   Amqp_exchange.t -> unit Deferred.t
 
+(** Purge all messages on a queue *)
 val purge : Amqp_channel.t -> t -> unit Deferred.t
 
+(** Delete a queue *)
 val delete :
   ?if_unused:bool ->
   ?if_empty:bool -> Amqp_channel.t -> t -> unit Deferred.t
 
+(** Name of the queue *)
 val name : t -> string
 
-(** Jsut for debugging *)
+(** Debuggin internal function *)
 val fake : 'a -> string -> t Deferred.t

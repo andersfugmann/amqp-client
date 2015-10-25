@@ -10,6 +10,7 @@ let default = { name="" }
 let amq_direct = { name = "amq.direct" }
 let amq_fanout = { name = "amq.fanout" }
 let amq_topic = { name = "amq.topic" }
+let amq_header = { name = "amq.header" }
 
 type exchange_type = Direct | Fanout | Topic | Headers
 
@@ -19,7 +20,6 @@ let string_of_exchange_type = function
   | Topic -> "topic"
   | Headers -> "headers"
 
-(** Declare an exchange. *)
 let declare ?(passive=false) ?(durable=false) ?(auto_delete=false) ?(internal=false) channel ~exchange_type name =
   Declare.request (Channel.channel channel)
     { Declare.exchange = name;
@@ -38,8 +38,6 @@ let delete ?(if_unused=false) channel t =
       if_unused;
       no_wait = false;
     }
-
-(** Bind exchange t to exchange using [routing_key] so messages are routed from exhange to t *)
 
 let bind channel t ~routing_key source =
   Bind.request (Channel.channel channel)
