@@ -1,10 +1,6 @@
-.PHONY: all clean test
+.DEFAULT: all
 all:
 	omake -w -j 4
-clean:
-	$(RM) -r _build	OMake*.omc
-	find . -name \*~ -delete
-	$(RM) -r .omake*
 
-test:
-	omake -w -j 4 integration
+$(MAKECMDGOALS):
+	omake -w -j 4 $(MAKECMDGOALS)

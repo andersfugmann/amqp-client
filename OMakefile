@@ -55,10 +55,16 @@ OCAMLPACKS[] = xml-light async async_unix ocplib-endian
 
 	.DEFAULT: $(TESTS)
 
-        .PHONY: integration
+        .PHONY: test
 
 	TESTS=$(filter %_test, $(TESTS))
-	integration: $(TESTS)
+	test: $(TESTS)
 		foreach(test => ..., $(TESTS))
 			echo "* Run test: $(test)"
 			./$(test)
+
+.PHONY: clean
+clean:
+	$(RM) -r _build	OMake*.omc
+	$(RM) $(find . -name \*~)
+	$(RM) -r .omake*
