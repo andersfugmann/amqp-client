@@ -1,4 +1,8 @@
-(** Convenience bindings. *)
+(** Main module.
+
+    This module contains convenient module aliases
+*)
+
 module Connection = Amqp_connection
 module Queue = Amqp_queue
 module Channel = Amqp_channel

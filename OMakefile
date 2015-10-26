@@ -47,7 +47,7 @@ vmount(-l, tests, _build)
 	.doc.made: ocaml-amqp.a
 	.doc.made: $(filter-exists $(addsuffix .mli, $(FILES))) $(addsuffix .ml, $(FILES))
 		mkdir -p doc
-		ocamlfind ocamldoc -thread -html -d doc $^ -package "$(OCAMLPACKS)"
+		ocamlfind ocamldoc -thread -html -d doc $^ -hide Amqp_framing,Amqp_protocol,Amqp_util -package "$(OCAMLPACKS)"
 		touch $@
 
     section

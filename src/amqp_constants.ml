@@ -1,3 +1,4 @@
+(** Internal *)
 let frame_method = 1
 let frame_header = 2
 let frame_body = 3

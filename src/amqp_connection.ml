@@ -8,6 +8,8 @@ type t = { framing: Amqp_framing.t;
            mutable channel: int
          }
 
+type host = string
+
 
 let rec string_split ?(offset=0) ~by s =
   match String.index_from s offset by with

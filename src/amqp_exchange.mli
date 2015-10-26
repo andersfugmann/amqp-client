@@ -1,3 +1,4 @@
+(** Operations on exchanges *)
 open Async.Std
 type t
 
@@ -25,12 +26,12 @@ val delete :
   ?if_unused:bool ->
   Amqp_channel.t -> t -> unit Deferred.t
 
-(** Bind exchange t to exchange using [routing_key] so messages are routed from exhange to t *)
+(** Bind exchange t to exchange using [routing_key] so messages are routed from exhange to [t] *)
 val bind :
   Amqp_channel.t ->
   t -> routing_key:Amqp_types.shortstr -> t -> unit Deferred.t
 
-(** Remove exchange to exchange binding*)
+(** Remove exchange to exchange binding *)
 val unbind :
   Amqp_channel.t ->
   t -> routing_key:string -> t -> unit Deferred.t

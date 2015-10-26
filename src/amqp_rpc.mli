@@ -1,3 +1,6 @@
+(** Rpc client and server patterns *)
+
+(** Rpc Client pattern *)
 module Client :
   sig
     type t
@@ -16,6 +19,8 @@ module Client :
     val close : t -> unit Async.Std.Deferred.t
 
   end
+
+(** Rpc Server pattern *)
 module Server :
   sig
     type t

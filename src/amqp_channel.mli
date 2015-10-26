@@ -1,3 +1,4 @@
+(** Openration on channels *)
 open Async.Std
 
 type message =
@@ -46,10 +47,12 @@ val channel_no : t -> int
 (** Construct a unique id for this channel *)
 val unique_id : t -> string
 
-(** Set prefetch counters for a channel to globally
-    Note that on rabbitmq, prefetch only affects consumers on the channel.
-    In this case, setting the global flag will have the limit set on the channel.
-    If the flag is false (using rabbitmq) the limits will be per consumer.
+(** Set prefetch counters for a channel or globally (across all channels).
+
+    Note if using rabbitmq, prefetch only affects consumers on the channel;
+    If global is [true] then the pretch limit is applied across all consumers on the channel,
+    othervice the prefecth limit is per consumer (on the channel).
+
 *)
 val set_prefetch :
   ?count:Amqp_types.short ->

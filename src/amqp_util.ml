@@ -1,3 +1,4 @@
+(** Internal *)
 open Async.Std
 open Amqp_types
 open Amqp_protocol

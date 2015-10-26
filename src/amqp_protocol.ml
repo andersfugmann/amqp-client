@@ -1,3 +1,5 @@
+(** Internal *)
+
 (* Simple reader and writer based on local buffers *)
 let log fmt =
   (* Printf.eprintf (fmt ^^ "\n%!") *)

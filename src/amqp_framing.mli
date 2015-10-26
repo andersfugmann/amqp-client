@@ -1,3 +1,4 @@
+(** Internal *)
 open Async.Std
 exception Unknown_frame_type of int
 exception Connection_closed
