@@ -1,3 +1,4 @@
+(** Operations on Queues *)
 open Async.Std
 
 type t

@@ -1,4 +1,4 @@
-(** Openration on channels *)
+(** Operations on channels *)
 open Async.Std
 
 type message =
