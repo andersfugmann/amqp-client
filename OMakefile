@@ -5,13 +5,12 @@ NATIVE_ENABLED = true
 BYTE_ENABLED = true
 
 OCAMLFLAGS = -thread -principal -g -w @A-4-29-41-44-45 -bin-annot
+OCAMLPACKS[] = xml-light async async_unix ocplib-endian
+
 
 mkdir -p _build
 vmount(-l, src, _build)
 vmount(-l, tests, _build)
-# Make a seperate library for internal modules
-
-OCAMLPACKS[] = xml-light async async_unix ocplib-endian
 
 .SUBDIRS: _build
     section
@@ -44,6 +43,13 @@ OCAMLPACKS[] = xml-light async async_unix ocplib-endian
             amqp
 
         OCamlLibrary(ocaml-amqp, $(FILES))
+
+	.doc.made: ocaml-amqp.a
+	.doc.made: $(filter-exists $(addsuffix .mli, $(FILES))) $(addsuffix .ml, $(FILES))
+		mkdir -p doc
+		ocamlfind ocamldoc -thread -html -d doc $^ -package "$(OCAMLPACKS)"
+		touch $@
+
     section
 	OCAML_LINK_FLAGS = -linkpkg
 	OCAML_LIBS += ocaml-amqp
@@ -68,3 +74,11 @@ clean:
 	$(RM) -r _build	OMake*.omc
 	$(RM) $(find . -name \*~)
 	$(RM) -r .omake*
+
+.PHONY: documentation
+documentation: _build/.doc.made
+	git -C html rm -fr \*
+	cp _build/doc/* html
+	git -C html add '*' && echo ok
+	git -C html commit --amend -m "Update documentation"
+#git -C html push --force
