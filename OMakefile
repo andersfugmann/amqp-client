@@ -27,6 +27,7 @@ OCAMLPACKS[] = xml-light async async_unix ocplib-endian
             ./gen_spec $(AMQP_SPEC) > $@
 
     section
+	OCAMLFLAGS += -no-alias-deps
         #export OCAMLPACKS
         FILES[] =
             amqp_types

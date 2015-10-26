@@ -1,3 +1,4 @@
+.PHONY: all clean test
 all:
 	omake -w -j 4
 clean:
@@ -5,6 +6,5 @@ clean:
 	find . -name \*~ -delete
 	$(RM) -r .omake*
 
-.PHONY: $(MAKECMDGOALS)
-$(MAKECMDGOALS):
-	omake -w -j 4 $(MAKECMDGOALS)
+test:
+	omake -w -j 4 integration
