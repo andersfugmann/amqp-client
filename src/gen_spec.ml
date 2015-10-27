@@ -42,8 +42,9 @@ type elem =
   | Domain of Domain.t
   | Class of Class.t
 
+let blanks = Str.regexp "[ \t\n]+"
 let rec doc = function
-  | Xml.Element("doc", [], [ Xml.PCData doc]) :: _ -> Some (String.trim doc)
+  | Xml.Element("doc", [], [ Xml.PCData doc]) :: _ -> Some (String.trim (Str.global_replace blanks " " doc))
   | _ :: xs -> doc xs
   | [] -> None
 
