@@ -68,38 +68,19 @@ let unbind channel t ~routing_key source =
     }
 
 let publish channel t
-    ?content_type
-    ?content_encoding
-    ?correlation_id
-    ?message_id
     ?(mandatory=false)
-    ?reply_to
-    ?expiration
-    ?(persistent=false)
-    ?app_id
-    ?headers
     ~routing_key
-    data =
+    (header, body) =
+
   let open Amqp_spec.Basic in
-  let app_id = match app_id with
-    | Some "" -> None
-    | Some n -> Some n
-    | None -> Some (Amqp_channel.id channel)
+  let header = match header.Content.app_id with
+    | Some _ -> header
+    | None -> { header with Content.app_id = Some (Amqp_channel.id channel) }
   in
-  let delivery_mode = if persistent then Some 2 else None in
   Publish.request (Amqp_channel.channel channel)
     ({Publish.exchange = t.name;
       routing_key=routing_key;
       mandatory;
       immediate=false},
-     (Content.init ?content_type
-        ?content_encoding
-        ?correlation_id
-        ?reply_to
-        ?message_id
-        ?delivery_mode
-        ?app_id
-        ?headers
-        ?expiration ()), data)
-
+     header, body)
 let name t = t.name

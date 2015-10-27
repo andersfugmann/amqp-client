@@ -21,7 +21,6 @@
 
 
 API:
-  Move internal function to Internal modules
   Split prefetch into two functions (Global or non global)
   Use opens and module aliases
   Remove label for exhange type
@@ -31,5 +30,4 @@ API:
 
   How to nack a message
   Rcp.client -> exchange
-  Client call return a polymophic variant - Return a option type instead.
   Rpc.Server.start lacks functionality

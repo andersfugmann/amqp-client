@@ -21,7 +21,7 @@ let test =
   assert (Ivar.is_empty var);
   log "Queue empty";
 
-  Queue.publish channel queue "Test" >>= fun () ->
+  Queue.publish channel queue (Message.make "Test") >>= fun () ->
   log "Message published";
   Queue.get ~no_ack:false channel queue (handler var) >>= fun () ->
   assert (Ivar.is_full var);
@@ -32,7 +32,7 @@ let test =
   Queue.bind channel queue exchange ~routing_key:"test.#.key" >>= fun () ->
   log "Queue bind declared";
 
-  Exchange.publish channel exchange ~routing_key:"test.a.b.c.key" "Test" >>= fun () ->
+  Exchange.publish channel exchange ~routing_key:"test.a.b.c.key" (Message.make "Test") >>= fun () ->
   log "Message published";
   let var = Ivar.create () in
   Queue.get ~no_ack:false channel queue (handler var) >>= fun () ->

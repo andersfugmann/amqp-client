@@ -5,9 +5,9 @@ open Amqp
 let log fmt =
   P.eprintf (fmt ^^ "\n%!")
 
-let handler s =
+let handler (h, s) =
   log "Recieved request: %s" s;
-  return s
+  return (h, s)
 
 let start =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->

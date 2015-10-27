@@ -40,17 +40,9 @@ val unbind :
 val publish :
   Amqp_channel.t ->
   t ->
-  ?content_type:string ->
-  ?content_encoding:string ->
-  ?correlation_id:string ->
-  ?message_id:string ->
   ?mandatory:bool ->
-  ?reply_to:string ->
-  ?expiration:string ->
-  ?persistent:bool ->
-  ?app_id:string ->
-  ?headers:Amqp_types.table ->
-  routing_key:string -> string -> unit Deferred.t
+  routing_key:string ->
+  Amqp_message.message -> unit Deferred.t
 
 (** Name of the exchange *)
 val name : t -> string

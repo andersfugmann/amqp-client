@@ -11,14 +11,14 @@ module Client = struct
   type t = { queue: Queue.t;
              channel: Channel.t;
              id: string;
-             outstanding: (string, [ `Ok of string | `Timedout ]  Ivar.t) Hashtbl.t;
+             outstanding: (string, Message.message option Ivar.t) Hashtbl.t;
              mutable counter: int;
            }
 
-  let handle_reply t ok content data =
+  let handle_reply t ok (content, body) =
     let reply = match ok with
-      | true -> `Ok data
-      | false -> `Timedout
+      | true -> Some (content, body)
+      | false -> None
     in
     match content.Content.correlation_id with
     | Some id ->
@@ -41,26 +41,29 @@ module Client = struct
 
     let t = { queue; channel; id; outstanding = Hashtbl.create 0; counter = 0 } in
     Queue.consume ~id:"rpc_client" ~no_ack:true ~exclusive:true channel queue
-      (fun { Message.message = (hdr, body); _ }-> handle_reply t true hdr body) >>= fun _stop ->
-    Channel.on_return channel (fun (_, (h, d)) -> handle_reply t false h d);
+      (fun { Message.message; _ }-> handle_reply t true message) >>= fun _stop ->
+    Channel.on_return channel (fun (_, message) -> handle_reply t false message);
     return t
 
-  let call t ~ttl queue request =
+  let call t ~ttl queue (header, body) =
     let correlation_id = Printf.sprintf "%s.%d" t.id t.counter in
     t.counter <- t.counter + 1;
-    let reply_to = Queue.name t.queue in
+    let reply_to = Some (Queue.name t.queue) in
     (* Register handler for the reply before sending the query *)
     let var = Ivar.create () in
     Hashtbl.add t.outstanding correlation_id var;
-    Queue.publish t.channel
-      ~correlation_id ~expiration:(string_of_int ttl) ~mandatory:true ~reply_to
-      queue request >>= fun () ->
+    let expiration = Some (string_of_int ttl) in
+    let header = { header with Content.correlation_id = Some correlation_id;
+                               expiration;
+                               reply_to; }
+    in
+    Queue.publish t.channel ~mandatory:true queue (header, body) >>= fun () ->
     Ivar.read var
 
 
   (** Release resources *)
   let close t =
-    Hashtbl.iter (fun _ var -> Ivar.fill var `Timedout) t.outstanding;
+    Hashtbl.iter (fun _ var -> Ivar.fill var None) t.outstanding;
     Amqp_queue.delete t.channel t.queue >>= fun () ->
     Channel.close t.channel >>= fun () ->
     return ()
@@ -73,22 +76,20 @@ module Server = struct
 
   type t = { consumer: Queue.consumer }
   let start channel queue handler =
-    let handler { Message.message = (content, body); _ } =
+    let handler { Message.message = (header, body); _ } =
 
-      let routing_key = match content.Content.reply_to with
+      let routing_key = match header.Content.reply_to with
         | Some r -> r
         | None -> failwith "Missing reply_to in reposnse"
       in
 
-      let correlation_id = match content.Content.correlation_id with
-        | Some r -> r
-        | None -> failwith "Missing correnlation_id in reposnse"
-      in
-      handler body >>= fun reply ->
+      let correlation_id = header.Content.correlation_id in
+
+      handler (header, body) >>= fun (header, body) ->
+      let header = { header with Content.correlation_id } in
       Exchange.publish channel Exchange.default
-        ~correlation_id
         ~routing_key
-        reply
+        (header, body)
     in
     (* Start consuming *)
     Queue.consume ~id:"rpc_server" channel queue handler >>= fun consumer ->

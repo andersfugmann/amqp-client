@@ -36,18 +36,9 @@ val get :
 
 (** Publish a message directly to a queue *)
 val publish :
-  Amqp_channel.t ->
-  t ->
-  ?content_type:string ->
-  ?content_encoding:string ->
-  ?correlation_id:string ->
-  ?message_id:string ->
+  Amqp_channel.t -> t ->
   ?mandatory:bool ->
-  ?reply_to:string ->
-  ?expiration:string ->
-  ?persistent:bool ->
-  ?app_id:string ->
-  ?headers:Amqp_types.table -> string -> unit Deferred.t
+  Amqp_message.message -> unit Deferred.t
 
 (** Setup consumption of a queue.
     The function handles ack when [no_ack] is false.

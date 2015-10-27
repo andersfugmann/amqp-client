@@ -6,12 +6,12 @@ let log fmt = printf (fmt ^^ "\n%!")
 
 let rec request t queue i =
   let req = Printf.sprintf "Echo: %d" i in
-  Rpc.Client.call t ~ttl:10000 queue req >>= function
-  | `Ok rep ->
+  Rpc.Client.call t ~ttl:10000 queue (Message.make req) >>= function
+  | Some (_, rep) ->
     log "%s == %s" req rep;
     request t queue (i+1)
-  | `Timedout ->
-    log "Timedout";
+  | None ->
+    log "No reply";
     request t queue (i+1)
 
 

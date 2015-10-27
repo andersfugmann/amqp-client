@@ -14,7 +14,7 @@ module Client :
     val call :
       t ->
       ttl:int ->
-      Amqp_queue.t -> string -> [ `Ok of string | `Timedout ] Deferred.t
+      Amqp_queue.t -> Amqp_message.message -> Amqp_message.message option  Deferred.t
 
     (** Release resources *)
     val close : t -> unit Deferred.t
@@ -30,7 +30,7 @@ module Server :
     val start :
       Amqp_channel.t ->
       Amqp_queue.t ->
-      (string -> string Deferred.t) -> t Deferred.t
+      (Amqp_message.message -> Amqp_message.message Deferred.t) -> t Deferred.t
 
     (** Stop the server *)
     val stop : t -> unit Deferred.t

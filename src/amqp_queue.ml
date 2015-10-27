@@ -48,31 +48,10 @@ let get ~no_ack channel t handler =
       return ()
 
 (** Publish a message directly to a queue *)
-let publish channel t
-    ?content_type
-    ?content_encoding
-    ?correlation_id
-    ?message_id
-    ?mandatory
-    ?reply_to
-    ?expiration
-    ?persistent
-    ?app_id
-    ?headers
-    data =
-  Exchange.publish channel Exchange.default
-    ?content_type
-    ?content_encoding
-    ?correlation_id
-    ?message_id
-    ?mandatory
-    ?reply_to
-    ?expiration
-    ?persistent
-    ?app_id
-    ?headers
+let publish channel t ?mandatory message =
+  Exchange.publish channel Exchange.default ?mandatory
     ~routing_key:t.name
-    data
+    message
 
 type consumer = { channel: Channel.t; tag: string; writer: Message.t Pipe.Writer.t }
 
