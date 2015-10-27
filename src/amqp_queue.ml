@@ -32,10 +32,18 @@ let get ~no_ack channel t handler =
   Get.request channel { Get.queue=t.name; no_ack } >>= function
   | `Get_empty () ->
     log "No Data"; return ()
-  | `Get_ok (mth, (hdr, data))  ->
-    handler mth hdr data >>= fun () ->
+  | `Get_ok (get_ok, (header, body))  ->
+    let module G = Get_ok in
+    let message =
+      { Message.delivery_tag = get_ok.G.delivery_tag;
+        Message.redelivered = get_ok.G.redelivered;
+        Message.exchange = get_ok.G.exchange;
+        Message.routing_key = get_ok.G.routing_key;
+        Message.message = (header, body) }
+    in
+    handler message >>= fun () ->
     if no_ack = false then
-      Ack.request channel { Ack.delivery_tag = mth.Get_ok.delivery_tag; multiple = false }
+      Ack.request channel { Ack.delivery_tag = message.Message.delivery_tag; multiple = false }
     else
       return ()
 
@@ -66,7 +74,7 @@ let publish channel t
     ~routing_key:t.name
     data
 
-type consumer = { channel: Channel.t; tag: string; writer: Message.deliver Pipe.Writer.t }
+type consumer = { channel: Channel.t; tag: string; writer: Message.t Pipe.Writer.t }
 
 (** Consume message from a queue. *)
 let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t handler =

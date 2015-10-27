@@ -3,7 +3,7 @@ open Amqp
 
 let log fmt = printf (fmt ^^ "\n%!")
 
-let handler var _ _ m = Ivar.fill var m; return ()
+let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return ()
 
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->

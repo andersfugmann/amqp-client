@@ -31,8 +31,7 @@ val get :
   no_ack:bool ->
   Amqp_channel.t ->
   t ->
-  (Amqp_spec.Basic.Get_ok.t ->
-   Amqp_spec.Basic.Content.t -> string -> unit Deferred.t) ->
+  (Amqp_message.t -> unit Deferred.t) ->
   unit Deferred.t
 
 (** Publish a message directly to a queue *)
@@ -60,7 +59,7 @@ val consume :
   ?exclusive:bool ->
   Amqp_channel.t ->
   t ->
-  (Amqp_message.deliver -> unit Deferred.t) ->
+  (Amqp_message.t -> unit Deferred.t) ->
   consumer Deferred.t
 
 (** Cancel consumption. *)

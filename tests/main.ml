@@ -5,7 +5,7 @@ let log fmt = printf (fmt ^^ "\n%!")
 
 let rec sync_loop channel queue i =
   Queue.publish channel queue (Printf.sprintf "Message: %d" i) >>= fun () ->
-  Queue.get ~no_ack:false channel queue (fun _ _ msg -> log "Received: %s" msg; return ()) >>= fun () ->
+  Queue.get ~no_ack:false channel queue (fun { Message.message = (_, body); _ } -> log "Received: %s" body; return ()) >>= fun () ->
   sync_loop channel queue (i+1)
 
 let consume channel queue =

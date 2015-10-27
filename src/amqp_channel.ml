@@ -4,7 +4,7 @@ open Amqp_spec
 
 module Message = Amqp_message
 
-type consumers = (string, Message.deliver -> unit) Hashtbl.t
+type consumers = (string, Message.t -> unit) Hashtbl.t
 
 type close_handler = int -> Channel.Close.t -> unit Deferred.t
 type t = { framing: Amqp_framing.t;
@@ -34,17 +34,16 @@ module Internal = struct
     let read = Amqp_protocol.Spec.read spec in
     let flags = Amqp_protocol.Content.length c_spec in
 
-    let content_handler channel handler deliver (content, data) =
+    let content_handler channel handler deliver (header, body) =
       let module D = Deliver in
-      let property_flag = Amqp_protocol_helpers.read_property_flag (Input.short content) flags in
-      let header = c_read c_make property_flag content in
+      let property_flag = Amqp_protocol_helpers.read_property_flag (Input.short header) flags in
+      let header = c_read c_make property_flag header in
       Amqp_framing.deregister_content_handler channel c_class_id;
-      handler { Message.consumer_tag = deliver.D.consumer_tag;
-                Message.delivery_tag = deliver.D.delivery_tag;
+      handler { Message.delivery_tag = deliver.D.delivery_tag;
                 Message.redelivered = deliver.D.redelivered;
                 Message.exchange = deliver.D.exchange;
                 Message.routing_key = deliver.D.routing_key;
-                Message.message = (header, data) }
+                Message.message = (header, body) }
     in
     let deliver_handler channel consumers input =
       let deliver = read make input in
