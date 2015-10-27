@@ -168,10 +168,16 @@ let emit_domains tree =
   emit "(* Domains *)";
   Hashtbl.iter (fun d (t, doc) ->
       emit_doc doc;
-      emit "let %s = %s" (bind_name d) (variant_name t);
       emit "type %s = %s" (bind_name d) (bind_name t);
     ) domains;
 
+  emit "module Internal_alias = struct";
+  incr indent;
+  Hashtbl.iter (fun d (t, _) ->
+      emit "let %s = %s" (bind_name d) (variant_name t);
+    ) domains;
+  decr indent;
+  emit "end";
 
   (* Alter the tree *)
   let replace lst =
@@ -225,12 +231,6 @@ let emit_method ?(is_content=false) class_index
   emit_doc doc;
   emit "module %s = struct" (variant_name name);
   incr indent;
-  if is_content then
-    emit "open Amqp_types.Content"
-  else
-    emit "open Amqp_types.Spec";
-
-  emit "let spec = %s" (spec_str arguments);
   let t_args =
     arguments
     |> List.filter (fun t -> not t.Field.reserved)
@@ -263,8 +263,16 @@ let emit_method ?(is_content=false) class_index
   in
 
   emit "type t = %s" t_spec;
-  emit "module I = struct";
+  emit "module Internal = struct";
   incr indent;
+  emit "open !Internal_alias";
+
+  if is_content then
+    emit "open Amqp_types.Content"
+  else
+    emit "open Amqp_types.Spec";
+
+  emit "let spec = %s" (spec_str arguments);
 
   emit "let make %s = %s" (String.concat " " names) t_args;
   emit "let apply f %s = f %s" t_args values;
@@ -276,8 +284,8 @@ let emit_method ?(is_content=false) class_index
       emit "let write = write_method def";
       emit "let read = read_method def"
     | false, true ->
-      emit "let write = write_method_content def Content.I.def";
-      emit "let read = read_method_content def Content.I.def"
+      emit "let write = write_method_content def Content.Internal.def";
+      emit "let read = read_method_content def Content.Internal.def"
     | true, _ ->
       ()
   end;
@@ -287,9 +295,9 @@ let emit_method ?(is_content=false) class_index
   let inames = List.filter ((<>) "_") names in
   begin match is_content with
     | true ->
-      emit "let init %s () = I.make %s" (List.map (fun n -> "?" ^ n) inames |> String.concat " ") (String.concat " " inames)
+      emit "let init %s () = Internal.make %s" (List.map (fun n -> "?" ^ n) inames |> String.concat " ") (String.concat " " inames)
     | false ->
-      emit "let init %s () = I.make %s" (List.map (fun n -> "~" ^ n) inames |> String.concat " ") (String.concat " " inames)
+      emit "let init %s () = Internal.make %s" (List.map (fun n -> "~" ^ n) inames |> String.concat " ") (String.concat " " inames)
   end;
 
 
@@ -303,13 +311,13 @@ let emit_method ?(is_content=false) class_index
         ""
     in
     if client then
-      emit "let reply = reply%d I.read %s"
+      emit "let reply = reply%d Internal.read %s"
         (List.length response)
-        (response |> List.map (fun s -> Printf.sprintf "%s.I.write %s" s (id s)) |> String.concat " ");
+        (response |> List.map (fun s -> Printf.sprintf "%s.Internal.write %s" s (id s)) |> String.concat " ");
     if server then
-      emit "let request = request%d I.write %s"
+      emit "let request = request%d Internal.write %s"
         (List.length response)
-        (response |> List.map (fun s -> Printf.sprintf "%s.I.read %s" s (id s)) |> String.concat " ");
+        (response |> List.map (fun s -> Printf.sprintf "%s.Internal.read %s" s (id s)) |> String.concat " ");
   end;
   decr indent;
   emit "end";

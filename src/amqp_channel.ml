@@ -17,8 +17,8 @@ let channel { framing; channel_no; _ } = (framing, channel_no)
 
 let register_deliver_handler =
   let open Basic in
-  let ((c_class_id, _), c_spec, c_make, _apply) = Content.I.def in
-  let (message_id, spec, make, _apply) = Deliver.I.def in
+  let ((c_class_id, _), c_spec, c_make, _apply) = Content.Internal.def in
+  let (message_id, spec, make, _apply) = Deliver.Internal.def in
 
   let c_read = Amqp_types.Content.read c_spec in
   let read = Amqp_types.Spec.read spec in
