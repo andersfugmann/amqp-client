@@ -168,12 +168,10 @@ let emit_domains tree =
   emit "(* Domains *)";
   Hashtbl.iter (fun d (t, doc) ->
       emit_doc doc;
-      emit "let %s = %s" (bind_name d) (variant_name t)) domains;
+      emit "let %s = %s" (bind_name d) (variant_name t);
+      emit "type %s = %s" (bind_name d) (bind_name t);
+    ) domains;
 
-  emit "(* Aliases *)";
-  Hashtbl.iter (fun d (t, doc) ->
-      emit_doc doc;
-      emit "type %s = %s" (bind_name d) (bind_name t)) domains;
 
   (* Alter the tree *)
   let replace lst =
