@@ -1,7 +1,8 @@
 module P = Printf
 open Async.Std
 open Amqp_types
-open Amqp_types.Spec
+open Amqp_protocol
+open Amqp_protocol.Spec
 open Amqp_io
 
 exception Unknown_frame_type of int

@@ -20,12 +20,12 @@ let register_deliver_handler =
   let ((c_class_id, _), c_spec, c_make, _apply) = Content.Internal.def in
   let (message_id, spec, make, _apply) = Deliver.Internal.def in
 
-  let c_read = Amqp_types.Content.read c_spec in
-  let read = Amqp_types.Spec.read spec in
-  let flags = Amqp_types.Content.length c_spec in
+  let c_read = Amqp_protocol.Content.read c_spec in
+  let read = Amqp_protocol.Spec.read spec in
+  let flags = Amqp_protocol.Content.length c_spec in
 
   let content_handler channel handler deliver (content, data) =
-    let property_flag = Amqp_util.read_property_flag (Input.short content) flags in
+    let property_flag = Amqp_protocol_helpers.read_property_flag (Input.short content) flags in
     let header = c_read c_make property_flag content in
     Amqp_framing.deregister_content_handler channel c_class_id;
     handler (deliver, (header, data))

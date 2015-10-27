@@ -268,9 +268,9 @@ let emit_method ?(is_content=false) class_index
   emit "open !Internal_alias";
 
   if is_content then
-    emit "open Amqp_types.Content"
+    emit "open Amqp_protocol.Content"
   else
-    emit "open Amqp_types.Spec";
+    emit "open Amqp_protocol.Spec";
 
   emit "let spec = %s" (spec_str arguments);
 
@@ -394,7 +394,8 @@ let () =
   emit "";
   emit "";
   emit "open Amqp_types";
-  emit "open Amqp_util";
+  emit "open Amqp_protocol";
+  emit "open Amqp_protocol_helpers";
   let tree = xml |> parse_amqp |> emit_domains in
   emit_constants tree;
   List.iter (function Class x -> emit_class x | _ -> ()) tree;
