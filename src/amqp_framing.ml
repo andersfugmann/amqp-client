@@ -1,3 +1,5 @@
+(** Internal *)
+
 module P = Printf
 open Async.Std
 open Amqp_types

@@ -1,3 +1,4 @@
+(** Internal *)
 open Amqp_types
 open Amqp_io
 

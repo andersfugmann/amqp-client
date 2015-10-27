@@ -30,6 +30,3 @@ and value =
   | VArray of value list
   | VTimestamp of int
   | VUnit of unit
-
-exception Unknown_class_id of int
-exception Unknown_method_id of int

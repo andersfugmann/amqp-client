@@ -23,7 +23,10 @@ vmount(-l, tests, _build)
             curl $(AMQP_SPEC_URL) > $@
 
         amqp_spec.ml: gen_spec $(AMQP_SPEC)
-            ./gen_spec $(AMQP_SPEC) > $@
+            ./gen_spec -type specification $(AMQP_SPEC) > $@
+
+        amqp_constants.ml: gen_spec $(AMQP_SPEC)
+            ./gen_spec -type constants $(AMQP_SPEC) > $@
 
     section
 	OCAMLFLAGS += -no-alias-deps
