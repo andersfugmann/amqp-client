@@ -79,8 +79,8 @@ clean:
 	$(RM) $(find . -name \*~)
 	$(RM) -r .omake*
 
-.PHONY: documentation
-documentation: _build/.doc.made
+.PHONY: html
+html: _build/.doc.made
 	git -C html rm -fr \*
 	cp _build/doc/* html
 	git -C html add '*' && echo ok

@@ -71,7 +71,7 @@ type consumer = { channel: Channel.t; tag: string; writer: Channel.message Pipe.
 let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t handler =
   let open Amqp_spec.Basic in
   let (reader, writer) = Pipe.create () in
-  let consumer_tag = Printf.sprintf "%s.%s" (Channel.unique_id channel) id in
+  let consumer_tag = Printf.sprintf "%s.%s" (Channel.Internal.unique_id channel) id in
 
   let rec handle_messages channel reader handler =
     Pipe.read reader >>= function
@@ -89,7 +89,7 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t h
   in
 
   let on_receive channel consume_ok =
-    Channel.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag
+    Channel.Internal.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag
       (Pipe.write_without_pushback writer)
   in
   let req = { Consume.queue=t.name;

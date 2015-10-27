@@ -19,7 +19,7 @@ val declare :
   ?internal:bool ->
   Amqp_channel.t ->
   exchange_type:exchange_type ->
-  string -> t Async.Std.Deferred.t
+  string -> t Deferred.t
 
 (** Delete exhange *)
 val delete :

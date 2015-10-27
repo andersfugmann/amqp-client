@@ -11,11 +11,15 @@ type t
 
 val channel : t -> Amqp_framing.t * int
 
-(** Register handlers - For internal use *)
+(** Internal use *)
+module Internal : sig
+  val register_deliver_handler : t -> unit
+  val register_consumer_handler : t -> string -> (message -> unit) -> unit
+  val deregister_consumer_handler : t -> string -> unit
 
-val register_deliver_handler : t -> unit
-val register_consumer_handler : t -> string -> (message -> unit) -> unit
-val deregister_consumer_handler : t -> string -> unit
+  (** Construct a unique id for this channel *)
+  val unique_id : t -> string
+end
 
 (** Create a new channel. Use Connection.open_channel instead *)
 val create :
@@ -35,7 +39,7 @@ val register_close_handler: t -> close_handler -> unit
 val on_return :
   t ->
   (Amqp_spec.Basic.Return.t * (Amqp_spec.Basic.Content.t * string) ->
-   unit Async.Std.Deferred.t) ->
+   unit Deferred.t) ->
   unit
 
 (** Get the id of the channel *)
@@ -43,9 +47,6 @@ val id : t -> string
 
 (** Get the channel_no of the connection *)
 val channel_no : t -> int
-
-(** Construct a unique id for this channel *)
-val unique_id : t -> string
 
 (** Set prefetch counters for a channel or globally (across all channels).
 
@@ -57,4 +58,4 @@ val unique_id : t -> string
 val set_prefetch :
   ?count:Amqp_types.short ->
   ?size:Amqp_types.long ->
-  ?global:Amqp_types.bit -> t -> unit Async_kernel.Deferred0.t
+  ?global:Amqp_types.bit -> t -> unit Deferred.t

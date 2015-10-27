@@ -21,14 +21,10 @@
 
 
 API:
-  avoid "type host = string".
   Move internal function to Internal modules
-  Channel.unique_id public?
   Split prefetch into two functions (Global or non global)
-  Only use Async.Std.Deferred.t
   Use opens and module aliases
   Remove label for exhange type
-  Dont reference amqp_type from high level mli.
   Think about tristate ack functions
   (Exclusing and autodelete using shadow types)
   Queue get should return a value, not given a handler. Figure out how to handle ack.
@@ -36,8 +32,4 @@ API:
   How to nack a message
   Rcp.client -> exchange
   Client call return a polymophic variant - Return a option type instead.
-
   Rpc.Server.start lacks functionality
-
-Reorder:
-  Amqp_types for global types only

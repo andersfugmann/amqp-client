@@ -19,7 +19,7 @@ val declare :
   ?exclusive:Amqp_types.bit ->
   ?auto_delete:Amqp_types.bit ->
   ?arguments:Amqp_types.table ->
-  Amqp_spec.queue_name -> t Async.Std.Deferred.t
+  Amqp_spec.queue_name -> t Deferred.t
 
 (** Get a single message from the queue.
     The function automatically handles ack.
@@ -61,7 +61,7 @@ val consume :
   Amqp_channel.t ->
   t ->
   (Amqp_spec.Basic.Deliver.t ->
-   Amqp_spec.Basic.Content.t -> string -> unit Async.Std.Deferred.t) ->
+   Amqp_spec.Basic.Content.t -> string -> unit Deferred.t) ->
   consumer Deferred.t
 
 (** Cancel consumption. *)

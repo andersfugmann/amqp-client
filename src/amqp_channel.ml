@@ -15,40 +15,49 @@ type t = { framing: Amqp_framing.t;
 
 let channel { framing; channel_no; _ } = (framing, channel_no)
 
-let register_deliver_handler =
-  let open Basic in
-  let ((c_class_id, _), c_spec, c_make, _apply) = Content.Internal.def in
-  let (message_id, spec, make, _apply) = Deliver.Internal.def in
+module Internal = struct
+  let next_counter t =
+    t.counter <- t.counter + 1;
+    t.counter
 
-  let c_read = Amqp_protocol.Content.read c_spec in
-  let read = Amqp_protocol.Spec.read spec in
-  let flags = Amqp_protocol.Content.length c_spec in
+  let unique_id t =
+    Printf.sprintf "%s.%d" t.id (next_counter t)
 
-  let content_handler channel handler deliver (content, data) =
-    let property_flag = Amqp_protocol_helpers.read_property_flag (Input.short content) flags in
-    let header = c_read c_make property_flag content in
-    Amqp_framing.deregister_content_handler channel c_class_id;
-    handler (deliver, (header, data))
-  in
-  let deliver_handler channel consumers input =
-    let deliver = read make input in
-    try
-      let handler = Hashtbl.find consumers deliver.Deliver.consumer_tag in
-      Amqp_framing.register_content_handler channel c_class_id (content_handler channel handler deliver)
-    (* Keep the current handler *)
-    with
-    | Not_found -> failwith ("No consumers for: " ^ deliver.Deliver.consumer_tag)
-  in
-  fun t ->
-    let channel = channel t in
-    Amqp_framing.register_method_handler channel message_id (deliver_handler channel t.consumers)
+  let register_deliver_handler =
+    let open Basic in
+    let ((c_class_id, _), c_spec, c_make, _apply) = Content.Internal.def in
+    let (message_id, spec, make, _apply) = Deliver.Internal.def in
 
-let register_consumer_handler t consumer_tag handler =
-  if Hashtbl.mem t.consumers consumer_tag then raise Amqp_framing.Busy;
-  Hashtbl.add t.consumers consumer_tag handler
+    let c_read = Amqp_protocol.Content.read c_spec in
+    let read = Amqp_protocol.Spec.read spec in
+    let flags = Amqp_protocol.Content.length c_spec in
 
-let deregister_consumer_handler t consumer_tag =
-  Hashtbl.remove t.consumers consumer_tag
+    let content_handler channel handler deliver (content, data) =
+      let property_flag = Amqp_protocol_helpers.read_property_flag (Input.short content) flags in
+      let header = c_read c_make property_flag content in
+      Amqp_framing.deregister_content_handler channel c_class_id;
+      handler (deliver, (header, data))
+    in
+    let deliver_handler channel consumers input =
+      let deliver = read make input in
+      try
+        let handler = Hashtbl.find consumers deliver.Deliver.consumer_tag in
+        Amqp_framing.register_content_handler channel c_class_id (content_handler channel handler deliver)
+      (* Keep the current handler *)
+      with
+      | Not_found -> failwith ("No consumers for: " ^ deliver.Deliver.consumer_tag)
+    in
+    fun t ->
+      let channel = channel t in
+      Amqp_framing.register_method_handler channel message_id (deliver_handler channel t.consumers)
+
+  let register_consumer_handler t consumer_tag handler =
+    if Hashtbl.mem t.consumers consumer_tag then raise Amqp_framing.Busy;
+    Hashtbl.add t.consumers consumer_tag handler
+
+  let deregister_consumer_handler t consumer_tag =
+    Hashtbl.remove t.consumers consumer_tag
+end
 
 let close_handler channel_no close =
   eprintf "Channel closed: %d\n" channel_no;
@@ -64,7 +73,7 @@ let create ~id framing channel_no  =
   let t = { framing; channel_no; consumers; id; counter = 0; close_handler } in
   Amqp_framing.open_channel framing channel_no >>= fun () ->
   Channel.Open.request (channel t) () >>= fun () ->
-  register_deliver_handler t;
+  Internal.register_deliver_handler t;
   don't_wait_for (Channel.Close.reply (framing, channel_no) (t.close_handler channel_no));
 
   return t
@@ -89,17 +98,9 @@ let on_return t handler =
     don't_wait_for (reply (channel t) ~post_handler:(fun _ -> read ()) >>= fun msg -> handler msg) in
   read ()
 
-
-let next_counter t =
-  t.counter <- t.counter + 1;
-  t.counter
-
 let id t = t.id
 
 let channel_no t = t.channel_no
-
-let unique_id t =
-  Printf.sprintf "%s.%d" t.id (next_counter t)
 
 let set_prefetch ?(count=0) ?(size=0) ?(global=false) t =
   Basic.Qos.request (channel t) { Basic.Qos.prefetch_count=count;
