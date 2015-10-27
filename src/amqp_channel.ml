@@ -2,13 +2,11 @@ open Async.Std
 open Amqp_io
 open Amqp_spec
 
-(**/**)
-type message = Basic.Deliver.t * (Basic.Content.t * string)
-type consumers = (string, message -> unit) Hashtbl.t
-(**/**)
+module Message = Amqp_message
 
+type consumers = (string, Message.deliver -> unit) Hashtbl.t
 
-type close_handler = int -> Amqp_spec.Channel.Close.t -> unit Deferred.t
+type close_handler = int -> Channel.Close.t -> unit Deferred.t
 type t = { framing: Amqp_framing.t;
            channel_no: int;
            consumers: consumers;
@@ -37,10 +35,16 @@ module Internal = struct
     let flags = Amqp_protocol.Content.length c_spec in
 
     let content_handler channel handler deliver (content, data) =
+      let module D = Deliver in
       let property_flag = Amqp_protocol_helpers.read_property_flag (Input.short content) flags in
       let header = c_read c_make property_flag content in
       Amqp_framing.deregister_content_handler channel c_class_id;
-      handler (deliver, (header, data))
+      handler { Message.consumer_tag = deliver.D.consumer_tag;
+                Message.delivery_tag = deliver.D.delivery_tag;
+                Message.redelivered = deliver.D.redelivered;
+                Message.exchange = deliver.D.exchange;
+                Message.routing_key = deliver.D.routing_key;
+                Message.message = (header, data) }
     in
     let deliver_handler channel consumers input =
       let deliver = read make input in

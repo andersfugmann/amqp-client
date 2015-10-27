@@ -9,8 +9,8 @@ let rec sync_loop channel queue i =
   sync_loop channel queue (i+1)
 
 let consume channel queue =
-  let handler _ _ msg =
-    let i = Scanf.sscanf msg "Message: %d" (fun i -> i) in
+  let handler { Message.message = (_content, body); _ } =
+    let i = Scanf.sscanf body "Message: %d" (fun i -> i) in
     begin match i with
       | i when i mod 1000 = 0 ->
         log "%i" i

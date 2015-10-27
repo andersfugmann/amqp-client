@@ -2,6 +2,7 @@ open Async.Std
 module Connection = Amqp_connection
 module Channel = Amqp_channel
 module Exchange = Amqp_exchange
+module Message = Amqp_message
 open Amqp_spec.Queue
 
 let log = Amqp_io.log
@@ -65,7 +66,7 @@ let publish channel t
     ~routing_key:t.name
     data
 
-type consumer = { channel: Channel.t; tag: string; writer: Channel.message Pipe.Writer.t }
+type consumer = { channel: Channel.t; tag: string; writer: Message.deliver Pipe.Writer.t }
 
 (** Consume message from a queue. *)
 let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t handler =
@@ -76,11 +77,11 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t h
   let rec handle_messages channel reader handler =
     Pipe.read reader >>= function
     | `Eof -> return ()
-    | `Ok (mth, (header, body)) ->
-      handler mth header body >>= fun () ->
+    | `Ok msg ->
+      handler msg >>= fun () ->
       let ack =
         if no_ack = false then
-          Ack.request channel { Ack.delivery_tag = mth.Deliver.delivery_tag; multiple = false }
+          Ack.request channel { Ack.delivery_tag = msg.Message.delivery_tag; multiple = false }
         else
           return ()
       in

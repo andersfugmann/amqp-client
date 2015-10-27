@@ -60,8 +60,7 @@ val consume :
   ?exclusive:bool ->
   Amqp_channel.t ->
   t ->
-  (Amqp_spec.Basic.Deliver.t ->
-   Amqp_spec.Basic.Content.t -> string -> unit Deferred.t) ->
+  (Amqp_message.deliver -> unit Deferred.t) ->
   consumer Deferred.t
 
 (** Cancel consumption. *)

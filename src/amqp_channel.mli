@@ -1,14 +1,12 @@
 (** Operations on channels *)
 open Async.Std
+open Amqp_spec
 
 (**/**)
-type message =
-  Amqp_spec.Basic.Deliver.t * (Amqp_spec.Basic.Content.t * string)
-
-type consumers = (string, message -> unit) Hashtbl.t
+type consumers = (string, Amqp_message.deliver -> unit) Hashtbl.t
 (**/**)
 
-type close_handler = int -> Amqp_spec.Channel.Close.t -> unit Deferred.t
+type close_handler = int -> Channel.Close.t -> unit Deferred.t
 
 type t
 
@@ -17,7 +15,7 @@ val channel : t -> Amqp_framing.t * int
 (**/**)
 module Internal : sig
   val register_deliver_handler : t -> unit
-  val register_consumer_handler : t -> string -> (message -> unit) -> unit
+  val register_consumer_handler : t -> string -> (Amqp_message.deliver -> unit) -> unit
   val deregister_consumer_handler : t -> string -> unit
 
   (** Construct a unique id for this channel *)
@@ -42,7 +40,7 @@ val register_close_handler: t -> close_handler -> unit
 (** Register handler if messages are rejected by the amqp server. *)
 val on_return :
   t ->
-  (Amqp_spec.Basic.Return.t * (Amqp_spec.Basic.Content.t * string) ->
+  (Basic.Return.t * (Basic.Content.t * string) ->
    unit Deferred.t) ->
   unit
 
@@ -60,6 +58,6 @@ val channel_no : t -> int
 
 *)
 val set_prefetch :
-  ?count:Amqp_types.short ->
-  ?size:Amqp_types.long ->
-  ?global:Amqp_types.bit -> t -> unit Deferred.t
+  ?count:int ->
+  ?size:int ->
+  ?global:bool -> t -> unit Deferred.t

@@ -3,6 +3,7 @@ module Connection = Amqp_connection
 module Channel = Amqp_channel
 module Queue = Amqp_queue
 module Exchange = Amqp_exchange
+module Message = Amqp_message
 open Amqp_spec.Basic
 
 module Client = struct
@@ -40,7 +41,7 @@ module Client = struct
 
     let t = { queue; channel; id; outstanding = Hashtbl.create 0; counter = 0 } in
     Queue.consume ~id:"rpc_client" ~no_ack:true ~exclusive:true channel queue
-      (fun _deliver header data -> handle_reply t true header data) >>= fun _stop ->
+      (fun { Message.message = (hdr, body); _ }-> handle_reply t true hdr body) >>= fun _stop ->
     Channel.on_return channel (fun (_, (h, d)) -> handle_reply t false h d);
     return t
 
@@ -72,7 +73,7 @@ module Server = struct
 
   type t = { consumer: Queue.consumer }
   let start channel queue handler =
-    let handler _deliver content request =
+    let handler { Message.message = (content, body); _ } =
 
       let routing_key = match content.Content.reply_to with
         | Some r -> r
@@ -83,7 +84,7 @@ module Server = struct
         | Some r -> r
         | None -> failwith "Missing correnlation_id in reposnse"
       in
-      handler request >>= fun reply ->
+      handler body >>= fun reply ->
       Exchange.publish channel Exchange.default
         ~correlation_id
         ~routing_key

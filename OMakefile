@@ -44,6 +44,7 @@ vmount(-l, tests, _build)
             amqp_queue
             amqp_rpc
             amqp_exchange
+            amqp_message
             amqp
 
         OCamlLibrary(ocaml-amqp, $(FILES))
