@@ -16,7 +16,7 @@ vmount(-l, tests, _build)
     section
         OCamlProgram(gen_spec, gen_spec)
 
-        AMQP_SPEC_URL = http://www.rabbitmq.com/resources/specs/amqp0-9-1.stripped.extended.xml
+        AMQP_SPEC_URL = http://www.rabbitmq.com/resources/specs/amqp0-9-1.extended.xml
         AMQP_SPEC = $(rootname $(basename $(AMQP_SPEC_URL)))
         $(AMQP_SPEC):
             mkdir -p data

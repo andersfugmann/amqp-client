@@ -6,26 +6,35 @@ let emit fmt =
   let indent = String.make (!indent * 2) ' ' in
   Printf.printf ("%s" ^^ fmt ^^ "\n") indent
 
+let emit_doc = function
+  | Some doc ->
+    emit "";
+    emit "(** %s *)" doc
+  | None -> ()
+
 let log fmt =
   let indent = String.make (!indent * 2) ' ' in
   Printf.ifprintf "" ("%s" ^^ fmt ^^ "\n") indent
 
 module Field = struct
-  type t = { name: string; tpe: string; reserved: bool }
+  type t = { name: string; tpe: string; reserved: bool; doc: string option }
 end
 module Constant = struct
-  type t = { name: string; value: int }
+  type t = { name: string; value: int; doc: string option }
 end
 module Domain = struct
-  type t = { name: string; amqp_type: string; (* asserts *) }
+  type t = { name: string; amqp_type: string; doc: string option }
 end
 module Method = struct
   type t = { name: string; arguments: Field.t list;
              response: string list; content: bool;
-             index: int; synchronous: bool; server: bool; client: bool}
+             index: int; synchronous: bool; server: bool; client: bool;
+             doc: string option
+           }
 end
 module Class = struct
-  type t = { name: string; content: Field.t list; index: int; methods: Method.t list }
+  type t = { name: string; content: Field.t list; index: int;
+             methods: Method.t list; doc: string option }
 end
 
 type elem =
@@ -33,13 +42,17 @@ type elem =
   | Domain of Domain.t
   | Class of Class.t
 
+let rec doc = function
+  | Xml.Element("doc", [], [ Xml.PCData doc]) :: _ -> Some (String.trim doc)
+  | _ :: xs -> doc xs
+  | [] -> None
+
 let rec map_elements tpe f = function
   | [] -> []
   | Xml.Element(t, a, n) :: xs when t = tpe -> f a n :: map_elements tpe f xs
   | _ :: xs -> map_elements tpe f xs
 
 let parse_field attrs nodes =
-  (* Todo: Handle asserts *)
   ignore nodes;
   let name =
     List.assoc "name" attrs
@@ -53,24 +66,22 @@ let parse_field attrs nodes =
   in
 
   let reserved = List.mem ("reserved", "1")  attrs in
-  { Field.name; tpe; reserved }
+  { Field.name; tpe; reserved; doc = doc nodes }
 
 let parse_constant attrs nodes =
-  assert (nodes = []);
   let name = List.assoc "name" attrs in
   log "Parsing constant %s" name;
 
   let value = List.assoc "value" attrs |> int_of_string in
-  Constant { Constant.name; value }
+  Constant { Constant.name; value; doc = doc nodes }
 
 let parse_domain attrs nodes =
-  (* TODO - Add assertions for the function *)
   ignore nodes;
   let name = List.assoc "name" attrs in
   log "Parsing domain %s" name;
 
   let amqp_type = List.assoc "type" attrs in
-  Domain { Domain.name; amqp_type}
+  Domain { Domain.name; amqp_type; doc = doc nodes}
 
 let parse_method attrs nodes =
   let name = List.assoc "name" attrs in
@@ -96,7 +107,8 @@ let parse_method attrs nodes =
   let client = List.mem "client" chassis in
   let server = List.mem "server" chassis in
   decr indent;
-  { Method.name; arguments; response; content; index; synchronous; client; server }
+  { Method.name; arguments; response; content; index; synchronous;
+    client; server; doc = doc nodes }
 
 let parse_class attrs nodes =
   (* All field nodes goes into content *)
@@ -108,7 +120,7 @@ let parse_class attrs nodes =
   let fields = map_elements "field" parse_field nodes in
   let methods = map_elements "method" parse_method nodes in
   decr indent;
-  Class { Class.name; index; content=fields; methods }
+  Class { Class.name; index; content=fields; methods; doc = doc nodes }
 
 let parse = function
   | Xml.PCData _ -> failwith "pc data not supported"
@@ -148,14 +160,19 @@ let rec print = function
 let emit_domains tree =
   let domains = Hashtbl.create 0 in
   List.iter (function
-      | Domain {Domain.name; amqp_type} when name <> amqp_type ->
-        Hashtbl.add domains name amqp_type
+      | Domain {Domain.name; amqp_type; doc} when name <> amqp_type ->
+        Hashtbl.add domains name (amqp_type, doc)
       | _ -> ()) tree;
 
   emit "(* Domains *)";
-  Hashtbl.iter (fun d t -> emit "let %s = %s" (bind_name d) (variant_name t)) domains;
+  Hashtbl.iter (fun d (t, doc) ->
+      emit_doc doc;
+      emit "let %s = %s" (bind_name d) (variant_name t)) domains;
+
   emit "(* Aliases *)";
-  Hashtbl.iter (fun d t -> emit "type %s = %s" (bind_name d) (bind_name t)) domains;
+  Hashtbl.iter (fun d (t, doc) ->
+      emit_doc doc;
+      emit "type %s = %s" (bind_name d) (bind_name t)) domains;
 
   (* Alter the tree *)
   let replace lst =
@@ -183,7 +200,9 @@ let emit_domains tree =
 let emit_constants tree =
   emit "(* Constants *)";
   List.iter
-    (function Constant { Constant.name; value } -> emit "let %s = %d" (bind_name name) value | _ -> ())
+    (function Constant { Constant.name; value; doc } ->
+      emit_doc doc;
+      emit "let %s = %d" (bind_name name) value | _ -> ())
     tree
 
 let spec_str arguments =
@@ -201,7 +220,10 @@ let emit_method ?(is_content=false) class_index
       synchronous;
       client;
       server;
+      doc;
     } =
+
+  emit_doc doc;
   emit "module %s = struct" (variant_name name);
   incr indent;
   if is_content then
@@ -215,13 +237,17 @@ let emit_method ?(is_content=false) class_index
     |> List.filter (fun t -> not t.Field.reserved)
   in
   let option = if is_content then " option" else "" in
+  let doc_str = function
+    | None -> ""
+    | Some doc -> "(** " ^ doc ^ " *)"
+  in
   let t_spec, t_args = match t_args with
     | [] -> "unit", "()"
     | args ->
-      let a = List.map (fun t -> (bind_name t.Field.name), (bind_name t.Field.tpe) ^ option) args in
+      let a = List.map (fun t -> (bind_name t.Field.name), (bind_name t.Field.tpe) ^ option, doc_str t.Field.doc) args in
       (
-        a |> List.map (fun (a, b) -> a ^ ": " ^ b) |> String.concat "; " |> str "{ %s }",
-        a |> List.map (fun (a, _) -> a) |> String.concat "; " |> str "{ %s }"
+        a |> List.map (fun (a, b, doc) -> a ^ ": " ^ b ^ "; " ^ doc) |> String.concat "\n" |> str "{ %s }",
+        a |> List.map (fun (a, _, _) -> a) |> String.concat "; " |> str "{ %s }"
       )
   in
   let names =
@@ -291,7 +317,7 @@ let emit_method ?(is_content=false) class_index
   ()
 
 
-let emit_class { Class.name; content; index; methods } =
+let emit_class { Class.name; content; index; methods; doc } =
   (* Reorder modules based on dependencies *)
   let rec reorder methods =
     let rec move_down = function
@@ -305,6 +331,7 @@ let emit_class { Class.name; content; index; methods } =
     else reorder ms
   in
   let methods = reorder methods in
+  emit_doc doc;
   emit "module %s = struct" (variant_name name);
   incr indent;
 
@@ -317,7 +344,8 @@ let emit_class { Class.name; content; index; methods } =
               index = 0; (* must be zero *)
               synchronous = false;
               server=false;
-              client=false
+              client=false;
+              doc = None;
             };
 
   List.iter (emit_method index) methods;
