@@ -18,7 +18,6 @@ module Client :
 
     (** Release resources *)
     val close : t -> unit Deferred.t
-
   end
 
 (** Rpc Server pattern *)
@@ -31,7 +30,7 @@ module Server :
     val start :
       Amqp_channel.t ->
       Amqp_queue.t ->
-      (string -> string Deferred.t) -> t Async.Std.Deferred.t
+      (string -> string Deferred.t) -> t Deferred.t
 
     (** Stop the server *)
     val stop : t -> unit Deferred.t

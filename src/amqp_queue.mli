@@ -19,7 +19,7 @@ val declare :
   ?exclusive:Amqp_types.bit ->
   ?auto_delete:Amqp_types.bit ->
   ?arguments:Amqp_types.table ->
-  Amqp_spec.queue_name -> t Deferred.t
+  string -> t Deferred.t
 
 (** Get a single message from the queue.
     The function automatically handles ack.
@@ -28,7 +28,7 @@ val declare :
     ack, and the function will ack the message when the hander returns
 *)
 val get :
-  no_ack:Amqp_spec.no_ack ->
+  no_ack:bool ->
   Amqp_channel.t ->
   t ->
   (Amqp_spec.Basic.Get_ok.t ->
@@ -71,14 +71,14 @@ val cancel : consumer -> unit Deferred.t
 val bind :
   Amqp_channel.t ->
   t ->
-  routing_key:Amqp_types.shortstr ->
+  routing_key:string ->
   Amqp_exchange.t -> unit Deferred.t
 
 (** Remove a binding from an exhange to a queue *)
 val unbind :
   Amqp_channel.t ->
   t ->
-  routing_key:Amqp_types.shortstr ->
+  routing_key:string ->
   Amqp_exchange.t -> unit Deferred.t
 
 (** Purge all messages on a queue *)
@@ -92,5 +92,6 @@ val delete :
 (** Name of the queue *)
 val name : t -> string
 
-(** Debuggin internal function *)
+(**/**)
 val fake : 'a -> string -> t Deferred.t
+(**/**)

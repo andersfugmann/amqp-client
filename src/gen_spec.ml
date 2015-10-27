@@ -171,6 +171,8 @@ let emit_domains tree =
       emit "type %s = %s" (bind_name d) (bind_name t);
     ) domains;
 
+  emit "";
+  emit "(**/**)";
   emit "module Internal_alias = struct";
   incr indent;
   Hashtbl.iter (fun d (t, _) ->
@@ -178,6 +180,8 @@ let emit_domains tree =
     ) domains;
   decr indent;
   emit "end";
+  emit "(**/**)";
+  emit "";
 
   (* Alter the tree *)
   let replace lst =
@@ -263,6 +267,8 @@ let emit_method ?(is_content=false) class_index
   in
 
   emit "type t = %s" t_spec;
+  emit "";
+  emit "(**/**)";
   emit "module Internal = struct";
   incr indent;
   emit "open !Internal_alias";
@@ -292,6 +298,9 @@ let emit_method ?(is_content=false) class_index
 
   decr indent;
   emit "end";
+  emit "(**/**)";
+  emit "";
+
   let inames = List.filter ((<>) "_") names in
   begin match is_content with
     | true ->

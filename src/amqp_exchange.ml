@@ -6,10 +6,20 @@ open Amqp_spec.Exchange
 
 type t = { name : string }
 
-let default = { name="" }
+
+(** Predefined Default exchange *)
+let default    = { name="" }
+
+(** Predefined Direct exchange *)
 let amq_direct = { name = "amq.direct" }
+
+(** Predefined Fanout exchange *)
 let amq_fanout = { name = "amq.fanout" }
-let amq_topic = { name = "amq.topic" }
+
+(** Predefined topic exchange *)
+let amq_topic  = { name = "amq.topic" }
+
+(** Predefined header exchange *)
 let amq_header = { name = "amq.header" }
 
 type exchange_type = Direct | Fanout | Topic | Headers

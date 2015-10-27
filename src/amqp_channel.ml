@@ -2,8 +2,12 @@ open Async.Std
 open Amqp_io
 open Amqp_spec
 
+(**/**)
 type message = Basic.Deliver.t * (Basic.Content.t * string)
 type consumers = (string, message -> unit) Hashtbl.t
+(**/**)
+
+
 type close_handler = int -> Amqp_spec.Channel.Close.t -> unit Deferred.t
 type t = { framing: Amqp_framing.t;
            channel_no: int;
