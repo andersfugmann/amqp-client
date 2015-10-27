@@ -1,7 +1,7 @@
 open Async.Std
 open Amqp_spec.Connection
 
-let log = Amqp_protocol.log
+let log = Amqp_io.log
 
 type t = { framing: Amqp_framing.t;
            virtual_host: string;

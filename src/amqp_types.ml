@@ -1,4 +1,4 @@
-open Amqp_protocol
+open Amqp_io
 
 type class_id = int
 type method_id = int

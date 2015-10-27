@@ -1,5 +1,5 @@
 open Async.Std
-open Amqp_protocol
+open Amqp_io
 open Amqp_spec
 
 type message = Basic.Deliver.t * (Basic.Content.t * string)

@@ -1,7 +1,7 @@
 (** Internal *)
 open Async.Std
 open Amqp_types
-open Amqp_protocol
+open Amqp_io
 
 type 'a post_handler = ('a -> unit) option
 

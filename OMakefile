@@ -34,7 +34,7 @@ vmount(-l, tests, _build)
             amqp_framing
             amqp_constants
             amqp_util
-            amqp_protocol
+            amqp_io
             amqp_channel
             amqp_connection
             amqp_queue

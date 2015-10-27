@@ -9,20 +9,20 @@ exception Unhandled_header of Amqp_types.class_id
 type channel_no = int
 
 type message =
-    Method of Amqp_types.message_id * Amqp_protocol.Input.t
-  | Content of Amqp_types.class_id * Amqp_protocol.Input.t * string
+    Method of Amqp_types.message_id * Amqp_io.Input.t
+  | Content of Amqp_types.class_id * Amqp_io.Input.t * string
 
-type data = Amqp_protocol.Input.t
+type data = Amqp_io.Input.t
 type content_handler = data * string -> unit
 type method_handler = data -> unit
 
 type t
 
 val write_method :
-  t * channel_no -> int * int -> Amqp_protocol.Output.t -> unit
+  t * channel_no -> int * int -> Amqp_io.Output.t -> unit
 
 val write_content :
-  t * channel_no -> int -> Amqp_protocol.Output.t -> string -> unit
+  t * channel_no -> int -> Amqp_io.Output.t -> string -> unit
 
 val register_method_handler :
   t * channel_no -> Amqp_types.message_id -> method_handler -> unit

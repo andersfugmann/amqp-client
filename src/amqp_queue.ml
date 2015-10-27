@@ -4,7 +4,7 @@ module Channel = Amqp_channel
 module Exchange = Amqp_exchange
 open Amqp_spec.Queue
 
-let log = Amqp_protocol.log
+let log = Amqp_io.log
 
 type t = { name: string }
 
