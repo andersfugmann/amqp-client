@@ -16,16 +16,18 @@ let test =
   log "Prefetch set";
   Queue.purge channel queue >>= fun () ->
   log "Queue purged";
-  let var = Ivar.create () in
-  Queue.get ~no_ack:false channel queue (handler var) >>= fun () ->
-  assert (Ivar.is_empty var);
+  Queue.get ~no_ack:false channel queue >>= fun m ->
+  assert (m = None);
   log "Queue empty";
-
   Queue.publish channel queue (Message.make "Test") >>= fun () ->
   log "Message published";
-  Queue.get ~no_ack:false channel queue (handler var) >>= fun () ->
-  assert (Ivar.is_full var);
+  Queue.get ~no_ack:false channel queue >>= fun m ->
+  let m = match m with
+    | None -> failwith "No message"
+    | Some m -> m
+  in
   log "Message received";
+  Message.ack channel m >>= fun () ->
 
   Exchange.declare channel ~exchange_type:Exchange.Topic "test_exchange" >>= fun exchange ->
   log "Exchange declared";
@@ -34,11 +36,13 @@ let test =
 
   Exchange.publish channel exchange ~routing_key:"test.a.b.c.key" (Message.make "Test") >>= fun () ->
   log "Message published";
-  let var = Ivar.create () in
-  Queue.get ~no_ack:false channel queue (handler var) >>= fun () ->
-  assert (Ivar.is_full var);
+  Queue.get ~no_ack:false channel queue >>= fun m ->
+  let m = match m with
+    | None -> failwith "No message"
+    | Some m -> m
+  in
   log "Message recieved";
-
+  Message.ack channel m >>= fun () ->
   Queue.delete channel queue >>| fun () ->
   log "Queue deleted";
   Shutdown.shutdown 0

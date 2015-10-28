@@ -49,6 +49,7 @@ module Client = struct
     let correlation_id = Printf.sprintf "%s.%d" t.id t.counter in
     t.counter <- t.counter + 1;
     let reply_to = Some (Queue.name t.queue) in
+
     (* Register handler for the reply before sending the query *)
     let var = Ivar.create () in
     Hashtbl.add t.outstanding correlation_id var;
@@ -76,22 +77,22 @@ module Server = struct
 
   type t = { consumer: Queue.consumer }
   let start channel queue handler =
-    let handler { Message.message = (header, body); _ } =
+    let handler ({ Message.message = (content, body); _ } as message) =
 
-      let routing_key = match header.Content.reply_to with
+      let routing_key = match content.Content.reply_to with
         | Some r -> r
         | None -> failwith "Missing reply_to in reposnse"
       in
 
-      let correlation_id = header.Content.correlation_id in
+      let correlation_id = content.Content.correlation_id in
 
-      handler (header, body) >>= fun (header, body) ->
-      let header = { header with Content.correlation_id } in
+      handler (content, body) >>= fun (content, body) ->
+      let content = { content with Content.correlation_id } in
       Exchange.publish channel Exchange.default
-        ~routing_key
-        (header, body)
+        ~routing_key (content, body) >>= fun () ->
+      Message.ack channel message
     in
-    (* Start consuming *)
+    (* Start consuming. *)
     Queue.consume ~id:"rpc_server" channel queue handler >>= fun consumer ->
     return { consumer }
 

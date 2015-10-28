@@ -3,7 +3,8 @@ open Async.Std
 open Amqp_spec
 
 (**/**)
-type consumers = (string, Amqp_message.t -> unit) Hashtbl.t
+type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
+type consumers = (string, consumer) Hashtbl.t
 (**/**)
 
 type close_handler = int -> Channel.Close.t -> unit Deferred.t
@@ -15,7 +16,7 @@ val channel : t -> Amqp_framing.t * int
 (**/**)
 module Internal : sig
   val register_deliver_handler : t -> unit
-  val register_consumer_handler : t -> string -> (Amqp_message.t -> unit) -> unit
+  val register_consumer_handler : t -> string -> consumer -> unit
   val deregister_consumer_handler : t -> string -> unit
 
   (** Construct a unique id for this channel *)

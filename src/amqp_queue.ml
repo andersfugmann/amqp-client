@@ -5,8 +5,6 @@ module Exchange = Amqp_exchange
 module Message = Amqp_message
 open Amqp_spec.Queue
 
-let log = Amqp_io.log
-
 type t = { name: string }
 
 let message_ttl v = "x-message-ttl", Amqp_types.VLonglong v
@@ -26,26 +24,18 @@ let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(a
   assert (rep.Declare_ok.queue = name);
   return { name }
 
-let get ~no_ack channel t handler =
+let get ~no_ack channel t =
   let open Amqp_spec.Basic in
   let channel = Channel.channel channel in
   Get.request channel { Get.queue=t.name; no_ack } >>= function
   | `Get_empty () ->
-    log "No Data"; return ()
+    return None
   | `Get_ok (get_ok, (header, body))  ->
-    let module G = Get_ok in
-    let message =
-      { Message.delivery_tag = get_ok.G.delivery_tag;
-        Message.redelivered = get_ok.G.redelivered;
-        Message.exchange = get_ok.G.exchange;
-        Message.routing_key = get_ok.G.routing_key;
-        Message.message = (header, body) }
-    in
-    handler message >>= fun () ->
-    if no_ack = false then
-      Ack.request channel { Ack.delivery_tag = message.Message.delivery_tag; multiple = false }
-    else
-      return ()
+    return (Some { Message.delivery_tag = get_ok.Get_ok.delivery_tag;
+                   Message.redelivered = get_ok.Get_ok.redelivered;
+                   Message.exchange = get_ok.Get_ok.exchange;
+                   Message.routing_key = get_ok.Get_ok.routing_key;
+                   Message.message = (header, body) })
 
 (** Publish a message directly to a queue *)
 let publish channel t ?mandatory message =
@@ -53,7 +43,8 @@ let publish channel t ?mandatory message =
     ~routing_key:t.name
     message
 
-type consumer = { channel: Channel.t; tag: string; writer: Message.t Pipe.Writer.t }
+type consumer = { channel: Channel.t; tag: string;
+                  writer: Amqp_message.t Pipe.Writer.t }
 
 (** Consume message from a queue. *)
 let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t handler =
@@ -61,24 +52,16 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t h
   let (reader, writer) = Pipe.create () in
   let consumer_tag = Printf.sprintf "%s.%s" (Channel.Internal.unique_id channel) id in
 
-  let rec handle_messages channel reader handler =
-    Pipe.read reader >>= function
-    | `Eof -> return ()
-    | `Ok msg ->
-      handler msg >>= fun () ->
-      let ack =
-        if no_ack = false then
-          Ack.request channel { Ack.delivery_tag = msg.Message.delivery_tag; multiple = false }
-        else
-          return ()
-      in
-      ack >>= fun () ->
-      handle_messages channel reader handler
+  let to_writer (deliver, header, body) =
+    { Message.delivery_tag = deliver.Deliver.delivery_tag;
+      Message.redelivered = deliver.Deliver.redelivered;
+      Message.exchange = deliver.Deliver.exchange;
+      Message.routing_key = deliver.Deliver.routing_key;
+      Message.message = (header, body) }
+    |> Pipe.write_without_pushback writer
   in
-
   let on_receive channel consume_ok =
-    Channel.Internal.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag
-      (Pipe.write_without_pushback writer)
+    Channel.Internal.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag to_writer
   in
   let req = { Consume.queue=t.name;
               consumer_tag;
@@ -86,13 +69,15 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t h
               no_ack;
               exclusive;
               no_wait = false;
-              arguments = [] (* TODO: Understand rabbitmq arguments *);
+              arguments = [];
             }
   in
 
   Consume.request ~post_handler:(on_receive channel) (Channel.channel channel) req >>= fun rep ->
-  (* Start message handling *)
-  don't_wait_for (handle_messages (Channel.channel channel) reader handler);
+  (* Start message handling. *)
+  don't_wait_for (
+    Pipe.iter_without_pushback ~f:(fun m -> don't_wait_for (handler m)) reader
+  );
   let tag = rep.Consume_ok.consumer_tag in
   return { channel; tag; writer }
 

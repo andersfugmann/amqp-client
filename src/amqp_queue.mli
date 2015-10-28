@@ -25,14 +25,12 @@ val declare :
     The function automatically handles ack.
 
     If [no_ack] is false (default), the message is requsted with expicit
-    ack, and the function will ack the message when the hander returns
+    ack and the caller is responsible for ack'ing or rejecting the message.
 *)
 val get :
   no_ack:bool ->
   Amqp_channel.t ->
-  t ->
-  (Amqp_message.t -> unit Deferred.t) ->
-  unit Deferred.t
+  t -> Amqp_message.t option Deferred.t
 
 (** Publish a message directly to a queue *)
 val publish :
@@ -41,7 +39,10 @@ val publish :
   Amqp_message.message -> unit Deferred.t
 
 (** Setup consumption of a queue.
-    The function handles ack when [no_ack] is false.
+    Remember to ack messages.
+
+    All messages are processed concurrently.
+    To limit number of concurrent processes, set the prefetch threashold.
 *)
 val consume :
   id:string ->

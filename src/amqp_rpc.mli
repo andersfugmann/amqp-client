@@ -26,7 +26,9 @@ module Server :
     type t
 
     (** Start an rpc server procucing replies for requests comming in
-        on the given queue. *)
+        on the given queue.
+        Messages are automatically acked
+    *)
     val start :
       Amqp_channel.t ->
       Amqp_queue.t ->

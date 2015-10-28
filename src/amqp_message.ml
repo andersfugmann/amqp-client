@@ -7,7 +7,7 @@ type t =
     redelivered : bool;
     exchange : string;
     routing_key : string;
-    message: message;
+    message: message; (* Could be in or out of the record *)
   }
 
 let make
@@ -45,3 +45,13 @@ let make
      app_id;
      reserved = None;
    }, body)
+
+let ack channel t =
+  let open Amqp_spec.Basic in
+  Ack.request (Amqp_channel.channel channel)
+    { Ack.delivery_tag = t.delivery_tag; multiple = false }
+
+let reject ?(requeue = true) channel t =
+  let open Amqp_spec.Basic in
+  Reject.request (Amqp_channel.channel channel)
+    { Reject.delivery_tag = t.delivery_tag; requeue }
