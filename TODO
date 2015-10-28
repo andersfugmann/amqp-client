@@ -21,13 +21,11 @@
 
 
 API:
-  Split prefetch into two functions (Global or non global)
   Use opens and module aliases
-  Remove label for exhange type
-  Think about tristate ack functions
-  (Exclusing and autodelete using shadow types)
-  Queue get should return a value, not given a handler. Figure out how to handle ack.
 
-  How to nack a message
+  Remove label for exhange type
+
+  (Excluding and autodelete using shadow types)
+
   Rcp.client -> exchange
   Rpc.Server.start lacks functionality

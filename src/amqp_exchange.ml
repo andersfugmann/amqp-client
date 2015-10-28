@@ -30,7 +30,7 @@ let string_of_exchange_type = function
   | Topic -> "topic"
   | Headers -> "headers"
 
-let declare ?(passive=false) ?(durable=false) ?(auto_delete=false) ?(internal=false) channel ~exchange_type name =
+let declare ?(passive=false) ?(durable=false) ?(auto_delete=false) ?(internal=false) channel exchange_type name =
   Declare.request (Channel.channel channel)
     { Declare.exchange = name;
       amqp_type = (string_of_exchange_type exchange_type);

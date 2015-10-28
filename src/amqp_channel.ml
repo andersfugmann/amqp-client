@@ -104,7 +104,12 @@ let id t = t.id
 
 let channel_no t = t.channel_no
 
-let set_prefetch ?(count=0) ?(size=0) ?(global=false) t =
+let set_prefetch ?(count=0) ?(size=0) t =
   Basic.Qos.request (channel t) { Basic.Qos.prefetch_count=count;
-                      prefetch_size=size;
-                      global }
+                                  prefetch_size=size;
+                                  global=false }
+
+let set_global_prefetch ?(count=0) ?(size=0) t =
+  Basic.Qos.request (channel t) { Basic.Qos.prefetch_count=count;
+                                  prefetch_size=size;
+                                  global=true }

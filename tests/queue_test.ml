@@ -29,7 +29,7 @@ let test =
   log "Message received";
   Message.ack channel m >>= fun () ->
 
-  Exchange.declare channel ~exchange_type:Exchange.Topic "test_exchange" >>= fun exchange ->
+  Exchange.declare channel Exchange.Topic "test_exchange" >>= fun exchange ->
   log "Exchange declared";
   Queue.bind channel queue exchange ~routing_key:"test.#.key" >>= fun () ->
   log "Queue bind declared";

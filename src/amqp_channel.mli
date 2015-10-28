@@ -11,9 +11,9 @@ type close_handler = int -> Channel.Close.t -> unit Deferred.t
 
 type t
 
+(**/**)
 val channel : t -> Amqp_framing.t * int
 
-(**/**)
 module Internal : sig
   val register_deliver_handler : t -> unit
   val register_consumer_handler : t -> string -> consumer -> unit
@@ -51,14 +51,20 @@ val id : t -> string
 (** Get the channel_no of the connection *)
 val channel_no : t -> int
 
-(** Set prefetch counters for a channel or globally (across all channels).
+(** Set prefetch counters for a channel.
+    @param count: Maximum messages inflight (un-acked)
+    @param site: Maximum amount of bytes inflight
 
-    Note if using rabbitmq, prefetch only affects consumers on the channel;
-    If global is [true] then the pretch limit is applied across all consumers on the channel,
-    othervice the prefecth limit is per consumer (on the channel).
-
+    Note: if using rabbitmq, the prefetch limits are set per consumer on the channel,
+    rather than per channel (across consumers)
 *)
-val set_prefetch :
-  ?count:int ->
-  ?size:int ->
-  ?global:bool -> t -> unit Deferred.t
+val set_prefetch : ?count:int -> ?size:int -> t -> unit Deferred.t
+
+(** Set global prefetch counters.
+    @param count: Maximum messages inflight (un-acked)
+    @param site: Maximum amount of bytes inflight
+
+    Note: if using rabbitmq, the prefetch limits are set per channel (across consumers),
+    If not, the global prefetch settings is applied globally - across consumers and channels.
+*)
+val set_global_prefetch : ?count:int -> ?size:int -> t -> unit Deferred.t

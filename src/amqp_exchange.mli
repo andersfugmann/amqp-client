@@ -18,7 +18,7 @@ val declare :
   ?auto_delete:bool ->
   ?internal:bool ->
   Amqp_channel.t ->
-  exchange_type:exchange_type ->
+  exchange_type ->
   string -> t Deferred.t
 
 (** Delete exhange *)
