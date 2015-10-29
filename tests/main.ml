@@ -32,8 +32,8 @@ let consume channel queue =
 
 let rec produce channel queue = function
   | 0 -> return ();
-  | n -> Queue.publish channel queue (Message.make (Printf.sprintf "Message: %d" n)) >>= fun res ->
-    assert (res = `Ok);
+  | n ->
+    don't_wait_for (Queue.publish channel queue (Message.make (Printf.sprintf "Message: %d" n)) >>= fun res -> assert (res = `Ok); return ());
     produce channel queue (n-1)
 
 let _ =
