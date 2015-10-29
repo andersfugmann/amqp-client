@@ -67,6 +67,7 @@ module Client = struct
   (** Release resources *)
   let close t =
     Hashtbl.iter (fun _ var -> Ivar.fill var None) t.outstanding;
+    Amqp_queue.cancel t.consumer >>= fun () ->
     Amqp_queue.delete t.channel t.queue >>= fun () ->
     Channel.close t.channel >>= fun () ->
     return ()
@@ -78,7 +79,7 @@ module Server = struct
   (* The server needs a queue name and a handler *)
 
   type t = { consumer: Queue.consumer }
-  let start channel queue handler =
+  let start ?(async=false) channel queue handler =
     let handler ({ Message.message = (content, body); _ } as message) =
 
       let routing_key = match content.Content.reply_to with
@@ -96,7 +97,11 @@ module Server = struct
     in
     (* Start consuming. *)
     Queue.consume ~id:"rpc_server" channel queue >>= fun (consumer, reader) ->
-    don't_wait_for (Pipe.iter_without_pushback reader ~f:(fun m -> don't_wait_for (handler m)));
+    let read = match async with
+      | true -> (Pipe.iter_without_pushback reader ~f:(fun m -> don't_wait_for (handler m)))
+      | false -> Pipe.iter reader ~f:handler
+    in
+    don't_wait_for read;
     return { consumer }
 
   let stop t =
