@@ -4,7 +4,8 @@ open Amqp
 let log fmt = printf (fmt ^^ "\n%!")
 
 let rec sync_loop channel queue i =
-  Queue.publish channel queue (Message.make (Printf.sprintf "Message: %d" i)) >>= fun () ->
+  Queue.publish channel queue (Message.make (Printf.sprintf "Message: %d" i)) >>= fun res ->
+  assert (res = `Ok);
   Queue.get ~no_ack:false channel queue >>= function
   | Some ({ Message.message = (_, body); _ } as msg) ->
     log "Received: %s" body;
@@ -31,14 +32,15 @@ let consume channel queue =
 
 let rec produce channel queue = function
   | 0 -> return ();
-  | n -> Queue.publish channel queue (Message.make (Printf.sprintf "Message: %d" n)) >>= fun () ->
+  | n -> Queue.publish channel queue (Message.make (Printf.sprintf "Message: %d" n)) >>= fun res ->
+    assert (res = `Ok);
     produce channel queue (n-1)
 
 let _ =
   let _ =
     Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
     log "Connection started";
-    Connection.open_channel ~id:"test" connection >>= fun channel ->
+    Connection.open_channel ~confirms:true ~id:"test" connection >>= fun channel ->
     Channel.set_prefetch channel ~count:100 >>= fun () ->
     log "Channel opened";
     let arguments =

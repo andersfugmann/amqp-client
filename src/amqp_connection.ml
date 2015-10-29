@@ -84,6 +84,6 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
   don't_wait_for (Close.reply (framing, 0) handle_close);
   return t
 
-let open_channel ~id t =
+let open_channel ~id ?confirms t =
   t.channel <- t.channel + 1;
-  Amqp_channel.create ~id t.framing t.channel
+  Amqp_channel.create ~id ?confirms t.framing t.channel

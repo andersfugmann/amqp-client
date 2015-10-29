@@ -59,9 +59,9 @@ module Client = struct
                                expiration;
                                reply_to; }
     in
-    Exchange.publish t.channel ~mandatory:true ~routing_key exchange (header, body) >>= fun () ->
-    Ivar.read var
-
+    Exchange.publish t.channel ~mandatory:true ~routing_key exchange (header, body) >>= function
+    | `Ok -> Ivar.read var
+    | `Failed -> return None
 
   (** Release resources *)
   let close t =
@@ -91,8 +91,9 @@ module Server = struct
       handler (content, body) >>= fun (content, body) ->
       let content = { content with Content.correlation_id } in
       Exchange.publish channel Exchange.default
-        ~routing_key (content, body) >>= fun () ->
-      Message.ack channel message
+        ~routing_key (content, body) >>= function
+      | `Ok -> Message.ack channel message
+      | `Failed -> Message.reject channel message
     in
     (* Start consuming. *)
     Queue.consume ~id:"rpc_server" channel queue >>= fun (consumer, reader) ->

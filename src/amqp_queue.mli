@@ -36,7 +36,7 @@ val get :
 val publish :
   Amqp_channel.t -> t ->
   ?mandatory:bool ->
-  Amqp_message.message -> unit Deferred.t
+  Amqp_message.message -> [`Ok | `Failed] Deferred.t
 
 (** Setup consumption of a queue.
     Remember to ack messages.

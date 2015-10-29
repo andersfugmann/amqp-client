@@ -15,18 +15,16 @@ type t
 val channel : t -> Amqp_framing.t * int
 
 module Internal : sig
-  val register_deliver_handler : t -> unit
   val register_consumer_handler : t -> string -> consumer -> unit
   val deregister_consumer_handler : t -> string -> unit
-
-  (** Construct a unique id for this channel *)
+  val wait_for_confirm : t -> [ `Ok | `Failed ] Deferred.t
   val unique_id : t -> string
 end
 (**/**)
 
-(** Create a new channel. Use Connection.open_channel instead *)
-val create :
-  id:string ->
+(** Create a new channel.
+    Use Connection.open_channel rather than this method directly *)
+val create : id:string -> ?confirms:bool ->
   Amqp_framing.t -> Amqp_framing.channel_no -> t Deferred.t
 
 (** Close the channel *)

@@ -19,8 +19,10 @@ let test =
   Queue.get ~no_ack:false channel queue >>= fun m ->
   assert (m = None);
   log "Queue empty";
-  Queue.publish channel queue (Message.make "Test") >>= fun () ->
+  Queue.publish channel queue (Message.make "Test") >>= fun res ->
+  assert (res = `Ok);
   log "Message published";
+
   Queue.get ~no_ack:false channel queue >>= fun m ->
   let m = match m with
     | None -> failwith "No message"
@@ -34,7 +36,8 @@ let test =
   Queue.bind channel queue exchange ~routing_key:"test.#.key" >>= fun () ->
   log "Queue bind declared";
 
-  Exchange.publish channel exchange ~routing_key:"test.a.b.c.key" (Message.make "Test") >>= fun () ->
+  Exchange.publish channel exchange ~routing_key:"test.a.b.c.key" (Message.make "Test") >>= fun res ->
+  assert (res = `Ok);
   log "Message published";
   Queue.get ~no_ack:false channel queue >>= fun m ->
   let m = match m with

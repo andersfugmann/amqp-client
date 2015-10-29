@@ -77,10 +77,12 @@ let publish channel t
     | Some _ -> header
     | None -> { header with Content.app_id = Some (Amqp_channel.id channel) }
   in
+  let wait_for_confirm = Channel.Internal.wait_for_confirm channel in
   Publish.request (Amqp_channel.channel channel)
     ({Publish.exchange = t.name;
       routing_key=routing_key;
       mandatory;
       immediate=false},
-     header, body)
+     header, body) >>= fun () -> wait_for_confirm
+
 let name t = t.name

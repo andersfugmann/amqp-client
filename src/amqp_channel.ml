@@ -5,6 +5,9 @@ open Amqp_spec
 type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
 type consumers = (string, consumer) Hashtbl.t
 
+type publish_confirm = { mutable message_count: int;
+                         unacked: (int * [ `Ok | `Failed ] Ivar.t) Core.Doubly_linked.t }
+
 type close_handler = int -> Channel.Close.t -> unit Deferred.t
 type t = { framing: Amqp_framing.t;
            channel_no: int;
@@ -12,6 +15,7 @@ type t = { framing: Amqp_framing.t;
            id: string;
            mutable counter: int;
            mutable close_handler: close_handler;
+           publish_confirm: publish_confirm option;
          }
 
 let channel { framing; channel_no; _ } = (framing, channel_no)
@@ -49,9 +53,8 @@ module Internal = struct
       with
       | Not_found -> failwith ("No consumers for: " ^ deliver.Deliver.consumer_tag)
     in
-    fun t ->
-      let channel = channel t in
-      Amqp_framing.register_method_handler channel message_id (deliver_handler channel t.consumers)
+    fun channel consumers ->
+      Amqp_framing.register_method_handler channel message_id (deliver_handler channel consumers)
 
   let register_consumer_handler t consumer_tag handler =
     if Hashtbl.mem t.consumers consumer_tag then raise Amqp_framing.Busy;
@@ -59,6 +62,16 @@ module Internal = struct
 
   let deregister_consumer_handler t consumer_tag =
     Hashtbl.remove t.consumers consumer_tag
+
+  let wait_for_confirm t =
+    match t.publish_confirm with
+    | Some t ->
+      let var = Ivar.create () in
+      let id = t.message_count + 1 in
+      t.message_count <- id;
+      let (_:'a Core.Doubly_linked.Elt.t) = Core.Doubly_linked.insert_last t.unacked (id, var) in
+      Ivar.read var
+    | None -> return `Ok
 end
 
 let close_handler channel_no close =
@@ -69,15 +82,74 @@ let close_handler channel_no close =
   Shutdown.shutdown 1;
   return ()
 
-let create ~id framing channel_no  =
+let handle_confirms =
+  let module Dl = Core.Doubly_linked in
+  let open Basic in
+
+  let (a_message_id, a_spec, a_make, _apply) = Ack.Internal.def in
+  let a_read = Amqp_protocol.Spec.read a_spec in
+
+  let (r_message_id, r_spec, r_make, _apply) = Reject.Internal.def in
+  let r_read = Amqp_protocol.Spec.read r_spec in
+
+  let handle t s tag = function
+    | true ->
+      let rec loop () =
+        match Dl.first (t.unacked) with
+        | Some (id, var) when id <= tag ->
+          Ivar.fill var s;
+          let (_: 'a option) = Dl.remove_first t.unacked in
+          loop ()
+        | Some _
+        | None -> ()
+      in
+      loop ()
+    | false ->
+      begin match Dl.find_elt t.unacked ~f:(fun (id, _) -> id = tag) with
+        | Some elt ->
+          let (_, var) = Dl.Elt.value elt in
+          Ivar.fill var s;
+          Dl.remove t.unacked elt
+        | None ->
+          failwith (Printf.sprintf "Unexpected confirm: %d %d"
+                      tag
+                      (Dl.length t.unacked))
+      end
+  in
+  let handle_ack t input =
+    let ack = a_read a_make input in
+    handle t `Ok ack.Ack.delivery_tag ack.Ack.multiple
+  in
+
+  let handle_reject t input =
+    let reject = r_read r_make input in
+    handle t `Failed reject.Reject.delivery_tag false
+  in
+
+  fun channel t ->
+    (* Register for confirms *)
+    Amqp_spec.Confirm.Select.request channel { Amqp_spec.Confirm.Select.nowait = false } >>= fun () ->
+    Amqp_framing.register_method_handler channel a_message_id (handle_ack t);
+    Amqp_framing.register_method_handler channel r_message_id (handle_reject t);
+    return ()
+
+
+let create ~id ?(confirms=false) framing channel_no =
   let consumers = Hashtbl.create 0 in
   let id = Printf.sprintf "%s.%s.%d" (Amqp_framing.id framing) id channel_no in
-  let t = { framing; channel_no; consumers; id; counter = 0; close_handler } in
   Amqp_framing.open_channel framing channel_no >>= fun () ->
-  Channel.Open.request (channel t) () >>= fun () ->
-  Internal.register_deliver_handler t;
-  don't_wait_for (Channel.Close.reply (framing, channel_no) (t.close_handler channel_no));
+  Channel.Open.request (framing, channel_no) () >>= fun () ->
+  Internal.register_deliver_handler (framing, channel_no) consumers;
 
+  (match confirms with
+    | true ->
+      let t = { message_count = 0; unacked = Core.Doubly_linked.create () } in
+      handle_confirms (framing, channel_no) t >>= fun () ->
+      return (Some t)
+    | false -> return None
+  ) >>= fun publish_confirm ->
+  let t = { framing; channel_no; consumers; id; counter = 0; close_handler; publish_confirm } in
+  don't_wait_for (Channel.Close.reply (framing, channel_no) (t.close_handler channel_no));
   return t
 
 let register_close_handler t handler =

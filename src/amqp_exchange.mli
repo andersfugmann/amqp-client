@@ -42,7 +42,7 @@ val publish :
   t ->
   ?mandatory:bool ->
   routing_key:string ->
-  Amqp_message.message -> unit Deferred.t
+  Amqp_message.message -> [`Ok | `Failed] Deferred.t
 
 (** Name of the exchange *)
 val name : t -> string
