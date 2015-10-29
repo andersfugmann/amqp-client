@@ -10,7 +10,8 @@ module Client :
     val init : id:string -> Amqp_connection.t -> t Deferred.t
 
     (** Make an rpc call to the given queue.
-        [ttl] is the message timeout. *)
+        @param ttl is the message timeout.
+    *)
     val call :
       t ->
       ttl:int ->
