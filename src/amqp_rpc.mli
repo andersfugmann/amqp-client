@@ -11,10 +11,10 @@ module Client :
 
     (** Make an rpc call to the exchange using the routing key.
         @param ttl is the message timeout.
+
         To call directly to a named queue, use
         [call t Exchange.default ~routing_key:"name_of_the_queue" ]
     *)
-
     val call :
       t ->
       ttl:int ->
@@ -36,7 +36,6 @@ module Server :
         on the given queue.
         @param async If true muliple request can be handled concurrently.
                      If false message are handled synchroniously (default)
-
     *)
     val start :
       ?async:bool ->
