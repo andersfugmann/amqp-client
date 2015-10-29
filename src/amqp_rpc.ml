@@ -13,6 +13,7 @@ module Client = struct
              id: string;
              outstanding: (string, Message.message option Ivar.t) Hashtbl.t;
              mutable counter: int;
+             consumer: Queue.consumer;
            }
 
   let handle_reply t ok (content, body) =
@@ -39,10 +40,11 @@ module Client = struct
       ~auto_delete:true
       id >>= fun queue ->
 
-    let t = { queue; channel; id; outstanding = Hashtbl.create 0; counter = 0 } in
-    Queue.consume ~id:"rpc_client" ~no_ack:true ~exclusive:true channel queue
-      (fun { Message.message; _ }-> handle_reply t true message) >>= fun _stop ->
+    Queue.consume ~id:"rpc_client" ~no_ack:true ~exclusive:true channel queue >>= fun (consumer, reader) ->
+    let t = { queue; channel; id; outstanding = Hashtbl.create 0; counter = 0; consumer } in
+    don't_wait_for (Pipe.iter reader ~f:(fun { Message.message; _ } -> handle_reply t true message));
     Channel.on_return channel (fun (_, message) -> handle_reply t false message);
+
     return t
 
   let call t ~ttl queue (header, body) =
@@ -93,7 +95,8 @@ module Server = struct
       Message.ack channel message
     in
     (* Start consuming. *)
-    Queue.consume ~id:"rpc_server" channel queue handler >>= fun consumer ->
+    Queue.consume ~id:"rpc_server" channel queue >>= fun (consumer, reader) ->
+    don't_wait_for (Pipe.iter_without_pushback reader ~f:(fun m -> don't_wait_for (handler m)));
     return { consumer }
 
   let stop t =

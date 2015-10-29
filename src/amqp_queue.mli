@@ -51,8 +51,8 @@ val consume :
   ?exclusive:bool ->
   Amqp_channel.t ->
   t ->
-  (Amqp_message.t -> unit Deferred.t) ->
-  consumer Deferred.t
+  (consumer * Amqp_message.t Pipe.Reader.t) Deferred.t
+
 
 (** Cancel consumption. *)
 val cancel : consumer -> unit Deferred.t

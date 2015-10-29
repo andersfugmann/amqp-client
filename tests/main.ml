@@ -25,7 +25,8 @@ let consume channel queue =
     end;
     return ()
   in
-  Queue.consume ~no_ack:true ~id:"test" channel queue handler >>= fun _stop ->
+  Queue.consume ~no_ack:true ~id:"test" channel queue >>= fun (_consumer, reader) ->
+  don't_wait_for (Pipe.iter_without_pushback reader ~f:(fun m -> don't_wait_for (handler m)));
   return ()
 
 let rec produce channel queue = function
