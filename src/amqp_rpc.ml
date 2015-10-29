@@ -47,11 +47,10 @@ module Client = struct
 
     return t
 
-  let call t ~ttl queue (header, body) =
+  let call t ~ttl ~routing_key exchange (header, body) =
     let correlation_id = Printf.sprintf "%s.%d" t.id t.counter in
     t.counter <- t.counter + 1;
     let reply_to = Some (Queue.name t.queue) in
-
     (* Register handler for the reply before sending the query *)
     let var = Ivar.create () in
     Hashtbl.add t.outstanding correlation_id var;
@@ -60,7 +59,7 @@ module Client = struct
                                expiration;
                                reply_to; }
     in
-    Queue.publish t.channel ~mandatory:true queue (header, body) >>= fun () ->
+    Exchange.publish t.channel ~mandatory:true ~routing_key exchange (header, body) >>= fun () ->
     Ivar.read var
 
 

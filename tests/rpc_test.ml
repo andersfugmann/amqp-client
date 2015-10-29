@@ -14,11 +14,11 @@ let start_server channel =
   Rpc.Server.start channel queue handler >>= fun _ ->
   return ()
 
-let rec run_tests rpc_client queue i =
-  Rpc.Client.call ~ttl:100 rpc_client queue (Message.make (string_of_int i)) >>= function
+let rec run_tests rpc_client i =
+  Rpc.Client.call ~ttl:100 rpc_client Exchange.default ~routing_key:req_queue (Message.make (string_of_int i)) >>= function
   | Some (_, v) ->
     assert (int_of_string v = (i*i));
-    if (i < 100) then run_tests rpc_client queue (i+1)
+    if (i < 100) then run_tests rpc_client (i+1)
     else return ()
   | None -> failwith "No reply"
 
@@ -29,8 +29,7 @@ let test =
   log "Channel opened";
   don't_wait_for (start_server channel);
   Rpc.Client.init ~id:"rpc.client.test" connection >>= fun client ->
-  Queue.fake channel req_queue >>= fun queue ->
-  run_tests client queue 0 >>= fun () ->
+  run_tests client 0 >>= fun () ->
   Channel.close channel >>| fun () ->
   log "Channel closed";
   Shutdown.shutdown 0

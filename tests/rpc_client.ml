@@ -4,26 +4,21 @@ open Amqp
 let log fmt = printf (fmt ^^ "\n%!")
 
 
-let rec request t queue i =
+let rec request t i =
   let req = Printf.sprintf "Echo: %d" i in
-  Rpc.Client.call t ~ttl:10000 queue (Message.make req) >>= function
-  | Some (_, rep) ->
-    log "%s == %s" req rep;
-    request t queue (i+1)
-  | None ->
-    log "No reply";
-    request t queue (i+1)
-
+  Rpc.Client.call ~ttl:100 t Exchange.default ~routing_key:"rpc.server.echo_reply" (Message.make (string_of_int i)) >>= fun res ->
+  begin
+    match res with
+    | Some (_, rep) -> log "%s == %s" req rep;
+    | None -> log "No reply";
+  end;
+  request t (i+1)
 
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
   log "Connection started";
-  Connection.open_channel ~id:"test" connection >>= fun channel ->
-  log "Channel opened";
-  (* Queue.declare channel "rpc.server.echo_reply" >>= fun queue -> *)
-  Queue.fake channel "rpc.server.echo_reply" >>= fun queue ->
   Rpc.Client.init ~id:"Test" connection >>= fun client ->
-  request client queue 1
+  request client 1
 
 let _ =
   Scheduler.go ()
