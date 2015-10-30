@@ -40,7 +40,7 @@ let _ =
   let _ =
     Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
     log "Connection started";
-    Connection.open_channel ~confirms:true ~id:"test" connection >>= fun channel ->
+    Connection.open_channel Channel.with_confirm ~id:"test" connection >>= fun channel ->
     Channel.set_prefetch channel ~count:100 >>= fun () ->
     log "Channel opened";
     let arguments =

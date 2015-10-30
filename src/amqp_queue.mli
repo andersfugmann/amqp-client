@@ -14,7 +14,7 @@ val maximum_priority : int -> string * Amqp_types.value
 
 (** Declare a queue *)
 val declare :
-  Amqp_channel.t ->
+  _ Amqp_channel.t ->
   ?durable:Amqp_types.bit ->
   ?exclusive:Amqp_types.bit ->
   ?auto_delete:Amqp_types.bit ->
@@ -29,14 +29,14 @@ val declare :
 *)
 val get :
   no_ack:bool ->
-  Amqp_channel.t ->
+  _ Amqp_channel.t ->
   t -> Amqp_message.t option Deferred.t
 
 (** Publish a message directly to a queue *)
 val publish :
-  Amqp_channel.t -> t ->
+  'a Amqp_channel.t -> t ->
   ?mandatory:bool ->
-  Amqp_message.message -> [`Ok | `Failed] Deferred.t
+  Amqp_message.message -> 'a Deferred.t
 
 (** Setup consumption of a queue.
     Remember to ack messages.
@@ -49,7 +49,7 @@ val consume :
   ?no_local:bool ->
   ?no_ack:bool ->
   ?exclusive:bool ->
-  Amqp_channel.t ->
+  _ Amqp_channel.t ->
   t ->
   (consumer * Amqp_message.t Pipe.Reader.t) Deferred.t
 
@@ -59,25 +59,25 @@ val cancel : consumer -> unit Deferred.t
 
 (** Bind a queue to an exhange *)
 val bind :
-  Amqp_channel.t ->
+  _ Amqp_channel.t ->
   t ->
   routing_key:string ->
   Amqp_exchange.t -> unit Deferred.t
 
 (** Remove a binding from an exhange to a queue *)
 val unbind :
-  Amqp_channel.t ->
+  _ Amqp_channel.t ->
   t ->
   routing_key:string ->
   Amqp_exchange.t -> unit Deferred.t
 
 (** Purge all messages on a queue *)
-val purge : Amqp_channel.t -> t -> unit Deferred.t
+val purge : _ Amqp_channel.t -> t -> unit Deferred.t
 
 (** Delete a queue *)
 val delete :
   ?if_unused:bool ->
-  ?if_empty:bool -> Amqp_channel.t -> t -> unit Deferred.t
+  ?if_empty:bool -> _ Amqp_channel.t -> t -> unit Deferred.t
 
 (** Name of the queue *)
 val name : t -> string

@@ -6,7 +6,7 @@ let log fmt = printf (fmt ^^ "\n%!")
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
   log "Connection started";
-  Connection.open_channel ~id:"test" connection >>= fun channel ->
+  Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
   log "Channel opened";
   Exchange.declare channel ~auto_delete:true Exchange.Direct "test" >>= fun exchange1 ->
   log "Exchange declared";

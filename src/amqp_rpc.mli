@@ -39,7 +39,7 @@ module Server :
     *)
     val start :
       ?async:bool ->
-      Amqp_channel.t ->
+      [< `Failed | `Ok ] Amqp_channel.t ->
       Amqp_queue.t ->
       (Amqp_message.message -> Amqp_message.message Deferred.t) -> t Deferred.t
 

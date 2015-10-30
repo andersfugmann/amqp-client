@@ -2,25 +2,41 @@ open Async.Std
 open Amqp_io
 open Amqp_spec
 
+
+type no_confirm = [ `Ok ]
+type with_confirm = [ `Ok | `Failed ]
+
+type _ confirms =
+  | No_confirm: no_confirm confirms
+  | With_confirm: with_confirm confirms
+
+let no_confirm = No_confirm
+let with_confirm = With_confirm
+
 type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
 type consumers = (string, consumer) Hashtbl.t
 
 type publish_confirm = { mutable message_count: int;
                          unacked: (int * [ `Ok | `Failed ] Ivar.t) Core.Doubly_linked.t }
 
+type _ pcp =
+  | Pcp_no_confirm: [ `Ok ] pcp
+  | Pcp_with_confirm: publish_confirm -> [ `Ok | `Failed ] pcp
+
 type close_handler = int -> Channel.Close.t -> unit Deferred.t
-type t = { framing: Amqp_framing.t;
+type 'a t = { framing: Amqp_framing.t;
            channel_no: int;
            consumers: consumers;
            id: string;
            mutable counter: int;
-           mutable close_handler: close_handler;
-           publish_confirm: publish_confirm option;
+           publish_confirm: 'a pcp;
          }
 
 let channel { framing; channel_no; _ } = (framing, channel_no)
 
 module Internal = struct
+  type e = E: _ t -> e
+
   let next_counter t =
     t.counter <- t.counter + 1;
     t.counter
@@ -63,15 +79,15 @@ module Internal = struct
   let deregister_consumer_handler t consumer_tag =
     Hashtbl.remove t.consumers consumer_tag
 
-  let wait_for_confirm t =
+  let wait_for_confirm: type a. a t -> a Deferred.t = fun t ->
     match t.publish_confirm with
-    | Some t ->
+    | Pcp_with_confirm t ->
       let var = Ivar.create () in
       let id = t.message_count + 1 in
       t.message_count <- id;
       let (_:'a Core.Doubly_linked.Elt.t) = Core.Doubly_linked.insert_last t.unacked (id, var) in
-      Ivar.read var
-    | None -> return `Ok
+      (Ivar.read var : [`Ok | `Failed] Deferred.t)
+    | Pcp_no_confirm -> return `Ok
 end
 
 let close_handler channel_no close =
@@ -133,27 +149,25 @@ let handle_confirms =
     Amqp_framing.register_method_handler channel r_message_id (handle_reject t);
     return ()
 
-
-let create ~id ?(confirms=false) framing channel_no =
+let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
   let consumers = Hashtbl.create 0 in
   let id = Printf.sprintf "%s.%s.%d" (Amqp_framing.id framing) id channel_no in
   Amqp_framing.open_channel framing channel_no >>= fun () ->
   Channel.Open.request (framing, channel_no) () >>= fun () ->
   Internal.register_deliver_handler (framing, channel_no) consumers;
+  (* TODO: Use correct updated close handler *)
+  don't_wait_for (Channel.Close.reply (framing, channel_no) (close_handler channel_no));
+  let publish_confirm : a pcp = match confirm_type with
+    | With_confirm ->
+        Pcp_with_confirm { message_count = 0; unacked = Core.Doubly_linked.create () }
+    | No_confirm -> Pcp_no_confirm
+  in
 
-  (match confirms with
-    | true ->
-      let t = { message_count = 0; unacked = Core.Doubly_linked.create () } in
-      handle_confirms (framing, channel_no) t >>= fun () ->
-      return (Some t)
-    | false -> return None
-  ) >>= fun publish_confirm ->
-  let t = { framing; channel_no; consumers; id; counter = 0; close_handler; publish_confirm } in
-  don't_wait_for (Channel.Close.reply (framing, channel_no) (t.close_handler channel_no));
+  (match publish_confirm with Pcp_with_confirm t -> handle_confirms (framing, channel_no) t | Pcp_no_confirm -> return ()) >>= fun () ->
+  let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm } in
   return t
 
-let register_close_handler t handler =
-  t.close_handler <- handler
+let register_close_handler _t _handler = ()
 
 let close { framing; channel_no; _ } =
   let open Channel.Close in

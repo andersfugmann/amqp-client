@@ -12,7 +12,7 @@ let handler (h, s) =
 let start =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
   log "Connection started";
-  Connection.open_channel ~id:"test" connection >>= fun channel ->
+  Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
   log "Channel opened";
   let arguments = [Queue.dead_letter_exchange ""] in
   Queue.declare channel ~arguments "rpc.server.echo_reply" >>= fun queue ->

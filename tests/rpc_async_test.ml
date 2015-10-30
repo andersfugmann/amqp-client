@@ -26,7 +26,7 @@ let call rpc_client i =
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
   log "Connection started";
-  Connection.open_channel ~id:"test" connection >>= fun channel ->
+  Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
   log "Channel opened";
   don't_wait_for (start_server channel);
   Rpc.Client.init ~id:"rpc.client.test" connection >>= fun client ->

@@ -8,7 +8,7 @@ let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return 
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
   log "Connection started";
-  Connection.open_channel ~id:"test" connection >>= fun channel ->
+  Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
   log "Channel opened";
   Queue.declare channel ~auto_delete:true "test" >>= fun queue ->
   log "Queue declared";
