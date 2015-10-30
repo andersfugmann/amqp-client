@@ -9,7 +9,7 @@ open Amqp_spec.Basic
 module Client = struct
 
   type t = { queue: Queue.t;
-             channel: Channel.t;
+             channel: [ `Ok ] Channel.t;
              id: string;
              outstanding: (string, Message.message option Ivar.t) Hashtbl.t;
              mutable counter: int;
@@ -33,7 +33,7 @@ module Client = struct
     | None -> failwith "No correlation id set"
 
   let init ~id connection =
-    Connection.open_channel ~id:"rpc_client" connection >>= fun channel ->
+    Connection.open_channel ~id:"rpc_client" Channel.no_confirm connection >>= fun channel ->
     let id = Printf.sprintf "%s.%s" (Channel.id channel) id in
     Queue.declare channel
       ~exclusive:true
@@ -61,7 +61,6 @@ module Client = struct
     in
     Exchange.publish t.channel ~mandatory:true ~routing_key exchange (header, body) >>= function
     | `Ok -> Ivar.read var
-    | `Failed -> return None
 
   (** Release resources *)
   let close t =
@@ -90,8 +89,7 @@ module Server = struct
 
       handler (content, body) >>= fun (content, body) ->
       let content = { content with Content.correlation_id } in
-      Exchange.publish channel Exchange.default
-        ~routing_key (content, body) >>= function
+      Exchange.publish channel Exchange.default ~routing_key (content, body) >>= function
       | `Ok -> Message.ack channel message
       | `Failed -> Message.reject channel message
     in

@@ -18,4 +18,4 @@ val connect :
 (** Open a new channel.
     @param id identifies the channel for tracing and debugging
 *)
-val open_channel : id:string -> ?confirms:bool -> t -> Amqp_channel.t Deferred.t
+val open_channel : id:string -> 'a Amqp_channel.confirms -> t -> 'a Amqp_channel.t Deferred.t

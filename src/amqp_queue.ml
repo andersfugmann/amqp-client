@@ -43,7 +43,7 @@ let publish channel t ?mandatory message =
     ~routing_key:t.name
     message
 
-type consumer = { channel: Channel.t; tag: string;
+type consumer = { channel: Amqp_framing.t * int; tag: string;
                   writer: Amqp_message.t Pipe.Writer.t }
 
 (** Consume message from a queue. *)
@@ -75,11 +75,11 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =
 
   Consume.request ~post_handler:(on_receive channel) (Channel.channel channel) req >>= fun rep ->
   let tag = rep.Consume_ok.consumer_tag in
-  return ({ channel; tag; writer }, reader)
+  return ({ channel = Channel.channel channel; tag; writer }, reader)
 
 let cancel consumer =
   let open Amqp_spec.Basic in
-  Cancel.request (Channel.channel consumer.channel) { Cancel.consumer_tag = consumer.tag; no_wait = false } >>= fun _rep ->
+  Cancel.request (consumer.channel) { Cancel.consumer_tag = consumer.tag; no_wait = false } >>= fun _rep ->
   Pipe.close consumer.writer;
   return ()
 

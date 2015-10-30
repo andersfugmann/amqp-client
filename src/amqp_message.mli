@@ -28,10 +28,10 @@ val make :
 (** Acknowledge a message.
     Messages {e must} be acknowledged on the same channel as they are received
 *)
-val ack: Amqp_channel.t -> t -> unit Deferred.t
+val ack: _ Amqp_channel.t -> t -> unit Deferred.t
 
 (** Reject (Nack) a message.
     Messages {e must} be rejected on the same channel as they are received
     @param requeue If true, the message will be requeued (default)
 *)
-val reject: ?requeue:bool -> Amqp_channel.t -> t -> unit Deferred.t
+val reject: ?requeue:bool -> _ Amqp_channel.t -> t -> unit Deferred.t
