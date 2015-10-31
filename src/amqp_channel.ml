@@ -1,5 +1,4 @@
 open Async.Std
-open Amqp_io
 open Amqp_spec
 
 
@@ -42,33 +41,18 @@ module Internal = struct
   let unique_id t =
     Printf.sprintf "%s.%d" t.id (next_counter t)
 
-  let register_deliver_handler =
+  let register_deliver_handler t =
     let open Basic in
-    let ((c_class_id, _), c_spec, c_make, _apply) = Content.Internal.def in
-    let (message_id, spec, make, _apply) = Deliver.Internal.def in
-
-    let c_read = Amqp_protocol.Content.read c_spec in
-    let read = Amqp_protocol.Spec.read spec in
-    let flags = Amqp_protocol.Content.length c_spec in
-
-    let content_handler channel handler deliver (header, body) =
-      let module D = Deliver in
-      let property_flag = Amqp_protocol_helpers.read_property_flag (Input.short header) flags in
-      let header = c_read c_make property_flag header in
-      Amqp_framing.deregister_content_handler channel c_class_id;
-      handler (deliver, header, body)
-    in
-    let deliver_handler channel consumers input =
-      let deliver = read make input in
+    let handler (deliver, (content, data)) =
       try
-        let handler = Hashtbl.find consumers deliver.Deliver.consumer_tag in
-        Amqp_framing.register_content_handler channel c_class_id (content_handler channel handler deliver)
+        let handler = Hashtbl.find t.consumers deliver.Deliver.consumer_tag in
+        handler (deliver, content, data);
       (* Keep the current handler *)
       with
       | Not_found -> failwith ("No consumers for: " ^ deliver.Deliver.consumer_tag)
     in
-    fun channel consumers ->
-      Amqp_framing.register_method_handler channel message_id (deliver_handler channel consumers)
+    let read = snd Deliver.Internal.read in
+    read ~once:false handler (channel t)
 
   let register_consumer_handler t consumer_tag handler =
     if Hashtbl.mem t.consumers consumer_tag then raise Amqp_framing.Busy;
@@ -99,17 +83,12 @@ let close_handler channel_no close =
 let register_close_handler t handler =
   don't_wait_for (Channel.Close.reply (channel t) (handler t.channel_no))
 
-let handle_confirms =
+let handle_confirms channel t =
   let module Dl = Core.Doubly_linked in
   let open Basic in
 
-  let (a_message_id, a_spec, a_make, _apply) = Ack.Internal.def in
-  let a_read = Amqp_protocol.Spec.read a_spec in
-
-  let (r_message_id, r_spec, r_make, _apply) = Reject.Internal.def in
-  let r_read = Amqp_protocol.Spec.read r_spec in
-
-  let handle t s tag = function
+  (* Handle ack or nack *)
+  let handle s tag = function
     | true ->
       let rec loop () =
         match Dl.first (t.unacked) with
@@ -133,29 +112,17 @@ let handle_confirms =
                       (Dl.length t.unacked))
       end
   in
-  let handle_ack t input =
-    let ack = a_read a_make input in
-    handle t `Ok ack.Ack.delivery_tag ack.Ack.multiple
-  in
-
-  let handle_reject t input =
-    let reject = r_read r_make input in
-    handle t `Failed reject.Reject.delivery_tag false
-  in
-
-  fun channel t ->
-    (* Register for confirms *)
-    Amqp_spec.Confirm.Select.request channel { Amqp_spec.Confirm.Select.nowait = false } >>= fun () ->
-    Amqp_framing.register_method_handler channel a_message_id (handle_ack t);
-    Amqp_framing.register_method_handler channel r_message_id (handle_reject t);
-    return ()
+  let read_ack = snd Ack.Internal.read in
+  let read_reject = snd Reject.Internal.read in
+  read_ack ~once:false (fun m -> handle `Ok m.Ack.delivery_tag m.Ack.multiple) channel;
+  read_reject ~once:false (fun m -> handle `Failed m.Reject.delivery_tag false) channel;
+  Confirm.Select.request channel { Confirm.Select.nowait = false }
 
 let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
   let consumers = Hashtbl.create 0 in
   let id = Printf.sprintf "%s.%s.%d" (Amqp_framing.id framing) id channel_no in
   Amqp_framing.open_channel framing channel_no >>= fun () ->
   Channel.Open.request (framing, channel_no) () >>= fun () ->
-  Internal.register_deliver_handler (framing, channel_no) consumers;
   let publish_confirm : a pcp = match confirm_type with
     | With_confirm ->
         Pcp_with_confirm { message_count = 0; unacked = Core.Doubly_linked.create () }
@@ -164,6 +131,8 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
 
   (match publish_confirm with Pcp_with_confirm t -> handle_confirms (framing, channel_no) t | Pcp_no_confirm -> return ()) >>= fun () ->
   let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm } in
+  Internal.register_deliver_handler t;
+
   register_close_handler t close_handler;
   return t
 
