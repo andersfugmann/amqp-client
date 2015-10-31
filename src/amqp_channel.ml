@@ -35,8 +35,6 @@ type 'a t = { framing: Amqp_framing.t;
 let channel { framing; channel_no; _ } = (framing, channel_no)
 
 module Internal = struct
-  type e = E: _ t -> e
-
   let next_counter t =
     t.counter <- t.counter + 1;
     t.counter
@@ -98,6 +96,9 @@ let close_handler channel_no close =
   Shutdown.shutdown 1;
   return ()
 
+let register_close_handler t handler =
+  don't_wait_for (Channel.Close.reply (channel t) (handler t.channel_no))
+
 let handle_confirms =
   let module Dl = Core.Doubly_linked in
   let open Basic in
@@ -155,8 +156,6 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
   Amqp_framing.open_channel framing channel_no >>= fun () ->
   Channel.Open.request (framing, channel_no) () >>= fun () ->
   Internal.register_deliver_handler (framing, channel_no) consumers;
-  (* TODO: Use correct updated close handler *)
-  don't_wait_for (Channel.Close.reply (framing, channel_no) (close_handler channel_no));
   let publish_confirm : a pcp = match confirm_type with
     | With_confirm ->
         Pcp_with_confirm { message_count = 0; unacked = Core.Doubly_linked.create () }
@@ -165,9 +164,8 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
 
   (match publish_confirm with Pcp_with_confirm t -> handle_confirms (framing, channel_no) t | Pcp_no_confirm -> return ()) >>= fun () ->
   let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm } in
+  register_close_handler t close_handler;
   return t
-
-let register_close_handler _t _handler = ()
 
 let close { framing; channel_no; _ } =
   let open Channel.Close in
@@ -179,12 +177,18 @@ let close { framing; channel_no; _ } =
   Amqp_framing.close_channel framing channel_no;
   return ()
 
-(* TODO: Rename this method *)
-let on_return t handler =
-  let open Basic.Return in
+let on_return _ _ = ()
+(*
+let returned t =
+  let reader, writer = Pipe.create () in
   let rec read () =
-    don't_wait_for (reply (channel t) ~post_handler:(fun _ -> read ()) >>= fun msg -> handler msg) in
-  read ()
+    don't_wait_for (
+      Basic.Return.reply (channel t) ~post_handler:(fun _ -> read ())
+        (Pipe.write writer))
+  in
+  read;
+  reader
+*)
 
 let id t = t.id
 

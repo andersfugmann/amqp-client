@@ -60,9 +60,6 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =
       Message.message = (header, body) }
     |> Pipe.write_without_pushback writer
   in
-  let on_receive channel consume_ok =
-    Channel.Internal.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag to_writer
-  in
   let req = { Consume.queue=t.name;
               consumer_tag;
               no_local;
@@ -72,8 +69,16 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =
               arguments = [];
             }
   in
+  let var = Ivar.create () in
+  let on_receive consume_ok =
+    Channel.Internal.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag to_writer;
+    Ivar.fill var consume_ok
+  in
+  let read = snd Consume_ok.Internal.read in
+  read ~once:true on_receive (Channel.channel channel);
 
-  Consume.request ~post_handler:(on_receive channel) (Channel.channel channel) req >>= fun rep ->
+  Consume.Internal.write (Channel.channel channel) req;
+  Ivar.read var >>= fun rep ->
   let tag = rep.Consume_ok.consumer_tag in
   return ({ channel = Channel.channel channel; tag; writer }, reader)
 

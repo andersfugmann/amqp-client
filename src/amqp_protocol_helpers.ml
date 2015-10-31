@@ -32,28 +32,22 @@ let rec list_create f = function
 
 let write_method (message_id, spec, _make, apply) =
   let write = Spec.write spec in
-  let request channel msg =
-    let data =
-      apply (write (Output.create ())) msg
-    in
-    Amqp_framing.write_method channel message_id data
-  in
-  request
+  fun channel msg ->
+    apply (write (Output.create ())) msg
+    |> Amqp_framing.write_method channel message_id
 
 let read_method (message_id, spec, make, _apply) =
   let read = Spec.read spec in
-  let reply ?(post_handler : 'a post_handler) channel =
-    let var = Ivar.create () in
+  let read ~once (handler: 'a -> unit) channel : unit =
     let handler data =
       let req = read make data in
-      Ivar.fill var req;
-      Amqp_framing.deregister_method_handler channel message_id;
-      match post_handler with Some h -> h req | None -> ()
+      handler req;
+      if (once) then
+        Amqp_framing.deregister_method_handler channel message_id;
     in
     Amqp_framing.register_method_handler channel message_id handler;
-    Ivar.read var
   in
-  (message_id, reply)
+  (message_id, read)
 
 let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec, _c_make, c_apply) =
   let write = Spec.write spec in
@@ -77,53 +71,58 @@ let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec,
   let c_read = Content.read c_spec in
   let flags = Content.length c_spec in
 
-  let reply ?(post_handler : 'a post_handler) channel =
-    let var = Ivar.create () in
+  let read ~once (handler: 'a -> unit) channel : unit =
     let c_handler req (content, data) =
       let property_flags = read_property_flag (Input.short content) flags in
       let header = c_read c_make property_flags content in
       let message = (req, (header, data)) in
-      Ivar.fill var message;
-      Amqp_framing.deregister_content_handler channel c_method;
-      match post_handler with Some h -> h message | None -> ()
+      handler message;
+      Amqp_framing.deregister_content_handler channel c_method
     in
     let handler data =
       let req = read make data in
-      Amqp_framing.deregister_method_handler channel message_id;
+      if (once) then
+        Amqp_framing.deregister_method_handler channel message_id;
       Amqp_framing.register_content_handler channel c_method (c_handler req);
     in
-    Amqp_framing.register_method_handler channel message_id handler;
-    Ivar.read var
+    Amqp_framing.register_method_handler channel message_id handler
   in
-  (message_id, reply)
+  (message_id, read)
 
 let request0 req =
   fun channel msg ->
     req channel msg;
     return ()
 
-let reply0 (_, rep) =
-  fun ?post_handler channel -> rep ?post_handler channel
+let reply0 (_, read) channel =
+  let var = Ivar.create () in
+  read ~once:true (Ivar.fill var) channel;
+  Ivar.read var
 
-let request1 req (_, rep) =
-  fun ?(post_handler : 'a post_handler) channel msg ->
-    req channel msg;
-    rep ?post_handler channel
+let request1 write (_, read) channel msg =
+  write channel msg;
+  (* Actually have a pattern for this *)
+  let var = Ivar.create () in
+  read ~once:true (Ivar.fill var) channel;
+  Ivar.read var
 
-let reply1 (_, rep) req =
-  fun ?post_handler channel (handler : 'a -> 'b Deferred.t) ->
-    rep ?post_handler channel >>= handler >>= fun msg ->
-    req channel msg;
+let reply1
+    (_, (read : once:bool -> ('a -> unit) -> 'c -> unit))
+    (write: 'c -> 'd -> unit) (channel: 'c)
+    (handler: 'a -> 'd Deferred.t)  =
+    let var = Ivar.create () in
+    read ~once:true (Ivar.fill var) channel;
+    Ivar.read var >>= handler >>= fun msg ->
+    write channel msg;
     return ()
 
-let request2 req (mid1, rep1) id1 (mid2, rep2) id2 =
-  let unregister channel mid _ =
+let request2 req (mid1, rep1) id1 (mid2, rep2) id2 channel message =
+  let var = Ivar.create () in
+  let handler id mid msg =
+    Ivar.fill var (id msg);
     Amqp_framing.deregister_method_handler channel mid
   in
-  fun channel msg ->
-    req channel msg;
-    (* Choose either one *)
-    Deferred.any [
-      rep1 ?post_handler:(Some (unregister channel mid2)) channel >>= (fun a -> return (id1 a));
-      rep2 ?post_handler:(Some (unregister channel mid1)) channel >>= (fun a -> return (id2 a));
-    ]
+  req channel message;
+  rep1 ~once:true (handler id1 mid2) channel;
+  rep2 ~once:true (handler id2 mid1) channel;
+  Ivar.read var
