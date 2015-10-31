@@ -55,6 +55,11 @@ vmount(-l, tests, _build)
 		ocamlfind ocamldoc -thread -html -d doc $^ -package "$(OCAMLPACKS)"
 		touch $@
 
+	.PHONY: install
+	install: ocaml-amqp.cma ocaml-amqp.cmxa
+		ocamlfind remove ocaml-amqp || true
+		ocamlfind install ocaml-amqp $(filter-exists $(addsuffix .cmt, $(FILES)) $(addsuffix .cmi, $(FILES)) $(addsuffix .mli, $(FILES))) ocaml-amqp.cmxa ocaml-amqp.a ocaml-amqp.cma ../META
+
     section
 	OCAML_LINK_FLAGS = -linkpkg
 	OCAML_LIBS += ocaml-amqp
