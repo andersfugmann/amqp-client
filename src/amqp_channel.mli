@@ -44,11 +44,11 @@ val close : _ t -> unit Deferred.t
 *)
 val register_close_handler : _ t -> close_handler -> unit
 
-(** Register handler if messages are rejected by the amqp server. *)
+(** Receive all returned messages.
+    This function may only be called once (per channel)
+*)
 val on_return : _ t ->
-  (Basic.Return.t * (Basic.Content.t * string) -> unit Deferred.t) ->
-  unit
-
+  (Basic.Return.t * (Basic.Content.t * string)) Pipe.Reader.t
 
 (** Get the id of the channel *)
 val id : _ t -> string

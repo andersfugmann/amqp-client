@@ -146,18 +146,11 @@ let close { framing; channel_no; _ } =
   Amqp_framing.close_channel framing channel_no;
   return ()
 
-let on_return _ _ = ()
-(*
-let returned t =
+let on_return t =
   let reader, writer = Pipe.create () in
-  let rec read () =
-    don't_wait_for (
-      Basic.Return.reply (channel t) ~post_handler:(fun _ -> read ())
-        (Pipe.write writer))
-  in
-  read;
+  let (_, read) = Basic.Return.Internal.read in
+  read ~once:false (Pipe.write_without_pushback writer) (channel t);
   reader
-*)
 
 let id t = t.id
 

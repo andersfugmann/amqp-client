@@ -43,8 +43,7 @@ module Client = struct
     Queue.consume ~id:"rpc_client" ~no_ack:true ~exclusive:true channel queue >>= fun (consumer, reader) ->
     let t = { queue; channel; id; outstanding = Hashtbl.create 0; counter = 0; consumer } in
     don't_wait_for (Pipe.iter reader ~f:(fun { Message.message; _ } -> handle_reply t true message));
-    Channel.on_return channel (fun (_, message) -> handle_reply t false message);
-
+    don't_wait_for (Pipe.iter (Channel.on_return channel) ~f:(fun (_, message) -> handle_reply t false message));
     return t
 
   let call t ~ttl ~routing_key exchange (header, body) =

@@ -71,7 +71,7 @@ vmount(-l, tests, _build)
 	TESTS=$(filter %_test, $(TESTS))
 	test: $(TESTS)
 		foreach(test => ..., $(TESTS))
-			echo "* Run test: $(test)"
+			echo "====== $(test) ======"
 			./$(test)
 
 .PHONY: clean

@@ -94,9 +94,9 @@ let request0 req =
     req channel msg;
     return ()
 
-let reply0 (_, read) channel =
+let reply0 (_, read) ?(once=true) channel =
   let var = Ivar.create () in
-  read ~once:true (Ivar.fill var) channel;
+  read ~once (Ivar.fill var) channel;
   Ivar.read var
 
 let request1 write (_, read) channel msg =
@@ -106,15 +106,12 @@ let request1 write (_, read) channel msg =
   read ~once:true (Ivar.fill var) channel;
   Ivar.read var
 
-let reply1
-    (_, (read : once:bool -> ('a -> unit) -> 'c -> unit))
-    (write: 'c -> 'd -> unit) (channel: 'c)
-    (handler: 'a -> 'd Deferred.t)  =
-    let var = Ivar.create () in
-    read ~once:true (Ivar.fill var) channel;
-    Ivar.read var >>= handler >>= fun msg ->
-    write channel msg;
-    return ()
+let reply1 (_, read) write ?(once=true) channel handler =
+  let var = Ivar.create () in
+  read ~once (Ivar.fill var) channel;
+  Ivar.read var >>= handler >>= fun msg ->
+  write channel msg;
+  return ()
 
 let request2 req (mid1, rep1) id1 (mid2, rep2) id2 channel message =
   let var = Ivar.create () in
