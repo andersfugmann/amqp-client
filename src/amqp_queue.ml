@@ -92,13 +92,13 @@ let cancel consumer =
     Messages posted on the exchange which match the routing key
     will be routed to the queue
 *)
-let bind channel t ~routing_key exchange =
+let bind channel t ~routing_key ?(arguments=[]) exchange =
   Bind.request (Channel.channel channel)
     { Bind.queue = t.name;
       exchange = (Exchange.name exchange);
       routing_key;
       no_wait = false;
-      arguments = []
+      arguments;
     }
 
 let unbind channel t ~routing_key exchange =

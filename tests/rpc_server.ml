@@ -14,8 +14,7 @@ let start =
   log "Connection started";
   Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
   log "Channel opened";
-  let arguments = [Queue.dead_letter_exchange ""] in
-  Queue.declare channel ~arguments "rpc.server.echo_reply" >>= fun queue ->
+  Queue.declare channel ~arguments:[Rpc.Server.queue_argument] "rpc.server.echo_reply" >>= fun queue ->
   Rpc.Server.start channel queue handler >>= fun _server ->
   log "Listening for requsts";
 

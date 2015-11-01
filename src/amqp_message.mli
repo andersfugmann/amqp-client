@@ -3,6 +3,10 @@ open Async.Std
 
 type message = Amqp_spec.Basic.Content.t * string
 
+val string_header: string -> string -> Amqp_types.header
+val int_header: string -> int -> Amqp_types.header
+
+
 type t = {
   delivery_tag : int;
   redelivered : bool;

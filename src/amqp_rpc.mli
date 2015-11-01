@@ -32,10 +32,19 @@ module Server :
   sig
     type t
 
+    (** Recommended arguement to add when declaring the rpc server queue.
+        This will set the dead letter exhange to the header exchange to help
+        clients to be notified if a request has timed out *)
+    val queue_argument : Amqp_types.header
+
     (** Start an rpc server procucing replies for requests comming in
         on the given queue.
         @param async If true muliple request can be handled concurrently.
                      If false message are handled synchroniously (default)
+
+        It is recommended to create the queue with the header_exchange as dead letter exhange.
+        This will allow messages to be routed back the the sender at timeout. E.g:
+        [ Queue.declare ~arguments:[Rpc.queue_argument] "rpcservice" ]
     *)
     val start :
       ?async:bool ->

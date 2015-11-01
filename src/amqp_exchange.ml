@@ -19,8 +19,8 @@ let amq_fanout = { name = "amq.fanout" }
 (** Predefined topic exchange *)
 let amq_topic  = { name = "amq.topic" }
 
-(** Predefined header exchange *)
-let amq_header = { name = "amq.header" }
+(** Predefined match (header) exchange *)
+let amq_match = { name = "amq.match" }
 
 type exchange_type = Direct | Fanout | Topic | Headers
 
@@ -49,13 +49,13 @@ let delete ?(if_unused=false) channel t =
       no_wait = false;
     }
 
-let bind channel t ~routing_key source =
+let bind channel t ~routing_key  ?(arguments=[]) source =
   Bind.request (Channel.channel channel)
     { Bind.destination = t.name;
       source = source.name;
       routing_key;
       no_wait = false;
-      arguments = [];
+      arguments;
     }
 
 let unbind channel t ~routing_key source =

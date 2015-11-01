@@ -30,3 +30,5 @@ and value =
   | VArray of value list
   | VTimestamp of int
   | VUnit of unit
+
+type header = string * value

@@ -2,6 +2,9 @@ open Amqp_spec.Basic
 
 type message = (Content.t * string)
 
+let string_header key value = key, Amqp_types.VLongstr value
+let int_header key value = key, Amqp_types.VLonglong value
+
 type t =
   { delivery_tag : int;
     redelivered : bool;

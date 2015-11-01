@@ -2,12 +2,14 @@
 open Async.Std
 type t
 
+
 (** Predefined exchanges *)
+
 val default : t
 val amq_direct : t
 val amq_fanout : t
 val amq_topic : t
-val amq_header : t
+val amq_match : t
 
 type exchange_type = Direct | Fanout | Topic | Headers
 
@@ -29,7 +31,9 @@ val delete :
 (** Bind exchange t to exchange using [routing_key] so messages are routed from exhange to [t] *)
 val bind :
   _ Amqp_channel.t ->
-  t -> routing_key:Amqp_types.shortstr -> t -> unit Deferred.t
+  t -> routing_key:string ->
+  ?arguments: Amqp_types.header list ->
+  t -> unit Deferred.t
 
 (** Remove exchange to exchange binding *)
 val unbind :
