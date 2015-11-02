@@ -8,9 +8,9 @@ let test =
   log "Connection started";
   Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
   log "Channel opened";
-  Exchange.declare channel ~auto_delete:true Exchange.Direct "test" >>= fun exchange1 ->
+  Exchange.declare channel ~auto_delete:true Exchange.direct_t "test" >>= fun exchange1 ->
   log "Exchange declared";
-  Exchange.declare channel ~auto_delete:true Exchange.Direct "test" >>= fun exchange2 ->
+  Exchange.declare channel ~auto_delete:true Exchange.direct_t "test" >>= fun exchange2 ->
   log "Exchange declared";
   Exchange.bind channel ~source:exchange1 ~destination:exchange2 () >>= fun () ->
   log "Exchange Bind";

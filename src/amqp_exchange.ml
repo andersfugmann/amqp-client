@@ -8,8 +8,12 @@ type _ exchange_type =
   | Direct: unit exchange_type
   | Fanout: unit exchange_type
   | Topic: string exchange_type
-  | Header: Amqp_types.header list exchange_type
+  | Match: Amqp_types.header list exchange_type
 
+let direct_t = Direct
+let fanout_t = Fanout
+let topic_t = Topic
+let match_t = Match
 
 type 'a t = { name : string;
               exchange_type: 'a exchange_type }
@@ -27,13 +31,13 @@ let amq_fanout = { name = "amq.fanout";  exchange_type = Fanout }
 let amq_topic  = { name = "amq.topic"; exchange_type = Topic }
 
 (** Predefined match (header) exchange *)
-let amq_match = { name = "amq.match"; exchange_type = Header }
+let amq_match = { name = "amq.match"; exchange_type = Match }
 
 let string_of_exchange_type: type a. a exchange_type -> string  = function
   | Direct -> "direct"
   | Fanout -> "fanout"
   | Topic -> "topic"
-  | Header -> "headers"
+  | Match -> "match"
 
 module Internal = struct
   let bind_queue: type a. _ Channel.t -> a t -> string -> a -> unit Deferred.t =
@@ -50,7 +54,7 @@ module Internal = struct
     | Direct -> fun () -> Bind.request (Channel.channel channel) query
     | Fanout -> fun () -> Bind.request (Channel.channel channel) query
     | Topic -> fun routing_key -> Bind.request (Channel.channel channel) { query with Bind.routing_key }
-    | Header -> fun arguments -> Bind.request (Channel.channel channel) { query with Bind.arguments }
+    | Match -> fun arguments -> Bind.request (Channel.channel channel) { query with Bind.arguments }
 
   let unbind_queue: type a. _ Channel.t -> a t -> string -> a -> unit Deferred.t =
     let open Amqp_spec.Queue in
@@ -65,7 +69,7 @@ module Internal = struct
       | Direct -> fun () -> Unbind.request (Channel.channel channel) query
       | Fanout -> fun () -> Unbind.request (Channel.channel channel) query
       | Topic -> fun routing_key -> Unbind.request (Channel.channel channel) { query with Unbind.routing_key }
-      | Header -> fun arguments -> Unbind.request (Channel.channel channel) { query with Unbind.arguments }
+      | Match -> fun arguments -> Unbind.request (Channel.channel channel) { query with Unbind.arguments }
 
 end
 
@@ -103,7 +107,7 @@ let bind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit Defe
     | Direct -> fun () -> Bind.request (Channel.channel channel) query
     | Fanout -> fun () -> Bind.request (Channel.channel channel) query
     | Topic -> fun routing_key -> Bind.request (Channel.channel channel) { query with Bind.routing_key }
-    | Header -> fun arguments -> Bind.request (Channel.channel channel) { query with Bind.arguments }
+    | Match -> fun arguments -> Bind.request (Channel.channel channel) { query with Bind.arguments }
 
 let unbind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit Deferred.t =
   fun channel ~destination ~source ->
@@ -118,7 +122,7 @@ let unbind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit De
     | Direct -> fun () -> Unbind.request (Channel.channel channel) query
     | Fanout -> fun () -> Unbind.request (Channel.channel channel) query
     | Topic -> fun routing_key -> Unbind.request (Channel.channel channel) { query with Unbind.routing_key }
-    | Header -> fun arguments -> Unbind.request (Channel.channel channel) { query with Unbind.arguments }
+    | Match -> fun arguments -> Unbind.request (Channel.channel channel) { query with Unbind.arguments }
 
 let publish channel t
     ?(mandatory=false)

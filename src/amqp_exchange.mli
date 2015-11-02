@@ -3,11 +3,12 @@ open Async.Std
 
 type _ t
 
-type _ exchange_type =
-  | Direct: unit exchange_type
-  | Fanout: unit exchange_type
-  | Topic: string exchange_type
-  | Header: Amqp_types.header list exchange_type
+type _ exchange_type
+
+val direct_t : unit exchange_type
+val fanout_t : unit exchange_type
+val topic_t  : string exchange_type
+val match_t  : Amqp_types.header list exchange_type
 
 val default : unit t
 val amq_direct : unit t
