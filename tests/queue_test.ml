@@ -33,7 +33,7 @@ let test =
 
   Exchange.declare channel Exchange.Topic "test_exchange" >>= fun exchange ->
   log "Exchange declared";
-  Queue.bind channel queue exchange ~routing_key:"test.#.key" >>= fun () ->
+  Queue.bind channel queue exchange "test.#.key" >>= fun () ->
   log "Queue bind declared";
 
   Exchange.publish channel exchange ~routing_key:"test.a.b.c.key" (Message.make "Test") >>= fun res ->

@@ -41,7 +41,7 @@ module Client = struct
       ~auto_delete:true
       id >>= fun queue ->
 
-    Queue.bind channel queue ~routing_key:"#" ~arguments:["reply_to", VLongstr (Queue.name queue)] Exchange.amq_match >>= fun () ->
+    Queue.bind channel queue Exchange.amq_match ["reply_to", VLongstr (Queue.name queue)] >>= fun () ->
 
     Queue.consume ~id:"rpc_client" ~no_ack:true ~exclusive:true channel queue >>= fun (consumer, reader) ->
     let t = { queue; channel; id; outstanding = Hashtbl.create 0; counter = 0; consumer } in
@@ -49,7 +49,7 @@ module Client = struct
     don't_wait_for (Pipe.iter (Channel.on_return channel) ~f:(fun (_, message) -> handle_reply t false message));
     return t
 
-  let call t ~ttl ~routing_key exchange (header, body) =
+  let call t ~ttl ~routing_key ~headers exchange (header, body) =
     let correlation_id = Printf.sprintf "%s.%d" t.id t.counter in
     t.counter <- t.counter + 1;
     (* Register handler for the reply before sending the query *)
@@ -60,7 +60,7 @@ module Client = struct
     let header = { header with Content.correlation_id = Some correlation_id;
                                expiration;
                                reply_to = Some (Queue.name t.queue);
-                               headers = Some [Message.string_header "reply_to" (Queue.name t.queue)]
+                               headers = Some (Message.string_header "reply_to" (Queue.name t.queue) :: headers)
                  }
     in
     Exchange.publish t.channel ~mandatory:true ~routing_key exchange (header, body) >>= function

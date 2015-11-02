@@ -19,8 +19,8 @@ type publish_confirm = { mutable message_count: int;
                          unacked: (int * [ `Ok | `Failed ] Ivar.t) Core.Doubly_linked.t }
 
 type _ pcp =
-  | Pcp_no_confirm: [ `Ok ] pcp
-  | Pcp_with_confirm: publish_confirm -> [ `Ok | `Failed ] pcp
+  | Pcp_no_confirm: no_confirm pcp
+  | Pcp_with_confirm: publish_confirm -> with_confirm pcp
 
 type close_handler = int -> Channel.Close.t -> unit Deferred.t
 type 'a t = { framing: Amqp_framing.t;

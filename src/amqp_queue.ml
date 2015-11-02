@@ -88,26 +88,8 @@ let cancel consumer =
   Pipe.close consumer.writer;
   return ()
 
-(** Bind a queue to an exhange.
-    Messages posted on the exchange which match the routing key
-    will be routed to the queue
-*)
-let bind channel t ~routing_key ?(arguments=[]) exchange =
-  Bind.request (Channel.channel channel)
-    { Bind.queue = t.name;
-      exchange = (Exchange.name exchange);
-      routing_key;
-      no_wait = false;
-      arguments;
-    }
-
-let unbind channel t ~routing_key exchange =
-  Unbind.request (Channel.channel channel)
-    { Unbind.queue = t.name;
-      exchange = (Exchange.name exchange);
-      routing_key;
-      arguments = []
-    }
+let bind channel t exchange = Exchange.Internal.bind_queue channel exchange t.name
+let unbind channel t exchange = Exchange.Internal.unbind_queue channel exchange t.name
 
 (** Purge the queue *)
 let purge channel t =

@@ -9,17 +9,21 @@ module Client :
     (** Initialize a client with the [id] for tracing *)
     val init : id:string -> Amqp_connection.t -> t Deferred.t
 
-    (** Make an rpc call to the exchange using the routing key.
+    (** Make an rpc call to the exchange using the routing key and headers.
         @param ttl is the message timeout.
 
         To call directly to a named queue, use
-        [call t Exchange.default ~routing_key:"name_of_the_queue" ]
+        [call t Exchange.default ~routing_key:"name_of_the_queue" ~headers:[]]
+
+        The function allows the call to specify both a rouging key and headers regardless of the type of exchange used,
+        as exchanges may be chained in a way where both headers and routing keys are used.
     *)
     val call :
       t ->
       ttl:int ->
       routing_key:string ->
-      Amqp_exchange.t ->
+      headers:Amqp_types.header list ->
+      _ Amqp_exchange.t ->
       Amqp_spec.Basic.Content.t * string ->
       Amqp_message.message option Async.Std.Deferred.t
 

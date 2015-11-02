@@ -15,7 +15,7 @@ let start_server channel =
   return ()
 
 let rec run_tests rpc_client i =
-  Rpc.Client.call ~ttl:100 rpc_client Exchange.default ~routing_key:req_queue (Message.make (string_of_int i)) >>= function
+  Rpc.Client.call ~ttl:100 rpc_client Exchange.default ~routing_key:req_queue ~headers:[] (Message.make (string_of_int i)) >>= function
   | Some (_, v) ->
     assert (int_of_string v = (i*i));
     if (i < 100) then run_tests rpc_client (i+1)

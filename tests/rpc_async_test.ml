@@ -17,7 +17,7 @@ let start_server channel =
 
 let call rpc_client i =
   after (Core.Std.Time.Span.of_ms (Random.float 100.0)) >>= fun () ->
-  Rpc.Client.call ~ttl:100 rpc_client Exchange.default ~routing_key:req_queue (Message.make (string_of_int i)) >>= function
+  Rpc.Client.call ~ttl:100 rpc_client Exchange.default ~routing_key:req_queue ~headers:[] (Message.make (string_of_int i)) >>= function
   | Some (_, v) ->
     assert (int_of_string v = (i*i));
     return ()
