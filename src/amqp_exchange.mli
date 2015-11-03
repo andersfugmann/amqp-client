@@ -5,14 +5,14 @@ type _ t
 
 type _ exchange_type
 
-val direct_t : unit exchange_type
-val fanout_t : unit exchange_type
+val direct_t : string exchange_type
+val fanout_t : string exchange_type
 val topic_t  : string exchange_type
 val match_t  : Amqp_types.header list exchange_type
 
-val default : unit t
-val amq_direct : unit t
-val amq_fanout : unit t
+val default : string t
+val amq_direct : string t
+val amq_fanout : string t
 val amq_topic : string t
 val amq_match : Amqp_types.header list t
 

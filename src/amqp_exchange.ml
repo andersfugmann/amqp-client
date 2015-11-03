@@ -4,9 +4,11 @@ module Channel = Amqp_channel
 
 open Amqp_spec.Exchange
 
+(* type match_type = Any | All *)
+
 type _ exchange_type =
-  | Direct: unit exchange_type
-  | Fanout: unit exchange_type
+  | Direct: string exchange_type
+  | Fanout: string exchange_type
   | Topic: string exchange_type
   | Match: Amqp_types.header list exchange_type
 
@@ -41,35 +43,41 @@ let string_of_exchange_type: type a. a exchange_type -> string  = function
 
 module Internal = struct
   let bind_queue: type a. _ Channel.t -> a t -> string -> a -> unit Deferred.t =
-  let open Amqp_spec.Queue in
-  fun channel { name; exchange_type} queue ->
-    let query = { Bind.queue;
-                  exchange = name;
-                  routing_key = "";
-                  no_wait = false;
-                  arguments = [];
-                }
-    in
-    match exchange_type with
-    | Direct -> fun () -> Bind.request (Channel.channel channel) query
-    | Fanout -> fun () -> Bind.request (Channel.channel channel) query
-    | Topic -> fun routing_key -> Bind.request (Channel.channel channel) { query with Bind.routing_key }
-    | Match -> fun arguments -> Bind.request (Channel.channel channel) { query with Bind.arguments }
+    let open Amqp_spec.Queue in
+    fun channel { name; exchange_type} queue ->
+      let bind ?(routing_key="") ?(arguments=[]) () =
+        let query = { Bind.queue;
+                      exchange = name;
+                      routing_key;
+                      no_wait = false;
+                      arguments;
+                    }
+        in
+        Bind.request (Channel.channel channel) query
+      in
+      match exchange_type with
+      | Direct -> fun routing_key -> bind ~routing_key ()
+      | Fanout -> fun routing_key -> bind ~routing_key ()
+      | Topic -> fun routing_key -> bind ~routing_key ()
+      | Match -> fun arguments -> bind ~arguments ()
 
   let unbind_queue: type a. _ Channel.t -> a t -> string -> a -> unit Deferred.t =
     let open Amqp_spec.Queue in
     fun channel { name; exchange_type} queue ->
-      let query = { Unbind.queue;
-                    exchange = name;
-                    routing_key = "";
-                    arguments = [];
-                  }
+      let unbind ?(routing_key="") ?(arguments=[]) () =
+        let query = { Unbind.queue;
+                      exchange = name;
+                      routing_key;
+                      arguments;
+                    }
+        in
+        Unbind.request (Channel.channel channel) query
       in
       match exchange_type with
-      | Direct -> fun () -> Unbind.request (Channel.channel channel) query
-      | Fanout -> fun () -> Unbind.request (Channel.channel channel) query
-      | Topic -> fun routing_key -> Unbind.request (Channel.channel channel) { query with Unbind.routing_key }
-      | Match -> fun arguments -> Unbind.request (Channel.channel channel) { query with Unbind.arguments }
+      | Direct -> fun routing_key -> unbind ~routing_key ()
+      | Fanout -> fun routing_key -> unbind ~routing_key ()
+      | Topic -> fun routing_key -> unbind ~routing_key ()
+      | Match -> fun arguments -> unbind ~arguments ()
 
 end
 
@@ -96,33 +104,39 @@ let delete ?(if_unused=false) channel t =
 
 let bind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit Deferred.t=
   fun channel ~destination ~source ->
-    let query = { Bind.destination = destination.name;
-                  source = source.name;
-                  routing_key = "";
-                  no_wait = false;
-                  arguments = [];
-                }
+    let bind ?(routing_key="") ?(arguments=[]) () =
+      let query = { Bind.destination = destination.name;
+                    source = source.name;
+                    routing_key;
+                    no_wait = false;
+                    arguments;
+                  }
+      in
+      Bind.request (Channel.channel channel) query
     in
     match source.exchange_type with
-    | Direct -> fun () -> Bind.request (Channel.channel channel) query
-    | Fanout -> fun () -> Bind.request (Channel.channel channel) query
-    | Topic -> fun routing_key -> Bind.request (Channel.channel channel) { query with Bind.routing_key }
-    | Match -> fun arguments -> Bind.request (Channel.channel channel) { query with Bind.arguments }
+    | Direct -> fun routing_key -> bind ~routing_key ()
+    | Fanout -> fun routing_key -> bind ~routing_key ()
+    | Topic -> fun routing_key -> bind ~routing_key ()
+    | Match -> fun arguments -> bind ~arguments ()
 
-let unbind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit Deferred.t =
+let unbind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit Deferred.t=
   fun channel ~destination ~source ->
-  let query = { Unbind.destination = destination.name;
-                source = source.name;
-                routing_key = "";
-                no_wait = false;
-                arguments = [];
-              }
-  in
-  match source.exchange_type with
-    | Direct -> fun () -> Unbind.request (Channel.channel channel) query
-    | Fanout -> fun () -> Unbind.request (Channel.channel channel) query
-    | Topic -> fun routing_key -> Unbind.request (Channel.channel channel) { query with Unbind.routing_key }
-    | Match -> fun arguments -> Unbind.request (Channel.channel channel) { query with Unbind.arguments }
+    let unbind ?(routing_key="") ?(arguments=[]) () =
+      let query = { Unbind.destination = destination.name;
+                    source = source.name;
+                    routing_key;
+                    no_wait = false;
+                    arguments;
+                  }
+      in
+      Unbind.request (Channel.channel channel) query
+    in
+    match source.exchange_type with
+    | Direct -> fun routing_key -> unbind ~routing_key ()
+    | Fanout -> fun routing_key -> unbind ~routing_key ()
+    | Topic -> fun routing_key -> unbind ~routing_key ()
+    | Match -> fun arguments -> unbind ~arguments ()
 
 let publish channel t
     ?(mandatory=false)
