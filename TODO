@@ -2,11 +2,6 @@
 * Make sure we choose the ip address at random (if the host resolves to multiple servers)
 * Error handing / monitors
 
-* Enable / Allow publisher confirms (Confirm.Select) per channel
-  - A publisher would wait for the next ack.
-  - Keep track of all messages in a window of send, but not yet ack'ed messages
-  - Discard returned messages
-
 * Handle immediate flag in publish
   (Return messages - requires an async handler)
 
@@ -14,18 +9,4 @@
 
 * Support immutable strings
 
-* Setup RCP to cancel on message timeout
-  - Add a header for return path (reply-to)
-  - Setup the rpc server x-dead-letter-exchange to be amq.header
-  - Bind the reply queue to amq.header when the reply-to header is ours.
-
-
-API:
-  Use opens and module aliases
-
-  Remove label for exhange type
-
-  (Excluding and autodelete using shadow types)
-
-  Rcp.client -> exchange
-  Rpc.Server.start lacks functionality
+* Consumer cancels: when a consumer is cancelled (on a channel) we should close the pipe.

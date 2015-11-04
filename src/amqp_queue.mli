@@ -2,7 +2,7 @@
 open Async.Std
 
 type t
-type consumer
+type 'a consumer
 
 val message_ttl : int -> string * Amqp_types.value
 val auto_expire : int -> string * Amqp_types.value
@@ -49,13 +49,13 @@ val consume :
   ?no_local:bool ->
   ?no_ack:bool ->
   ?exclusive:bool ->
-  _ Amqp_channel.t ->
+  'a Amqp_channel.t ->
   t ->
-  (consumer * Amqp_message.t Pipe.Reader.t) Deferred.t
+  ('a consumer * Amqp_message.t Pipe.Reader.t) Deferred.t
 
 
 (** Cancel consumption. *)
-val cancel : consumer -> unit Deferred.t
+val cancel : _ consumer -> unit Deferred.t
 
 (** Bind a queue to an exhange.
     Messages posted on the exchange which match the routing key

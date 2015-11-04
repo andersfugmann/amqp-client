@@ -24,12 +24,12 @@ type _ pcp =
 
 type close_handler = int -> Channel.Close.t -> unit Deferred.t
 type 'a t = { framing: Amqp_framing.t;
-           channel_no: int;
-           consumers: consumers;
-           id: string;
-           mutable counter: int;
-           publish_confirm: 'a pcp;
-         }
+              channel_no: int;
+              consumers: consumers;
+              id: string;
+              mutable counter: int;
+              publish_confirm: 'a pcp;
+            }
 
 let channel { framing; channel_no; _ } = (framing, channel_no)
 

@@ -14,7 +14,7 @@ module Client = struct
              id: string;
              outstanding: (string, Message.message option Ivar.t) Hashtbl.t;
              mutable counter: int;
-             consumer: Queue.consumer;
+             consumer: [ `Ok ] Queue.consumer;
            }
 
   let handle_reply t ok (content, body) =
@@ -80,7 +80,7 @@ module Server = struct
   open Amqp_spec.Basic
   (* The server needs a queue name and a handler *)
 
-  type t = { consumer: Queue.consumer }
+  type 'a t = { consumer: 'a Queue.consumer }
 
   let queue_argument = Queue.dead_letter_exchange (Exchange.name Exchange.amq_match)
 

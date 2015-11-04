@@ -34,7 +34,7 @@ module Client :
 (** Rpc Server pattern *)
 module Server :
   sig
-    type t
+    type 'a t
 
     (** Recommended arguement to add when declaring the rpc server queue.
         This will set the dead letter exhange to the header exchange to help
@@ -52,10 +52,10 @@ module Server :
     *)
     val start :
       ?async:bool ->
-      [< `Failed | `Ok ] Amqp_channel.t ->
+      ([< `Failed | `Ok ] as 'a) Amqp_channel.t ->
       Amqp_queue.t ->
-      (Amqp_message.message -> Amqp_message.message Deferred.t) -> t Deferred.t
+      (Amqp_message.message -> Amqp_message.message Deferred.t) -> 'a t Deferred.t
 
     (** Stop the server *)
-    val stop : t -> unit Deferred.t
+    val stop : _ t -> unit Deferred.t
   end

@@ -43,8 +43,9 @@ let publish channel t ?mandatory message =
     ~routing_key:t.name
     message
 
-type consumer = { channel: Amqp_framing.t * int; tag: string;
-                  writer: Amqp_message.t Pipe.Writer.t }
+type 'a consumer = { channel: 'a Channel.t;
+                     tag: string;
+                     writer: Amqp_message.t Pipe.Writer.t }
 
 (** Consume message from a queue. *)
 let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =
@@ -80,11 +81,12 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =
   Consume.Internal.write (Channel.channel channel) req;
   Ivar.read var >>= fun rep ->
   let tag = rep.Consume_ok.consumer_tag in
-  return ({ channel = Channel.channel channel; tag; writer }, reader)
+  return ({ channel; tag; writer }, reader)
 
 let cancel consumer =
   let open Amqp_spec.Basic in
-  Cancel.request (consumer.channel) { Cancel.consumer_tag = consumer.tag; no_wait = false } >>= fun _rep ->
+  Cancel.request (Channel.channel consumer.channel) { Cancel.consumer_tag = consumer.tag; no_wait = false } >>= fun _rep ->
+  Channel.Internal.deregister_consumer_handler consumer.channel consumer.tag;
   Pipe.close consumer.writer;
   return ()
 
