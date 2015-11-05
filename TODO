@@ -10,3 +10,5 @@
 * Support immutable strings
 
 * Consumer cancels: when a consumer is cancelled (on a channel) we should close the pipe.
+
+* Use iovecs for reading and writing. Use Core endian

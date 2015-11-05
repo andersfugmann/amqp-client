@@ -15,41 +15,20 @@ let rec string_split ?(offset=0) ~by s =
   | exception Not_found -> [ String.sub s offset (String.length s - offset) ]
   | exception Invalid_argument _ -> []
 
-let rec print_type indent t =
-  let open Amqp_types in
-  match t with
-  | VTable t ->
-    let indent' = indent ^ "  " in
-    printf "[\n";
-    List.iter (fun (k, v) -> printf "%s%s: " indent' k; print_type (indent')  v; printf "\n") t;
-    printf "%s]" indent;
-  | VBoolean v -> printf "%b" v
-  | VShortshort v
-  | VShort v
-  | VLong v
-  | VTimestamp v
-  | VLonglong v -> printf "%d" v
-  | VShortstr v
-  | VLongstr v -> printf "%s" v
-  | VFloat v
-  | VDouble v-> printf "%f" v
-  | VDecimal v -> printf "%f" (float v.value /. float v.digits)
-  | VArray a ->
-    let indent' = indent ^ "  " in
-    printf "[\n";
-    List.iter (fun v -> printf "%s" indent'; print_type (indent')  v; printf "\n") a;
-    printf "%s]" indent;
-  | VUnit _ -> printf "\n"
-
 let handle_start id (username, password) {Start.version_major;
                                        version_minor;
                                        server_properties;
                                        mechanisms = _;
                                        locales } =
   let open Amqp_types in
-  printf "Server properties:\n";
-  print_type "" (VTable server_properties);
-  printf "\nServer version: %d.%d\n" version_major version_minor;
+  let print_item table s =
+    match List.assoc s table with
+    | VLongstr v -> printf "%s: %s\n" s v
+    | _ -> ()
+    | exception _ -> ()
+  in
+  ["product"; "version" ] |> List.iter (print_item server_properties);
+  printf "Amqp: %d.%d\n" version_major version_minor;
 
   let properties =
       [

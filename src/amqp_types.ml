@@ -32,3 +32,32 @@ and value =
   | VUnit of unit
 
 type header = string * value
+
+(*
+let rec print_type indent t =
+  let open Amqp_types in
+  match t with
+  | VTable t ->
+    let indent' = indent ^ "  " in
+    printf "[\n";
+    List.iter (fun (k, v) -> printf "%s%s: " indent' k; print_type (indent')  v; printf "\n") t;
+    printf "%s]" indent;
+  | VBoolean v -> printf "%b" v
+  | VShortshort v
+  | VShort v
+  | VLong v
+  | VTimestamp v
+  | VLonglong v -> printf "%d" v
+  | VShortstr v
+  | VLongstr v -> printf "%s" v
+  | VFloat v
+  | VDouble v-> printf "%f" v
+  | VDecimal v -> printf "%f" (float v.value /. float v.digits)
+  | VArray a ->
+    let indent' = indent ^ "  " in
+    printf "[\n";
+    List.iter (fun v -> printf "%s" indent'; print_type (indent')  v; printf "\n") a;
+    printf "%s]" indent;
+  | VUnit _ -> printf "\n"
+
+*)
