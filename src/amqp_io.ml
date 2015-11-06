@@ -1,81 +1,86 @@
 (** Internal *)
+open Core.Std
 
-(* Simple reader and writer based on local buffers *)
 let log fmt =
   (* Printf.eprintf (fmt ^^ "\n%!") *)
   Printf.ifprintf stderr fmt
 
 module Input = struct
-  open EndianString.BigEndian
-  type t = { buf: string; mutable offset: int }
-  let create ?(offset=0) buf = { buf; offset }
-  let read  f n t = let r = f t.buf t.offset in t.offset <- t.offset + n; r
+  open Bigstring
+  type t = { buf: Bigstring.t; mutable offset: int }
+  let init ?(offset=0) buf = { buf; offset }
+  let create len = { buf = Bigstring.create len; offset=0 }
+  let read f n t =
+    let r = f t.buf ~pos:t.offset in t.offset <- t.offset + n; r
   let string t n =
-    try
-      let r = String.sub t.buf t.offset n in
-      t.offset <- t.offset + n;
-      r
-    with
-    | _ -> failwith
-           (Printf.sprintf "Sub string: offset: %d len: %d. size: %d"
-              t.offset n (String.length t.buf))
-  let octet = read get_uint8 1
-  let short = read get_int16 2
-  let long t = read get_int32 4 t |> Int32.to_int
-  let longlong t = read get_int64 8 t |> Int64.to_int
-  let float = read get_float 4
-  let double = read get_double 8
-
-  let length t = String.length t.buf - t.offset
-  let has_data t = log "length: %d" (length t);
-    length t > 0
+    let s = to_string ~pos:t.offset ~len:n t.buf in
+    t.offset <- t.offset + n;
+    s
+  let octet = read unsafe_get_uint8 1
+  let short = read unsafe_get_uint16_be 2
+  let long  = read unsafe_get_uint32_be 4
+  let longlong = read unsafe_get_int64_be_exn 8
+  let float t = read unsafe_get_int32_t_be 4 t |> Int32.to_float
+  let double t = read unsafe_get_int64_t_be 8 t |> Int64.to_float
+  let length t = length t.buf - t.offset
+  let has_data t = length t > 0
+  let offset t = t.offset
+  let copy t ~dst_pos ~len dst =
+    Bigstring.To_string.blit ~src:t.buf ~src_pos:t.offset ~dst ~dst_pos ~len;
+    t.offset <- t.offset + len
+  let destroy t = unsafe_destroy t.buf
 end
 
 module Output = struct
-  open EndianBytes.BigEndian
-  type t = { mutable buf: Bytes.t; mutable offset: int; start: int }
-  let init ?(offset=0) ?(start=0) buf = { buf; offset; start }
-  let create ?(size=256) () = { buf = Bytes.create size; offset = 0; start = 0 }
-  let size_left {buf; offset; start} = Bytes.length buf - offset - start
-  let grow t =
-    t.buf <- Bytes.extend t.buf 0 (Bytes.length t.buf)
+  open Bigstring
+  type t = { mutable buf: Bigstring.t; mutable offset: int }
+  let create len = { buf = Bigstring.create len; offset = 0}
   let write f n t v =
-    if size_left t < n then grow t;
-    f t.buf t.offset v; t.offset <- t.offset + n
-  let buffer t = t.buf
-  let length t = t.offset - t.start
-
-  let string t s =
-    let len =String.length s in
-    begin match Bytes.length t.buf - t.offset with
-      | n when n < len ->
-        t.buf <- Bytes.extend t.buf 0 (len - n)
-      | _ -> ()
-    end;
-    Bytes.blit_string s 0 t.buf t.offset len;
+    f t.buf ~pos:t.offset v; t.offset <- t.offset + n
+  let get t = t.buf
+  let string t ?(src_pos=0) ?len src =
+    let len = match len with
+      | Some l -> l
+      | None -> String.length src
+    in
+    Bigstring.From_string.blit ~src ~src_pos ~dst:t.buf ~dst_pos:t.offset ~len;
     t.offset <- t.offset + len
 
-  let octet = write set_int8 1
+  let octet = write unsafe_set_uint8 1
 
-  let short = write set_int16 2
+  let short = write unsafe_set_uint16_be 2
   let short_ref t =
     let offset = t.offset in
-    short t 0;
-    (* evaluate t.buf late, as it might change before calling the function *)
-    fun v -> set_int16 t.buf offset v
+    t.offset <- t.offset + 2;
+    fun v -> unsafe_set_uint16_be t.buf ~pos:offset v
 
-  let long t v = write set_int32 4 t (Int32.of_int v)
-  let longlong t v = write set_int64 8 t (Int64.of_int v)
-  let float = write set_float 4
-  let double = write set_double 8
+  let long = write unsafe_set_uint32_be 4
+  let longlong = write unsafe_set_int64_be 8
+  let float = write (fun t ~pos v -> unsafe_set_int32_t_be ~pos t (Int32.of_float v)) 4
+  let double = write (fun t ~pos v -> unsafe_set_int64_t_be ~pos t (Int64.of_float v)) 8
   let size_ref t =
     let offset = t.offset in
-    long t 0;
+    t.offset <- offset + 4;
     fun extra ->
-      set_int32 t.buf offset (Int32.of_int (t.offset - (offset + 4) + extra))
+      unsafe_set_uint32_be t.buf ~pos:offset (t.offset - (offset + 4) + extra)
+end
 
-  let sub t ~start ~length =
-    let offset = min (start+length) (Bytes.length t.buf) in
-    { start; offset; buf = t.buf }
-
+module Sizer = struct
+  type t = int ref
+  let (+=) a b = a := !a + b
+  let init () = ref 0
+  let string t s =
+    t += (String.length s)
+  let octet t _ = t += 1
+  let short t _ = t += 2
+  let short_ref t =
+    t += 2;
+    fun _ -> ()
+  let long t _ = t += 4
+  let longlong t _ = t += 8
+  let float t _ = t += 4
+  let double t _ = t += 8
+  let size_ref t _ =
+    t += 4;
+    fun _ -> ()
 end

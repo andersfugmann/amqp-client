@@ -19,10 +19,14 @@ type method_handler = data -> unit
 type t
 
 val write_method :
-  t * channel_no -> int * int -> Amqp_io.Output.t -> unit
+  t * channel_no Core.Std.Hashtbl.key ->
+  int * int -> (Amqp_io.Output.t -> Amqp_io.Output.t) -> int -> unit
 
 val write_content :
-  t * channel_no -> int -> Amqp_io.Output.t -> string -> unit
+  t * channel_no Core.Std.Hashtbl.key ->
+  int ->
+  (Amqp_io.Output.t -> Amqp_io.Output.t) ->
+  int -> Core.Std.String.t -> unit
 
 val register_method_handler :
   t * channel_no -> Amqp_types.message_id -> method_handler -> unit

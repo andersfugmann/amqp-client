@@ -36,13 +36,6 @@ let reserved_value: type a. a elem -> a = function
   | Array -> []
   | Unit -> ()
 
-let rec read_while t f =
-  match Input.has_data t with
-  | true ->
-    let v = f t in
-    v :: read_while t f
-  | false -> []
-
 let rec decode: type a. a elem -> Input.t -> a = fun elem t ->
   match elem with
   | Bit -> Input.octet t = 1 |> tap (log "Bit %b")
@@ -60,14 +53,17 @@ let rec decode: type a. a elem -> Input.t -> a = fun elem t ->
     Input.string t len
   | Table ->
     log "Table";
-    let s = decode Longstr t in
-    let t = Input.create s in
-    let read_table_value t =
-      let key = decode Shortstr t in
-      let value = decode_field t in
-      (key, value)
+    let size = decode Long t in
+    let offset = Input.offset t in
+    let rec read_table_value t =
+      match Input.offset t < (offset + size) with
+      | true ->
+        let key = decode Shortstr t in
+        let value = decode_field t in
+        (key, value) :: read_table_value t
+      | false -> []
     in
-    read_while t read_table_value
+    read_table_value t
   | Timestamp -> decode Longlong t
   | Float -> Input.float t
   | Double -> Input.double t
@@ -76,9 +72,14 @@ let rec decode: type a. a elem -> Input.t -> a = fun elem t ->
     let value = decode Long t in
     { digits; value }
   | Array ->
-    let data = decode Longstr t in
-    let is = Input.create data in
-    read_while is decode_field
+    let size = decode Long t in
+    let offset = Input.offset t in
+    let rec read_array t =
+      match Input.offset t < (offset + size) with
+      | true -> decode_field t :: read_array t
+      | false -> []
+    in
+    read_array t
   | Unit -> ()
 and decode_field t =
   match Input.octet t |> Char.chr with
