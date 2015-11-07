@@ -47,7 +47,7 @@ let protocol_header = "AMQP\x00\x00\x09\x01"
 let read_method_frame = read (Short :: Short :: Nil)
 let read_content_header = read (Short :: Short :: Longlong :: Nil)
 
-(* Should register a monitor *)
+
 let (>>) a b =
   a >>= function `Eof _ -> raise Connection_closed
                | `Ok -> b ()
@@ -109,16 +109,17 @@ let write_content (t, channel_no) class_id writer data =
   in
   send 0
 
-let write_message (t, channel_no) ((cid, mid), writer) content =
+let write_message (t, channel_no) (message_id, writer) content =
   let ch_t = Hashtbl.find_exn t.channels channel_no in
-  Ivar.read ch_t.ready >>= fun () ->
-  write_method (t, channel_no) (cid, mid) writer;
-  (match content with
-  | Some (class_id, writer, data) ->
-    write_content (t, channel_no) class_id writer data;
-  | None -> ()
-  );
-  return ()
+  match content with
+  | Some (class_id, c_writer, data) ->
+    Ivar.read ch_t.ready >>= fun () ->
+    write_method (t, channel_no) message_id writer;
+    write_content (t, channel_no) class_id c_writer data;
+    return ()
+  | None ->
+    write_method (t, channel_no) message_id writer;
+    return ()
 
 (** read_frame reads a frame from the input, and sends the data to
     the channel writer *)
@@ -209,12 +210,20 @@ let deregister_content_handler (t, channel_no) class_id =
   if not (Hashtbl.mem c.content_handlers class_id) then raise Busy;
   Hashtbl.remove c.content_handlers class_id
 
+let set_flow t channel_no active =
+  let c = Hashtbl.find_exn t.channels channel_no in
+  match active with
+  | true ->
+    if Ivar.is_full c.ready then
+      c.ready <- Ivar.create ()
+  | false ->
+    Ivar.fill_if_empty c.ready ()
+
 
 let open_channel t channel_no =
   let reader, writer = Pipe.create () in
-  let ready = Ivar.create () in
+  let ready = Ivar.create_full () in
   (* Start in ready state *)
-  Ivar.fill ready ();
   Hashtbl.add t.channels ~key:channel_no
     ~data:{ state = Ready;
             method_handlers = Hashtbl.create ~growth_allowed:true ~hashable:Hashtbl.Hashable.poly ();

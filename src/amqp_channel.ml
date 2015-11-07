@@ -83,6 +83,14 @@ let close_handler channel_no close =
 let register_close_handler t handler =
   don't_wait_for (Channel.Close.reply (channel t) (handler t.channel_no))
 
+let register_flow_handler t =
+  let (_, read) = Channel.Flow.Internal.read in
+  let handler { Channel.Flow.active } =
+    Amqp_framing.set_flow t.framing t.channel_no active;
+    don't_wait_for (Channel.Flow_ok.Internal.write (channel t) { Channel.Flow_ok.active })
+  in
+  read ~once:false handler (channel t)
+
 let handle_confirms channel t =
   let module Dl = Core.Doubly_linked in
   let open Basic in
@@ -128,12 +136,12 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
         Pcp_with_confirm { message_count = 0; unacked = Core.Doubly_linked.create () }
     | No_confirm -> Pcp_no_confirm
   in
-
   (match publish_confirm with Pcp_with_confirm t -> handle_confirms (framing, channel_no) t | Pcp_no_confirm -> return ()) >>= fun () ->
   let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm } in
   Internal.register_deliver_handler t;
 
   register_close_handler t close_handler;
+  register_flow_handler t;
   return t
 
 let close { framing; channel_no; _ } =

@@ -42,7 +42,7 @@ let handle_start id (username, password) {Start.version_major;
           "basic.nack", VBoolean true;
           "consumer_cancel_notify", VBoolean false;
           "connection.blocked", VBoolean false;
-          "consumer_priorities", VBoolean false;
+          "consumer_priorities", VBoolean true;
           "authentication_failure_close", VBoolean true;
           "per_consumer_qos", VBoolean true;
         ]
