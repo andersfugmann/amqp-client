@@ -40,14 +40,13 @@ let _ =
   let _ =
     Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
     log "Connection started";
-    Connection.open_channel Channel.with_confirm ~id:"test" connection >>= fun channel ->
-    Channel.set_prefetch channel ~count:100 >>= fun () ->
+    Connection.open_channel Channel.no_confirm ~id:"test" connection >>= fun channel ->
     log "Channel opened";
     let arguments =
       let open Queue in
       [ maximum_priority 7 ]
     in
-    Queue.declare channel ~arguments ~auto_delete:true "anders" >>= fun queue ->
+    Queue.declare channel ~arguments ~auto_delete:false "anders" >>= fun queue ->
 
     (* sync_loop channel queue 1 *)
     don't_wait_for (consume channel queue);

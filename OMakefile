@@ -4,8 +4,8 @@ USE_OCAMLFIND = true
 NATIVE_ENABLED = true
 BYTE_ENABLED = true
 
-OCAMLFLAGS = -thread -principal -g -w @A-4-29-41-44-45 -bin-annot
-OCAMLPACKS[] = xml-light async async_unix ocplib-endian str
+OCAMLFLAGS = -thread -g -w @A-4-29-41-44-45 -bin-annot
+OCAMLPACKS[] = xml-light async async_unix str
 
 
 mkdir -p _build
