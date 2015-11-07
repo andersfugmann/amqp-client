@@ -78,7 +78,7 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =
   let read = snd Consume_ok.Internal.read in
   read ~once:true on_receive (Channel.channel channel);
 
-  Consume.Internal.write (Channel.channel channel) req;
+  Consume.Internal.write (Channel.channel channel) req >>= fun () ->
   Ivar.read var >>= fun rep ->
   let tag = rep.Consume_ok.consumer_tag in
   return ({ channel; tag; writer }, reader)

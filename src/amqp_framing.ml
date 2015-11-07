@@ -33,6 +33,7 @@ type channel = { mutable state: channel_state;
                  method_handlers: (message_id, method_handler) Hashtbl.t;
                  content_handlers: (class_id, content_handler) Hashtbl.t;
                  writer: Bigstring.t Pipe.Writer.t;
+                 mutable ready: unit Ivar.t;
                }
 
 type t = { input: Reader.t; output: Writer.t;
@@ -107,6 +108,17 @@ let write_content (t, channel_no) class_id writer data =
       ()
   in
   send 0
+
+let write_message (t, channel_no) ((cid, mid), writer) content =
+  let ch_t = Hashtbl.find_exn t.channels channel_no in
+  Ivar.read ch_t.ready >>= fun () ->
+  write_method (t, channel_no) (cid, mid) writer;
+  (match content with
+  | Some (class_id, writer, data) ->
+    write_content (t, channel_no) class_id writer data;
+  | None -> ()
+  );
+  return ()
 
 (** read_frame reads a frame from the input, and sends the data to
     the channel writer *)
@@ -200,11 +212,15 @@ let deregister_content_handler (t, channel_no) class_id =
 
 let open_channel t channel_no =
   let reader, writer = Pipe.create () in
+  let ready = Ivar.create () in
+  (* Start in ready state *)
+  Ivar.fill ready ();
   Hashtbl.add t.channels ~key:channel_no
     ~data:{ state = Ready;
             method_handlers = Hashtbl.create ~growth_allowed:true ~hashable:Hashtbl.Hashable.poly ();
             content_handlers = Hashtbl.create ~growth_allowed:true ~hashable:Hashtbl.Hashable.poly ();
             writer;
+            ready;
           }
   |> ignore;
   Pipe.write t.multiplex reader

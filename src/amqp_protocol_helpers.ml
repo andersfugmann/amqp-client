@@ -34,7 +34,7 @@ let write_method (message_id, spec, _make, apply) =
   let write = Spec.write spec in
   let writer msg output = apply (write output) msg in
   fun channel msg ->
-    Amqp_framing.write_method channel message_id (writer msg)
+    Amqp_framing.write_message channel (message_id, (writer msg)) None
 
 let read_method (message_id, spec, make, _apply) =
   let read = Spec.read spec in
@@ -66,8 +66,8 @@ let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec
   in
 
   fun channel (meth, content, data) ->
-    Amqp_framing.write_method channel message_id (write_method meth);
-    Amqp_framing.write_content channel c_method (write_content content) data
+    Amqp_framing.write_message channel (message_id, (write_method meth))
+      (Some (c_method, (write_content content), data))
 
 let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec, c_make, _c_apply) =
   let read = Spec.read spec in
@@ -94,8 +94,7 @@ let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec,
 
 let request0 req =
   fun channel msg ->
-    req channel msg;
-    return ()
+    req channel msg
 
 let reply0 (_, read) ?(once=true) channel =
   let var = Ivar.create () in
@@ -103,18 +102,16 @@ let reply0 (_, read) ?(once=true) channel =
   Ivar.read var
 
 let request1 write (_, read) channel msg =
-  write channel msg;
-  (* Actually have a pattern for this *)
   let var = Ivar.create () in
   read ~once:true (Ivar.fill var) channel;
+  write channel msg >>= fun () ->
   Ivar.read var
 
 let reply1 (_, read) write ?(once=true) channel handler =
   let var = Ivar.create () in
   read ~once (Ivar.fill var) channel;
   Ivar.read var >>= handler >>= fun msg ->
-  write channel msg;
-  return ()
+  write channel msg
 
 let request2 req (mid1, rep1) id1 (mid2, rep2) id2 channel message =
   let var = Ivar.create () in
@@ -122,7 +119,7 @@ let request2 req (mid1, rep1) id1 (mid2, rep2) id2 channel message =
     Ivar.fill var (id msg);
     Amqp_framing.deregister_method_handler channel mid
   in
-  req channel message;
   rep1 ~once:true (handler id1 mid2) channel;
   rep2 ~once:true (handler id2 mid1) channel;
+  req channel message >>= fun () ->
   Ivar.read var
