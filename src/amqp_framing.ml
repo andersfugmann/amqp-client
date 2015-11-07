@@ -56,46 +56,52 @@ let read_frame_header, write_frame_header =
   let spec = Octet :: Short :: Long :: Nil in
   read spec, write spec
 
-let write_frame t channel_no tpe writer length  =
+
+let size_of_writer writer =
+  let sizer = Output.sizer () in
+  writer sizer;
+  Output.size sizer
+
+let write_frame t channel_no tpe writer =
   let channel = Hashtbl.find_exn t.channels channel_no in
+  let length = size_of_writer writer in
   let output = Output.create (1+2+4+length+1) in
+
   write_frame_header output tpe channel_no length
   |> writer
   |> fun w -> Output.octet w Amqp_constants.frame_end;
-
   Pipe.write_without_pushback channel.writer (Output.get output)
 
 let write_method_id =
   let open Amqp_protocol.Spec in
   write (Short :: Short :: Nil)
 
-let write_method (t, channel_no) (cid, mid) writer length =
+let write_method (t, channel_no) (cid, mid) writer =
   log "Send method on channel: %d (%d, %d)" channel_no cid mid;
   let writer output =
     write_method_id output cid mid
     |> writer
   in
-  write_frame t channel_no Amqp_constants.frame_method writer (2+2+length)
+  write_frame t channel_no Amqp_constants.frame_method writer
 
 let write_content_header =
   let open Amqp_protocol.Spec in
   write (Short :: Short :: Longlong :: Nil)
 
-let write_content (t, channel_no) class_id writer length data =
+let write_content (t, channel_no) class_id writer data =
   log "Send content on channel: %d (%d)" channel_no class_id;
   let writer output =
     write_content_header output class_id 0 (String.length data)
     |> writer
   in
-  write_frame t channel_no Amqp_constants.frame_header writer (2+2+8+length);
+  write_frame t channel_no Amqp_constants.frame_header writer;
   let length = String.length data in
   (* Here comes the data *)
   let rec send offset =
     if offset < length then
       let size = min t.max_length (length - offset) in
       write_frame t channel_no Amqp_constants.frame_body
-        (fun output -> Output.string output ~src_pos:offset ~len:size data; output)
-        size;
+        (fun output -> Output.string output ~src_pos:offset ~len:size data; output);
       send (offset + t.max_length)
     else
       ()
@@ -149,7 +155,7 @@ let decode_message t tpe channel_no size input =
     else
       channel.state <- Waiting (class_id, content, offset + size, buffer)
   | _, n when n = Amqp_constants.frame_heartbeat ->
-    write_frame t 0 Amqp_constants.frame_heartbeat (fun i -> i) 0
+    write_frame t 0 Amqp_constants.frame_heartbeat (fun i -> i)
   | _, n -> raise (Unknown_frame_type n)
 
 let read_frame t =

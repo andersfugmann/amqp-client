@@ -32,9 +32,9 @@ let rec list_create f = function
 
 let write_method (message_id, spec, _make, apply) =
   let write = Spec.write spec in
+  let writer msg output = apply (write output) msg in
   fun channel msg ->
-    apply (write (Output.create ())) msg
-    |> Amqp_framing.write_method channel message_id
+    Amqp_framing.write_method channel message_id (writer msg)
 
 let read_method (message_id, spec, make, _apply) =
   let read = Spec.read spec in
@@ -54,17 +54,20 @@ let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec
   let c_write = Content.write c_spec in
   let property_bits = Content.length c_spec in
   assert (property_bits <= 15);
-
-  fun channel (meth, content, data) ->
-    apply (write (Output.create ())) meth |> Amqp_framing.write_method channel message_id;
-    let output = Output.create () in
+  let write_method msg output =
+    apply (write output) msg
+  in
+  let write_content content output =
     let property_flags = ref 0 in
     let property_word = Output.short_ref output in
     c_apply (c_write property_flags output) content;
     update_property_flag !property_flags property_word property_bits;
+    output
+  in
 
-    (* Now send the data. *)
-    Amqp_framing.write_content channel c_method output data
+  fun channel (meth, content, data) ->
+    Amqp_framing.write_method channel message_id (write_method meth);
+    Amqp_framing.write_content channel c_method (write_content content) data
 
 let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec, c_make, _c_apply) =
   let read = Spec.read spec in

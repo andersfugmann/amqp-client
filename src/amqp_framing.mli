@@ -20,13 +20,12 @@ type t
 
 val write_method :
   t * channel_no Core.Std.Hashtbl.key ->
-  int * int -> (Amqp_io.Output.t -> Amqp_io.Output.t) -> int -> unit
+  int * int -> (Amqp_io.Output.t -> Amqp_io.Output.t) -> unit
 
 val write_content :
   t * channel_no Core.Std.Hashtbl.key ->
   int ->
-  (Amqp_io.Output.t -> Amqp_io.Output.t) ->
-  int -> Core.Std.String.t -> unit
+  (Amqp_io.Output.t -> Amqp_io.Output.t) -> Core.Std.String.t -> unit
 
 val register_method_handler :
   t * channel_no -> Amqp_types.message_id -> method_handler -> unit

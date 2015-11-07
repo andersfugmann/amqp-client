@@ -33,26 +33,31 @@ end
 
 module Output = struct
   open Bigstring
-  type t = { mutable buf: Bigstring.t; mutable offset: int }
-  let create len = { buf = Bigstring.create len; offset = 0}
+  let _empty = Bigstring.create 0
+  type t = { mutable buf: Bigstring.t; mutable offset: int; apply: bool }
+  let create len = { buf = Bigstring.create len; offset = 0; apply = true }
+  let sizer () = { buf = _empty; offset = 0; apply = false }
   let write f n t v =
-    f t.buf ~pos:t.offset v; t.offset <- t.offset + n
+    if t.apply then
+      f t.buf ~pos:t.offset v;
+    t.offset <- t.offset + n
   let get t = t.buf
   let string t ?(src_pos=0) ?len src =
     let len = match len with
       | Some l -> l
       | None -> String.length src
     in
-    Bigstring.From_string.blit ~src ~src_pos ~dst:t.buf ~dst_pos:t.offset ~len;
+    if (t.apply) then
+        Bigstring.From_string.blit ~src ~src_pos ~dst:t.buf ~dst_pos:t.offset ~len;
     t.offset <- t.offset + len
 
   let octet = write unsafe_set_uint8 1
-
   let short = write unsafe_set_uint16_be 2
   let short_ref t =
     let offset = t.offset in
     t.offset <- t.offset + 2;
-    fun v -> unsafe_set_uint16_be t.buf ~pos:offset v
+    fun v ->
+      if (t.apply) then unsafe_set_uint16_be t.buf ~pos:offset v
 
   let long = write unsafe_set_uint32_be 4
   let longlong = write unsafe_set_int64_be 8
@@ -61,26 +66,8 @@ module Output = struct
   let size_ref t =
     let offset = t.offset in
     t.offset <- offset + 4;
-    fun extra ->
-      unsafe_set_uint32_be t.buf ~pos:offset (t.offset - (offset + 4) + extra)
-end
+    fun () ->
+      if t.apply then unsafe_set_uint32_be t.buf ~pos:offset (t.offset - (offset + 4))
 
-module Sizer = struct
-  type t = int ref
-  let (+=) a b = a := !a + b
-  let init () = ref 0
-  let string t s =
-    t += (String.length s)
-  let octet t _ = t += 1
-  let short t _ = t += 2
-  let short_ref t =
-    t += 2;
-    fun _ -> ()
-  let long t _ = t += 4
-  let longlong t _ = t += 8
-  let float t _ = t += 4
-  let double t _ = t += 8
-  let size_ref t _ =
-    t += 4;
-    fun _ -> ()
+  let size t = t.offset
 end
