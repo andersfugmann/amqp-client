@@ -3,16 +3,6 @@ open Amqp
 
 let log fmt = printf (fmt ^^ "\n%!")
 
-let rec sync_loop channel queue i =
-  Queue.publish channel queue (Message.make (string_of_int i)) >>= fun res ->
-  assert (res = `Ok);
-  Queue.get ~no_ack:false channel queue >>= function
-  | Some ({ Message.message = (_, body); _ } as msg) ->
-    log "Received: %s" body;
-    Message.ack channel msg >>= fun () ->
-    sync_loop channel queue (i+1)
-  | None -> failwith "No message"
-
 let consume channel queue =
   let handler { Message.message = (_content, body); _ } =
     let i = int_of_string body in
@@ -33,7 +23,8 @@ let consume channel queue =
 let rec produce channel queue = function
   | 0 -> return ();
   | n ->
-    don't_wait_for (Queue.publish channel queue (Message.make (string_of_int n)) >>= fun res -> assert (res = `Ok); return ());
+    Queue.publish channel queue (Message.make (string_of_int n)) >>= fun res ->
+    assert (res = `Ok);
     produce channel queue (n-1)
 
 let _ =
@@ -44,7 +35,6 @@ let _ =
     log "Channel opened";
     Queue.declare channel ~arguments:[] ~auto_delete:true "test.main" >>= fun queue ->
 
-    (* sync_loop channel queue 1 *)
     don't_wait_for (consume channel queue);
     produce channel queue 100000 >>= fun () ->
     log "Done producing";
