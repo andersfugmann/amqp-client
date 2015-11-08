@@ -1,0 +1,11 @@
+0.1.0:
+* Less data copying when constructing messages
+* Use Core's endian functions
+* Exchange.t is now a gadt to indicate type of bind arguments
+* Handle channel flow messages.
+  Publishing messages will now wait until the channel is open
+* Handle RabbitMQ's Connectio block / unblock messages
+* Some refactoring of protocol helpers
+
+
+0.0.1: Initial release

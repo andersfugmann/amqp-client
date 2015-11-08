@@ -267,7 +267,7 @@ let init ~id ~port host =
   don't_wait_for (start_writer output (Pipe.interleave_pipe reader));
   let t =
     { input; output;
-      max_length = 256; (* TODO: Use actual framing size *)
+      max_length = 256;
       channels = Hashtbl.create ~growth_allowed:true ~hashable:Hashtbl.Hashable.poly ();
       multiplex = writer;
       id;
