@@ -29,6 +29,8 @@ val deregister_method_handler : t * channel_no -> message_id -> unit
 val deregister_content_handler : t * channel_no -> class_id -> unit
 
 val set_flow : t -> channel_no -> bool -> unit
+val set_flow_all : t -> bool -> unit
+
 
 val open_channel : t -> channel_no -> unit Deferred.t
 val close_channel : t -> channel_no -> unit

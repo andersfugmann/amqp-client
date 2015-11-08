@@ -41,7 +41,7 @@ let handle_start id (username, password) {Start.version_major;
           "exchange_exchange_bindings", VBoolean true;
           "basic.nack", VBoolean true;
           "consumer_cancel_notify", VBoolean false;
-          "connection.blocked", VBoolean false;
+          "connection.blocked", VBoolean true;
           "consumer_priorities", VBoolean true;
           "authentication_failure_close", VBoolean true;
           "per_consumer_qos", VBoolean true;
@@ -80,20 +80,31 @@ let handle_close { Close.reply_code;
   log "message_id: (%d, %d)" class_id method_id;
   return ()
 
+let register_blocked_handler framing =
+
+  let (_, read_blocked) = Blocked.Internal.read in
+  let (_, read_unblocked) = Unblocked.Internal.read in
+  let blocked_handler { Blocked.reason } =
+    log "Connection blocked: %s" reason;
+    Amqp_framing.set_flow_all framing true
+  in
+  let unblocked_handler () =
+    Amqp_framing.set_flow_all framing false
+  in
+  read_blocked ~once:false blocked_handler (framing, 0);
+  read_unblocked ~once:false unblocked_handler (framing, 0)
+
 let open_connection { framing; virtual_host; _ } =
   Open.request (framing, 0) { Open.virtual_host }
 
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) host =
-
   Amqp_framing.init ~id ~port host >>= fun framing ->
   let t = { framing; virtual_host; channel = 0 } in
 
-  (* Ok. Lets try to start the thing. *)
   Start.reply (framing, 0) (handle_start (Amqp_framing.id framing) credentials) >>= fun () ->
   Tune.reply (framing, 0) (handle_tune framing) >>= fun () ->
   open_connection t >>= fun () ->
-
-  (* We cannot wait for connection close *)
+  register_blocked_handler t.framing;
   don't_wait_for (Close.reply (framing, 0) handle_close);
   return t
 

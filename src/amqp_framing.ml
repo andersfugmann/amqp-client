@@ -40,7 +40,8 @@ type t = { input: Reader.t; output: Writer.t;
            multiplex: Bigstring.t Pipe.Reader.t Pipe.Writer.t;
            channels: (channel_no, channel) Hashtbl.t;
            mutable max_length: int;
-           id: string
+           id: string;
+           mutable flow: bool;
          }
 
 let protocol_header = "AMQP\x00\x00\x09\x01"
@@ -219,11 +220,16 @@ let set_flow t channel_no active =
   | false ->
     Ivar.fill_if_empty c.ready ()
 
+let set_flow_all t active =
+  t.flow <- active;
+  Hashtbl.iter ~f:(fun ~key:channel_no ~data:_ -> set_flow t channel_no active) t.channels
 
 let open_channel t channel_no =
   let reader, writer = Pipe.create () in
-  let ready = Ivar.create_full () in
-  (* Start in ready state *)
+  let ready = match t.flow with
+    | true -> Ivar.create ()
+    | false -> Ivar.create_full ()
+  in
   Hashtbl.add t.channels ~key:channel_no
     ~data:{ state = Ready;
             method_handlers = Hashtbl.create ~growth_allowed:true ~hashable:Hashtbl.Hashable.poly ();
@@ -265,6 +271,7 @@ let init ~id ~port host =
       channels = Hashtbl.create ~growth_allowed:true ~hashable:Hashtbl.Hashable.poly ();
       multiplex = writer;
       id;
+      flow = false;
     }
   in
   Writer.write output protocol_header;
