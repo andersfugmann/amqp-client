@@ -1,6 +1,5 @@
 (** Internal *)
 
-module P = Printf
 open Async.Std
 open Core.Std
 open Amqp_types
@@ -134,9 +133,7 @@ let decode_message t tpe channel_no size input =
     begin
       match Hashtbl.find channel.method_handlers message_id with
       | Some handler -> handler input
-      | None ->
-        P.eprintf "No handler: (%d, %d)\n%!" (fst message_id) (snd message_id);
-        raise (Unhandled_method message_id)
+      | None -> raise (Unhandled_method message_id)
     end;
     Input.destroy input
   | Ready, n when n = Amqp_constants.frame_header ->
@@ -232,8 +229,8 @@ let open_channel t channel_no =
   in
   Hashtbl.add t.channels ~key:channel_no
     ~data:{ state = Ready;
-            method_handlers = Hashtbl.create ~growth_allowed:true ~hashable:Hashtbl.Hashable.poly ();
-            content_handlers = Hashtbl.create ~growth_allowed:true ~hashable:Hashtbl.Hashable.poly ();
+            method_handlers = Hashtbl.Poly.create ~growth_allowed:true ();
+            content_handlers = Hashtbl.Poly.create ~growth_allowed:true ();
             writer;
             ready;
           }
@@ -268,7 +265,7 @@ let init ~id ~port host =
   let t =
     { input; output;
       max_length = 256;
-      channels = Hashtbl.create ~growth_allowed:true ~hashable:Hashtbl.Hashable.poly ();
+      channels = Hashtbl.Poly.create ~growth_allowed:true ();
       multiplex = writer;
       id;
       flow = false;
