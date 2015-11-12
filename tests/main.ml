@@ -21,7 +21,7 @@ let consume channel queue =
   return ()
 
 let rec produce channel queue = function
-  | 0 -> return ();
+  | 0 -> Channel.flush channel;
   | n ->
     Queue.publish channel queue (Message.make (string_of_int n)) >>= fun res ->
     assert (res = `Ok);

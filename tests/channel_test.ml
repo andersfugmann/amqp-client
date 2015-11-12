@@ -16,8 +16,10 @@ let test =
   log "Channel opened";
   Channel.close channel1 >>= fun () ->
   log "Channel closed";
-  Channel.close channel2 >>| fun () ->
+  Channel.close channel2 >>= fun () ->
   log "Channel closed";
+  Connection.close connection >>| fun () ->
+  log "Connection closed";
   Shutdown.shutdown 0
 
 let _ =

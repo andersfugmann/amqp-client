@@ -97,6 +97,7 @@ let write_content (t, channel_no) class_id writer data =
   in
   write_frame t channel_no Amqp_constants.frame_header writer;
   let length = String.length data in
+
   (* Here comes the data *)
   let rec send offset =
     if offset < length then
@@ -169,6 +170,8 @@ let decode_message t tpe channel_no size input =
     write_frame t 0 Amqp_constants.frame_heartbeat (fun i -> i)
   | _, n -> raise (Unknown_frame_type n)
 
+(** Cannot just keep running. It should terminate on close... However unexpected close should
+    raise an error. What about a listener, that can be disabled? *)
 let read_frame t =
   let buf = Bigstring.create (1+2+4) in
   Reader.really_read_bigsubstring t.input (Bigsubstring.create buf) >> fun () ->
@@ -237,12 +240,30 @@ let open_channel t channel_no =
   |> ignore;
   Pipe.write t.multiplex reader
 
+let flush t =
+  Hashtbl.data t.channels
+  |> List.map ~f:(fun channel -> Pipe.downstream_flushed channel.writer >>= fun _ -> return ())
+  |> Deferred.all_unit >>= fun () ->
+  Writer.flushed t.output
+
+let flush_channel t channel_no =
+  let channel = Hashtbl.find_exn t.channels channel_no in
+  Pipe.downstream_flushed channel.writer >>= fun _ ->
+  Writer.flushed t.output
+
+let close t =
+  Hashtbl.data t.channels |> List.iter ~f:(fun ch -> Pipe.close ch.writer);
+  flush t >>= fun () ->
+  Reader.close t.input >>= fun () ->
+  Writer.close t.output >>= fun () ->
+  return ()
+
 let close_channel t channel_no =
   let channel = Hashtbl.find_exn t.channels channel_no in
+  Hashtbl.remove t.channels channel_no;
   Pipe.close channel.writer;
-  Hashtbl.remove t.channels channel_no
-
-let flush t = Writer.flushed t.output
+  Pipe.downstream_flushed channel.writer >>= fun _ ->
+  flush t
 
 let rec start_writer output channels =
   Pipe.read channels >>= function

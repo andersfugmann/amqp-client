@@ -151,8 +151,10 @@ let close { framing; channel_no; _ } =
       reply_text="Closed on user request";
       class_id=0;
       method_id=0; } >>= fun () ->
-  Amqp_framing.close_channel framing channel_no;
-  return ()
+  Amqp_framing.close_channel framing channel_no
+
+let flush t =
+  Amqp_framing.flush_channel t.framing t.channel_no
 
 let on_return t =
   let reader, writer = Pipe.create () in

@@ -65,7 +65,6 @@ val set_prefetch : ?count:int -> ?size:int -> _ t -> unit Deferred.t
     rather than per channel (across consumers)
 *)
 
-
 val set_global_prefetch : ?count:int -> ?size:int -> _ t -> unit Deferred.t
 (** Set global prefetch counters.
     @param count Maximum messages inflight (un-acked)
@@ -74,3 +73,7 @@ val set_global_prefetch : ?count:int -> ?size:int -> _ t -> unit Deferred.t
     Note: if using rabbitmq, the prefetch limits are set per channel (across consumers),
     If not, the global prefetch settings is applied globally - across consumers and channels.
 *)
+
+
+(** Flush the channel, making sure all messages have been sent *)
+val flush : _ t -> unit Deferred.t

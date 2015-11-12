@@ -111,3 +111,7 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
 let open_channel ~id confirms t =
   t.channel <- t.channel + 1;
   Amqp_channel.create ~id confirms t.framing t.channel
+
+let close t =
+  (* Send a close frame *)
+  Amqp_framing.close t.framing

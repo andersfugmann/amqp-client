@@ -33,12 +33,14 @@ val set_flow_all : t -> bool -> unit
 
 
 val open_channel : t -> channel_no -> unit Deferred.t
-val close_channel : t -> channel_no -> unit
+val close_channel : t -> channel_no -> unit Deferred.t
 
+val flush_channel : t -> channel_no -> unit Deferred.t
 val flush : t -> unit Deferred.t
 
 val id : t -> string
 
 val init : id:string -> port:int -> string -> t Deferred.t
+val close : t -> unit Deferred.t
 
 val set_max_length : t -> int -> unit

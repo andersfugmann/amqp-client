@@ -5,10 +5,9 @@
 * Handle immediate flag in publish
   (Return messages - requires an async handler)
 
-* Handle flow on channels
-
 * Support immutable strings
 
 * Consumer cancels: when a consumer is cancelled (on a channel) we should close the pipe.
-
-* Use iovecs for reading and writing. Use Core endian
+* Support Connection.close
+* Implement flush on connection and channels
+* Implement sync (close to flush) when publishing messages
