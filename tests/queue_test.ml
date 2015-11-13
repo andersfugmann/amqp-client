@@ -22,6 +22,8 @@ let test =
   Queue.publish channel queue (Message.make "Test") >>= fun res ->
   assert (res = `Ok);
   log "Message published";
+  Channel.flush channel >>= fun () ->
+  log "Channel flushed";
 
   Queue.get ~no_ack:false channel queue >>= fun m ->
   let m = match m with
@@ -46,9 +48,10 @@ let test =
   in
   log "Message recieved";
   Message.ack channel m >>= fun () ->
-  Queue.delete channel queue >>| fun () ->
+  Queue.delete channel queue >>= fun () ->
   log "Queue deleted";
-  Shutdown.shutdown 0
+  Connection.close connection >>= fun () ->
+  Shutdown.shutdown 0 |> return
 
 let _ =
   Scheduler.go ()

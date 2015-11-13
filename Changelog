@@ -1,3 +1,7 @@
+0.1.1:
+* Flush on channel / connection close
+* Implement connection close
+
 0.1.0:
 * Less data copying when constructing messages
 * Use Core's endian functions

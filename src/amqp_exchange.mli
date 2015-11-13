@@ -43,7 +43,7 @@ val bind : _ Amqp_channel.t -> destination:_ t -> source:'a t -> 'a -> unit Defe
 (** Remove exchange to exchange binding *)
 val unbind : _ Amqp_channel.t -> destination:_ t -> source:'a t -> 'a -> unit Deferred.t
 
-(** Publish a message directly to an exchange.  *)
+(** Publish a message directly to an exchange. *)
 val publish :
   'a Amqp_channel.t ->
   _ t ->

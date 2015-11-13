@@ -1,6 +1,7 @@
 open Async.Std
 open Amqp_spec.Connection
 
+let version = "0.1.1"
 let log = Amqp_io.log
 
 type t = { framing: Amqp_framing.t;
@@ -34,7 +35,7 @@ let handle_start id (username, password) {Start.version_major;
       [
         "platform", VLongstr (Sys.os_type);
         "library", VLongstr "ocaml-amqp";
-        "version", VLongstr "0.0.1";
+        "version", VLongstr version;
         "client id", VLongstr id;
         "capabilities", VTable [
           "publisher_confirms", VBoolean true;
@@ -98,7 +99,12 @@ let open_connection { framing; virtual_host; _ } =
   Open.request (framing, 0) { Open.virtual_host }
 
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) host =
-  Amqp_framing.init ~id ~port host >>= fun framing ->
+
+  let addr = Tcp.to_host_and_port host port in
+  Tcp.connect addr >>= fun (socket, input, output) ->
+  Socket.setopt socket Socket.Opt.nodelay true;
+
+  Amqp_framing.init ~id input output >>= fun framing ->
   let t = { framing; virtual_host; channel = 0 } in
 
   Start.reply (framing, 0) (handle_start (Amqp_framing.id framing) credentials) >>= fun () ->
@@ -114,4 +120,10 @@ let open_channel ~id confirms t =
 
 let close t =
   (* Send a close frame *)
+  Amqp_framing.flush t.framing >>= fun () ->
+  Close.request (t.framing, 0) { Close.reply_code = 200;
+                                 reply_text = "Closed per user request";
+                                 class_id = 0;
+                                 method_id = 0;
+                               } >>= fun () ->
   Amqp_framing.close t.framing

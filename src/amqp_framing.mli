@@ -40,7 +40,7 @@ val flush : t -> unit Deferred.t
 
 val id : t -> string
 
-val init : id:string -> port:int -> string -> t Deferred.t
+val init : id:string -> Reader.t -> Writer.t -> t Deferred.t
 val close : t -> unit Deferred.t
 
 val set_max_length : t -> int -> unit

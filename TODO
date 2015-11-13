@@ -2,12 +2,8 @@
 * Make sure we choose the ip address at random (if the host resolves to multiple servers)
 * Error handing / monitors
 
-* Handle immediate flag in publish
-  (Return messages - requires an async handler)
-
 * Support immutable strings
 
 * Consumer cancels: when a consumer is cancelled (on a channel) we should close the pipe.
-* Support Connection.close
-* Implement flush on connection and channels
-* Implement sync (close to flush) when publishing messages
+* Handle server disconnect
+* Implement Recover message

@@ -154,6 +154,7 @@ let publish channel t
       routing_key=routing_key;
       mandatory;
       immediate=false},
-     header, body) >>= fun () -> wait_for_confirm
+     header, body) >>= fun () ->
+  wait_for_confirm
 
 let name t = t.name
