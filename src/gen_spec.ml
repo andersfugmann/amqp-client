@@ -214,6 +214,37 @@ let emit_constants tree =
       emit "let %s = %d" (bind_name name) value | _ -> ())
     tree
 
+let emit_class_index tree =
+  emit "(* Class index *)";
+  let idx = ref 0 in
+  emit "let index_of_class = function";
+  incr indent;
+  List.iter (function Class { Class.index; _ } -> emit "| %d -> %d" index !idx; incr idx | _ -> ()) tree;
+  emit "| _ -> failwith \"Unknown class\"";
+  decr indent;
+  emit "let classes = %d" !idx
+
+let emit_method_index tree =
+  emit "(* Class - Method index *)";
+  let idx = ref 0 in
+  emit "let index_of_class_method = function";
+  incr indent;
+  List.iter (function
+      | Class { Class.index; methods; _ } ->
+        emit "| %d -> begin function" index;
+        incr indent;
+        List.iter (fun { Method.index; _ } ->
+            emit "| %d -> %d" index !idx;
+            incr idx) methods;
+        emit "| _ -> failwith \"Unknown method\"";
+        emit "end";
+        decr indent;
+      | _ -> ()) tree;
+  emit "| _ -> failwith \"Unknown class\"";
+  decr indent;
+  emit "let methods = %d" !idx
+
+
 let spec_str arguments =
   arguments
   |> List.map (fun t -> t.Field.tpe)
@@ -244,14 +275,11 @@ let emit_method ?(is_content=false) class_index
     | None -> ""
     | Some doc -> "(** " ^ doc ^ " *)"
   in
-  let t_spec, t_args = match t_args with
-    | [] -> "unit", "()"
-    | args ->
-      let a = List.map (fun t -> (bind_name t.Field.name), (bind_name t.Field.tpe) ^ option, doc_str t.Field.doc) args in
-      (
-        a |> List.map (fun (a, b, doc) -> a ^ ": " ^ b ^ "; " ^ doc) |> String.concat "\n" |> str "{ %s }",
-        a |> List.map (fun (a, _, _) -> a) |> String.concat "; " |> str "{ %s }"
-      )
+  let types = List.map (fun t -> (bind_name t.Field.name), (bind_name t.Field.tpe) ^ option, doc_str t.Field.doc) t_args in
+
+  let t_args = match types with
+    | [] -> "()"
+    | t -> List.map (fun (a, _, _) -> a) t |> String.concat "; " |> str "{ %s }"
   in
   let names =
     arguments
@@ -266,7 +294,14 @@ let emit_method ?(is_content=false) class_index
     |> String.concat " "
   in
 
-  emit "type t = %s" t_spec;
+  (match types with
+   | [] -> emit "type t = unit"
+   | t ->
+     emit "type t = {";
+     incr indent;
+     List.iter (fun (a, b, doc) -> emit "%s: %s; %s" a b doc) t;
+     decr indent;
+     emit "}");
   emit "";
   emit "(**/**)";
   emit "module Internal = struct";
@@ -433,7 +468,10 @@ let () =
 
   begin
     match !output_type with
-    | Constants -> emit_constants tree
+    | Constants ->
+      emit_constants tree;
+      emit_class_index tree;
+      emit_method_index tree
     | Specification -> emit_specification tree
   end;
   assert (!indent = 0);

@@ -2,7 +2,6 @@
 
 open Async.Std
 open Core.Std
-open Amqp_types
 open Amqp_protocol
 open Amqp_protocol.Spec
 open Amqp_io
@@ -12,17 +11,17 @@ type channel_no = int
 exception Unknown_frame_type of int
 exception Connection_closed
 exception Busy
-exception Unhandled_method of message_id
-exception Unhandled_header of class_id
+exception Unhandled_method of Amqp_types.message_id
+exception Unhandled_header of Amqp_types.class_id
 exception Illegal_channel of channel_no
 
 type channel_state =
   | Ready
-  | Waiting of class_id * Input.t * int * Bytes.t
+  | Waiting of Amqp_types.class_id * Input.t * int * Bytes.t
 
 type message =
-  | Method of message_id * Input.t
-  | Content of class_id * Input.t * string
+  | Method of Amqp_types.message_id * Input.t
+  | Content of Amqp_types.class_id * Input.t * string
 
 type data = Input.t
 
@@ -30,8 +29,8 @@ type content_handler = data * string -> unit
 type method_handler = data -> unit
 
 type channel = { mutable state: channel_state;
-                 method_handlers: (message_id, method_handler) Hashtbl.t;
-                 content_handlers: (class_id, content_handler) Hashtbl.t;
+                 method_handlers: (Amqp_types.message_id, method_handler) Hashtbl.t;
+                 content_handlers: (Amqp_types.class_id, content_handler) Hashtbl.t;
                  writer: Bigstring.t Pipe.Writer.t;
                  mutable ready: unit Ivar.t;
                }
@@ -226,15 +225,15 @@ let set_flow t channel_no active =
 
 let set_flow_all t active =
   t.flow <- active;
-  Core.Std.Array.iteri t.channels
+  Array.iteri t.channels
     ~f:(fun i -> function None -> ()
                         | Some _ -> set_flow t i active)
 
 let open_channel t channel_no =
   (* Grow the array if needed *)
-  let len = Core.Std.Array.length t.channels in
+  let len = Array.length t.channels in
   if (len <= channel_no) then
-    t.channels <- Core.Std.Array.append t.channels (Core.Std.Array.create ~len None);
+    t.channels <- Array.append t.channels (Array.create ~len None);
 
   let reader, writer = Pipe.create () in
   let ready = match t.flow with
@@ -252,7 +251,7 @@ let open_channel t channel_no =
   Pipe.write t.multiplex reader
 
 let flush t =
-  Core.Std.Array.to_list t.channels
+  Array.to_list t.channels
   |> List.filter_opt
   |> List.map ~f:(fun channel -> Pipe.downstream_flushed channel.writer >>= fun _ -> return ())
   |> Deferred.all_unit >>= fun () ->
@@ -264,7 +263,7 @@ let flush_channel t channel_no =
   Writer.flushed t.output
 
 let close t =
-  Core.Std.Array.to_list t.channels
+  Array.to_list t.channels
   |> List.filter_opt
   |> List.iter ~f:(fun ch -> Pipe.close ch.writer);
   flush t >>= fun () ->
@@ -291,13 +290,13 @@ let id {id; _} = id
 
 (** [writer] is channel 0 writer. It must be attached *)
 let init ~id input output  =
-  let id = Printf.sprintf "%s.%s.%s.%s" id (Unix.gethostname ()) (Unix.getpid () |> Core.Std.Pid.to_string) (Sys.executable_name |> Filename.basename) in
+  let id = Printf.sprintf "%s.%s.%s.%s" id (Unix.gethostname ()) (Unix.getpid () |> Pid.to_string) (Sys.executable_name |> Filename.basename) in
   let reader, writer = Pipe.create () in
   don't_wait_for (start_writer output (Pipe.interleave_pipe reader));
   let t =
     { input; output;
       max_length = 1024;
-      channels = Core.Std.Array.create ~len:256 None;
+      channels = Array.create ~len:256 None;
       multiplex = writer;
       id;
       flow = false;

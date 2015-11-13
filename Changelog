@@ -1,6 +1,7 @@
 0.1.1:
 * Flush on channel / connection close
 * Implement connection close
+* Replace hash tables with arrays
 
 0.1.0:
 * Less data copying when constructing messages
