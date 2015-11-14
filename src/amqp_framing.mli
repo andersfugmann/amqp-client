@@ -4,8 +4,6 @@ open Amqp_types
 exception Unknown_frame_type of int
 exception Connection_closed
 exception Busy
-exception Unhandled_method of Amqp_types.message_id
-exception Unhandled_header of Amqp_types.class_id
 
 type channel_no = int
 

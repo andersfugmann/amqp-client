@@ -11,8 +11,7 @@ type channel_no = int
 exception Unknown_frame_type of int
 exception Connection_closed
 exception Busy
-exception Unhandled_method of Amqp_types.message_id
-exception Unhandled_header of Amqp_types.class_id
+exception No_handler_found
 exception Illegal_channel of channel_no
 
 type channel_state =
@@ -29,8 +28,8 @@ type content_handler = data * string -> unit
 type method_handler = data -> unit
 
 type channel = { mutable state: channel_state;
-                 method_handlers: (Amqp_types.message_id, method_handler) Hashtbl.t;
-                 content_handlers: (Amqp_types.class_id, content_handler) Hashtbl.t;
+                 method_handlers: (Amqp_types.message_id * method_handler) Doubly_linked.t;
+                 content_handlers: (Amqp_types.class_id * content_handler) Doubly_linked.t;
                  writer: Bigstring.t Pipe.Writer.t;
                  mutable ready: unit Ivar.t;
                }
@@ -123,6 +122,12 @@ let write_message (t, channel_no) (message_id, writer) content =
     write_method (t, channel_no) message_id writer;
     return ()
 
+let get_handler lst id =
+  match Doubly_linked.find_elt ~f:(fun (id', _) -> id = id') lst with
+  | Some elt -> Doubly_linked.move_to_front lst elt;
+    snd (Doubly_linked.Elt.value elt)
+  | None -> raise No_handler_found
+
 (** read_frame reads a frame from the input, and sends the data to
     the channel writer *)
 let decode_message t tpe channel_no size input =
@@ -132,11 +137,8 @@ let decode_message t tpe channel_no size input =
     (* Standard method message *)
     let message_id = read_method_frame (fun a b -> a, b) input in
     log "Received method on channel: %d (%d, %d)" channel_no (fst message_id) (snd message_id);
-    begin
-      match Hashtbl.find channel.method_handlers message_id with
-      | Some handler -> handler input
-      | None -> raise (Unhandled_method message_id)
-    end;
+    let handler = get_handler channel.method_handlers message_id in
+    handler input;
     Input.destroy input
   | Ready, n when n = Amqp_constants.frame_header ->
     let class_id, _weight, size =
@@ -146,11 +148,9 @@ let decode_message t tpe channel_no size input =
 
     if size = 0 then begin
       log "Received body on channel: %d (%d)" channel_no class_id;
-      match Hashtbl.find channel.content_handlers class_id with
-        | Some handler ->
-          handler (input, "")
-        | None -> raise (Unhandled_header class_id)
-      end
+      let handler = get_handler channel.content_handlers class_id in
+      handler (input, "")
+    end
     else
       channel.state <- Waiting (class_id, input, 0, String.create size)
   | Waiting (class_id, content, offset, buffer), n when n = Amqp_constants.frame_body ->
@@ -160,10 +160,9 @@ let decode_message t tpe channel_no size input =
     if (String.length buffer = offset + size) then begin
       channel.state <- Ready;
       log "Received body on channel: %d (%d)" channel_no class_id;
-      match Hashtbl.find channel.content_handlers class_id with
-      | Some handler -> handler (content, buffer);
-        Input.destroy content;
-      | None -> raise (Unhandled_header class_id)
+      let handler = get_handler channel.content_handlers class_id in
+      handler (content, buffer);
+      Input.destroy content
     end
     else
       channel.state <- Waiting (class_id, content, offset + size, buffer)
@@ -194,25 +193,25 @@ let rec read_frame t =
 
 let register_method_handler (t, channel_no) message_id handler =
   let c = channel t channel_no in
-  match Hashtbl.add c.method_handlers ~key:message_id ~data:handler with
-  | `Ok -> ()
-  | `Duplicate -> raise Busy
+  let (_: 'a Doubly_linked.Elt.t) = Doubly_linked.insert_first c.method_handlers (message_id, handler) in
+  ()
 
 let register_content_handler (t, channel_no) class_id handler =
   let c = channel t channel_no in
-  match Hashtbl.add c.content_handlers ~key:class_id ~data:handler with
-  | `Ok -> ()
-  | `Duplicate -> raise Busy
+  let (_: 'a Doubly_linked.Elt.t) = Doubly_linked.insert_first c.content_handlers (class_id, handler) in
+  ()
 
 let deregister_method_handler (t, channel_no) message_id =
   let c = channel t channel_no in
-  if not (Hashtbl.mem c.method_handlers message_id) then raise Busy;
-  Hashtbl.remove c.method_handlers message_id
+  match Doubly_linked.find_elt c.method_handlers ~f:(fun (id, _ ) -> id = message_id) with
+  | None -> raise Busy
+  | Some elt -> Doubly_linked.remove c.method_handlers elt
 
 let deregister_content_handler (t, channel_no) class_id =
   let c = channel t channel_no in
-  if not (Hashtbl.mem c.content_handlers class_id) then raise Busy;
-  Hashtbl.remove c.content_handlers class_id
+  match Doubly_linked.find_elt c.content_handlers ~f:(fun (id, _ ) -> id = class_id) with
+  | None -> raise Busy
+  | Some elt -> Doubly_linked.remove c.content_handlers elt
 
 let set_flow t channel_no active =
   let c = channel t channel_no in
@@ -242,8 +241,8 @@ let open_channel t channel_no =
   in
   t.channels.(channel_no) <-
     Some { state = Ready;
-           method_handlers = Hashtbl.Poly.create ~growth_allowed:true ();
-           content_handlers = Hashtbl.Poly.create ~growth_allowed:true ();
+           method_handlers = Doubly_linked.create ();
+           content_handlers = Doubly_linked.create ();
            writer;
            ready;
          };

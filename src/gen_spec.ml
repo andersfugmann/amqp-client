@@ -470,8 +470,11 @@ let () =
     match !output_type with
     | Constants ->
       emit_constants tree;
+      (*
       emit_class_index tree;
       emit_method_index tree
+      *)
+      ()
     | Specification -> emit_specification tree
   end;
   assert (!indent = 0);
