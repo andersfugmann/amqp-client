@@ -20,3 +20,8 @@ val connect :
 *)
 val open_channel : id:string -> 'a Amqp_channel.confirms -> t -> 'a Amqp_channel.t Deferred.t
 val close : t -> unit Deferred.t
+
+(** Closed becomes determined when the connection is closed,
+    either by call to close, or if the connection is unexpectedly closed.
+*)
+val closed : t -> unit Deferred.t

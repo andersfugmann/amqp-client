@@ -1,3 +1,4 @@
+open Core.Std
 open Async.Std
 open Amqp_spec.Connection
 
@@ -6,37 +7,37 @@ let log = Amqp_io.log
 
 type t = { framing: Amqp_framing.t;
            virtual_host: string;
-           mutable channel: int
+           mutable channel: int;
+           closed: unit Ivar.t;
          }
 
-let rec string_split ?(offset=0) ~by s =
-  match String.index_from s offset by with
-  | n ->
-    String.sub s offset (n - offset) :: string_split ~offset:(n+1) ~by s
-  | exception Not_found -> [ String.sub s offset (String.length s - offset) ]
-  | exception Invalid_argument _ -> []
-
-let handle_start id (username, password) {Start.version_major;
-                                       version_minor;
-                                       server_properties;
-                                       mechanisms = _;
-                                       locales } =
-  let open Amqp_types in
+let reply_start framing (username, password) =
   let print_item table s =
-    match List.assoc s table with
-    | VLongstr v -> printf "%s: %s\n" s v
+    let open Amqp_types in
+    match List.Assoc.find table s with
+    | Some (VLongstr v) -> printf "%s: %s\n" s v
     | _ -> ()
-    | exception _ -> ()
   in
-  ["product"; "version" ] |> List.iter (print_item server_properties);
-  printf "Amqp: %d.%d\n" version_major version_minor;
 
-  let properties =
-      [
+  let reply { Start.version_major;
+              version_minor;
+              server_properties;
+              mechanisms = _;
+              locales } =
+
+    let open Amqp_types in
+    ["product"; "version" ] |> List.iter ~f:(print_item server_properties);
+    printf "Amqp: %d.%d\n" version_major version_minor;
+
+    return {
+      Start_ok.mechanism = "PLAIN";
+      response = "\x00" ^ username ^ "\x00" ^ password;
+      locale = String.split ~on:';' locales |> List.hd_exn;
+      Start_ok.client_properties = [
         "platform", VLongstr (Sys.os_type);
         "library", VLongstr "ocaml-amqp";
         "version", VLongstr version;
-        "client id", VLongstr id;
+        "client id", VLongstr (Amqp_framing.id framing);
         "capabilities", VTable [
           "publisher_confirms", VBoolean true;
           "exchange_exchange_bindings", VBoolean true;
@@ -47,39 +48,40 @@ let handle_start id (username, password) {Start.version_major;
           "authentication_failure_close", VBoolean true;
           "per_consumer_qos", VBoolean true;
         ]
-      ]
+      ];
+    }
   in
-
-  return {
-    Start_ok.client_properties = properties;
-    mechanism = "PLAIN";
-    response = "\x00" ^ username ^ "\x00" ^ password;
-    locale = string_split ~by:';' locales |> List.hd
-  }
-
-let handle_tune framing { Tune.channel_max;
-                  frame_max; heartbeat; } =
-  log "Channel max: %d" channel_max;
-  log "Frame_max: %d" frame_max;
-  log "Heartbeat: %d" heartbeat;
-  log "Send tune_ok";
-  Amqp_framing.set_max_length framing frame_max;
-  return {
-    Tune_ok.channel_max;
-    frame_max;
-    heartbeat;
-  }
+  Start.reply (framing, 0) reply
 
 
-let handle_close { Close.reply_code;
-                   reply_text;
-                   class_id;
-                   method_id;
-                 } =
-  log "Reply code: %d" reply_code;
-  log "Reply test: %s" reply_text;
-  log "message_id: (%d, %d)" class_id method_id;
-  return ()
+let reply_tune framing =
+  let reply { Tune.channel_max;
+              frame_max; heartbeat; } =
+    log "Channel max: %d" channel_max;
+    log "Frame_max: %d" frame_max;
+    log "Heartbeat: %d" heartbeat;
+    log "Send tune_ok";
+    Amqp_framing.set_max_length framing frame_max;
+    return {
+      Tune_ok.channel_max;
+      frame_max;
+      heartbeat;
+    }
+  in
+  Tune.reply (framing, 0) reply
+
+let reply_close framing =
+  let reply { Close.reply_code;
+              reply_text;
+              class_id;
+              method_id;
+            } =
+    log "Reply code: %d" reply_code;
+    log "Reply test: %s" reply_text;
+    log "message_id: (%d, %d)" class_id method_id;
+    return ()
+  in
+  Close.reply (framing, 0) reply
 
 let register_blocked_handler framing =
 
@@ -101,17 +103,20 @@ let open_connection { framing; virtual_host; _ } =
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) host =
 
   let addr = Tcp.to_host_and_port host port in
+  let closed = Ivar.create () in
   Tcp.connect addr >>= fun (socket, input, output) ->
+  don't_wait_for (Reader.close_finished input >>| fun () -> Ivar.fill closed ());
+
   Socket.setopt socket Socket.Opt.nodelay true;
 
   Amqp_framing.init ~id input output >>= fun framing ->
-  let t = { framing; virtual_host; channel = 0 } in
+  let t = { framing; virtual_host; channel = 0; closed } in
 
-  Start.reply (framing, 0) (handle_start (Amqp_framing.id framing) credentials) >>= fun () ->
-  Tune.reply (framing, 0) (handle_tune framing) >>= fun () ->
+  reply_start framing credentials >>= fun () ->
+  reply_tune framing >>= fun () ->
   open_connection t >>= fun () ->
-  register_blocked_handler t.framing;
-  don't_wait_for (Close.reply (framing, 0) handle_close);
+  register_blocked_handler framing;
+  don't_wait_for (reply_close framing);
   return t
 
 let open_channel ~id confirms t =
@@ -119,7 +124,6 @@ let open_channel ~id confirms t =
   Amqp_channel.create ~id confirms t.framing t.channel
 
 let close t =
-  (* Send a close frame *)
   Amqp_framing.flush t.framing >>= fun () ->
   Close.request (t.framing, 0) { Close.reply_code = 200;
                                  reply_text = "Closed per user request";
@@ -127,3 +131,6 @@ let close t =
                                  method_id = 0;
                                } >>= fun () ->
   Amqp_framing.close t.framing
+
+let closed t =
+  Ivar.read t.closed
