@@ -8,7 +8,7 @@ let log = Amqp_io.log
 type t = { framing: Amqp_framing.t;
            virtual_host: string;
            mutable channel: int;
-           closed: unit Ivar.t;
+           mutable closing: bool;
          }
 
 let reply_start framing (username, password) =
@@ -100,17 +100,26 @@ let register_blocked_handler framing =
 let open_connection { framing; virtual_host; _ } =
   Open.request (framing, 0) { Open.virtual_host }
 
-let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) host =
+let connect ~id ?exn_handler ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) host =
+
+  begin
+    match exn_handler with
+    | Some f ->
+      Monitor.create ~name:"amqp" ()
+      |> Monitor.detach_and_iter_errors ~f
+    | None -> ()
+  end;
 
   let addr = Tcp.to_host_and_port host port in
-  let closed = Ivar.create () in
   Tcp.connect addr >>= fun (socket, input, output) ->
-  don't_wait_for (Reader.close_finished input >>| fun () -> Ivar.fill closed ());
 
   Socket.setopt socket Socket.Opt.nodelay true;
 
   Amqp_framing.init ~id input output >>= fun framing ->
-  let t = { framing; virtual_host; channel = 0; closed } in
+  let t = { framing; virtual_host; channel = 0; closing=false } in
+  don't_wait_for (Reader.close_finished input >>|
+                  fun () -> if t.closing then () else raise Amqp_framing.Connection_closed);
+
 
   reply_start framing credentials >>= fun () ->
   reply_tune framing >>= fun () ->
@@ -124,6 +133,7 @@ let open_channel ~id confirms t =
   Amqp_channel.create ~id confirms t.framing t.channel
 
 let close t =
+  t.closing <- true;
   Amqp_framing.flush t.framing >>= fun () ->
   Close.request (t.framing, 0) { Close.reply_code = 200;
                                  reply_text = "Closed on user request";
@@ -131,6 +141,3 @@ let close t =
                                  method_id = 0;
                                } >>= fun () ->
   Amqp_framing.close t.framing
-
-let closed t =
-  Ivar.read t.closed

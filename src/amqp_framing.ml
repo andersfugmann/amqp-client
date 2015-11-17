@@ -71,6 +71,7 @@ let write_frame t channel_no tpe writer =
   write_frame_header output tpe channel_no length
   |> writer
   |> fun w -> Output.octet w Amqp_constants.frame_end;
+  (* Use Pipe.write' that takes a queue of messages and return a deferred. *)
   Pipe.write_without_pushback channel.writer (Output.get output)
 
 let write_method_id =
@@ -110,6 +111,7 @@ let write_content (t, channel_no) class_id writer data =
   in
   send 0
 
+(* This should write to the pipe using write', and return a deferred (which is does already, just better *)
 let write_message (t, channel_no) (message_id, writer) content =
   let channel = channel t channel_no in
   match content with
