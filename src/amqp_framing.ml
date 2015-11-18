@@ -57,49 +57,51 @@ let size_of_writer writer =
   writer sizer;
   Output.size sizer
 
-let write_frame t channel_no tpe writer =
-  let channel = channel t channel_no in
+let create_frame channel_no tpe writer =
   let length = size_of_writer writer in
   let output = Output.create (1+2+4+length+1) in
 
   write_frame_header output tpe channel_no length
   |> writer
   |> fun w -> Output.octet w Amqp_constants.frame_end;
-  (* Use Pipe.write' that takes a queue of messages and return a deferred. *)
-  Pipe.write_without_pushback channel.writer (Output.get output)
+  Output.get output
 
 let write_method_id =
   let open Amqp_protocol.Spec in
   write (Short :: Short :: Nil)
 
-let write_method (t, channel_no) (cid, mid) writer =
+let create_method_frame channel_no (cid, mid) writer =
   log "Send method on channel: %d (%d, %d)" channel_no cid mid;
   let writer output =
     write_method_id output cid mid
     |> writer
   in
-  write_frame t channel_no Amqp_constants.frame_method writer
+  create_frame channel_no Amqp_constants.frame_method writer
 
-let write_content_header =
+let create_content_header =
   let open Amqp_protocol.Spec in
   write (Short :: Short :: Longlong :: Nil)
 
-let write_content (t, channel_no) class_id writer data =
+let add_content_frames queue max_length channel_no class_id writer data =
   log "Send content on channel: %d (%d)" channel_no class_id;
+
   let writer output =
-    write_content_header output class_id 0 (String.length data)
+    create_content_header output class_id 0 (String.length data)
     |> writer
   in
-  write_frame t channel_no Amqp_constants.frame_header writer;
+  create_frame channel_no Amqp_constants.frame_header writer
+  |> Queue.enqueue queue;
+
   let length = String.length data in
 
   (* Here comes the data *)
   let rec send offset =
     if offset < length then
-      let size = min t.max_length (length - offset) in
-      write_frame t channel_no Amqp_constants.frame_body
-        (fun output -> Output.string output ~src_pos:offset ~len:size data; output);
-      send (offset + t.max_length)
+      let size = min max_length (length - offset) in
+      create_frame channel_no Amqp_constants.frame_body
+        (fun output -> Output.string output ~src_pos:offset ~len:size data; output)
+      |> Queue.enqueue queue;
+      send (offset + max_length)
     else
       ()
   in
@@ -111,12 +113,14 @@ let write_message (t, channel_no) (message_id, writer) content =
   match content with
   | Some (class_id, c_writer, data) ->
     Ivar.read channel.ready >>= fun () ->
-    write_method (t, channel_no) message_id writer;
-    write_content (t, channel_no) class_id c_writer data;
-    return ()
+    let frames = Queue.create () in
+    create_method_frame channel_no message_id writer
+    |> Queue.enqueue frames;
+    add_content_frames frames t.max_length channel_no class_id c_writer data;
+    Pipe.transfer_in channel.writer ~from:frames
   | None ->
-    write_method (t, channel_no) message_id writer;
-    return ()
+    create_method_frame channel_no message_id writer
+    |> Pipe.write channel.writer
 
 let get_handler lst id =
   match Doubly_linked.find_elt ~f:(fun (id', _) -> id = id') lst with
@@ -163,7 +167,8 @@ let decode_message t tpe channel_no size input =
     else
       channel.state <- Waiting (class_id, content, offset + size, buffer)
   | _, n when n = Amqp_constants.frame_heartbeat ->
-    write_frame t 0 Amqp_constants.frame_heartbeat (fun i -> i)
+    create_frame 0 Amqp_constants.frame_heartbeat (fun i -> i)
+    |> Pipe.write_without_pushback channel.writer
   | _, n -> raise (Amqp_types.Unknown_frame_type n)
 
 (** Cannot just keep running. It should terminate on close... However unexpected close should
@@ -238,6 +243,7 @@ let open_channel t channel_no =
     t.channels <- Array.append t.channels (Array.create ~len None);
 
   let reader, writer = Pipe.create () in
+  Pipe.set_size_budget writer 1;
   let ready = match t.flow with
     | true -> Ivar.create ()
     | false -> Ivar.create_full ()
@@ -284,7 +290,6 @@ let rec start_writer output channels =
   Pipe.read channels >>= function
   | `Ok data ->
     Async_unix.Writer.write_bigstring output data;
-    (* TODO: Flush and destroy *)
     start_writer output channels
   | `Eof -> return ()
 
