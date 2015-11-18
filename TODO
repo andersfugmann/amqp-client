@@ -1,9 +1,7 @@
 * Allow setting tcp heartbeat
-* Make sure we choose the ip address at random (if the host resolves to multiple servers)
-* Error handing / monitors
 
 * Support immutable strings
 
 * Consumer cancels: when a consumer is cancelled (on a channel) we should close the pipe.
-* Handle server disconnect
 * Implement Recover message
+* Better use of Deferred.t when sending messages

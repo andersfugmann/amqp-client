@@ -1,9 +1,6 @@
 (** Internal *)
 open Async.Std
 open Amqp_types
-exception Unknown_frame_type of int
-exception Connection_closed
-exception Busy
 
 type channel_no = int
 

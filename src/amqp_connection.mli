@@ -12,13 +12,19 @@ type t
            Virtual must be defined on the amqp-server prior to connecting them.
            Default "/"
     @param port The port to connect to
-    @param exn_handler If given, all caught exceptions (Such as Connection_closed) will be sent to the handler though a detached monitor. If no exception hander is given no monitor will be installed, and exception will be passed up the hierachy. See [Core.Async.Monitor]
 
 
+    If an error occurs an excaption is raised. To capture and handle
+    exceptions it is adviced to detatch a monitor [Core.Async.Monitor]
+    and handle raised exceptions.
+
+    The most important exception is [Connection_closed]. As the
+    connection is statefull (channels are tied to connections e.g),
+    the connection cannot be restablished without redoing all
+    initalization.
 *)
 val connect :
   id:string ->
-  ?exn_handler:(exn -> unit) ->
   ?virtual_host:string ->
   ?port:int ->
   ?credentials:string * string -> string -> t Deferred.t

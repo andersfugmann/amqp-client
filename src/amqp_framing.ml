@@ -8,12 +8,6 @@ open Amqp_io
 
 type channel_no = int
 
-exception Unknown_frame_type of int
-exception Connection_closed
-exception Busy
-exception No_handler_found
-exception Illegal_channel of channel_no
-
 type channel_state =
   | Ready
   | Waiting of Amqp_types.class_id * Input.t * int * Bytes.t
@@ -55,7 +49,7 @@ let read_frame_header, write_frame_header =
 
 let channel t channel_no =
   match t.channels.(channel_no) with
-  | None -> raise (Illegal_channel channel_no)
+  | None -> raise (Amqp_types.Channel_not_found channel_no)
   | Some ch -> ch
 
 let size_of_writer writer =
@@ -128,7 +122,7 @@ let get_handler lst id =
   match Doubly_linked.find_elt ~f:(fun (id', _) -> id = id') lst with
   | Some elt -> Doubly_linked.move_to_front lst elt;
     snd (Doubly_linked.Elt.value elt)
-  | None -> raise No_handler_found
+  | None -> raise Amqp_types.No_handler_found
 
 (** read_frame reads a frame from the input, and sends the data to
     the channel writer *)
@@ -170,7 +164,7 @@ let decode_message t tpe channel_no size input =
       channel.state <- Waiting (class_id, content, offset + size, buffer)
   | _, n when n = Amqp_constants.frame_heartbeat ->
     write_frame t 0 Amqp_constants.frame_heartbeat (fun i -> i)
-  | _, n -> raise (Unknown_frame_type n)
+  | _, n -> raise (Amqp_types.Unknown_frame_type n)
 
 (** Cannot just keep running. It should terminate on close... However unexpected close should
     raise an error. What about a listener, that can be disabled? *)
@@ -195,24 +189,31 @@ let rec read_frame t =
 
 let register_method_handler (t, channel_no) message_id handler =
   let c = channel t channel_no in
+  if Doubly_linked.exists c.method_handlers
+      ~f:(fun x -> fst x = message_id) then
+    raise Amqp_types.Busy;
+
   let (_: 'a Doubly_linked.Elt.t) = Doubly_linked.insert_first c.method_handlers (message_id, handler) in
   ()
 
 let register_content_handler (t, channel_no) class_id handler =
   let c = channel t channel_no in
+  if Doubly_linked.exists c.content_handlers
+      ~f:(fun x -> fst x = class_id) then
+    raise Amqp_types.Busy;
   let (_: 'a Doubly_linked.Elt.t) = Doubly_linked.insert_first c.content_handlers (class_id, handler) in
   ()
 
 let deregister_method_handler (t, channel_no) message_id =
   let c = channel t channel_no in
   match Doubly_linked.find_elt c.method_handlers ~f:(fun (id, _ ) -> id = message_id) with
-  | None -> raise Busy
+  | None -> raise Amqp_types.Busy
   | Some elt -> Doubly_linked.remove c.method_handlers elt
 
 let deregister_content_handler (t, channel_no) class_id =
   let c = channel t channel_no in
   match Doubly_linked.find_elt c.content_handlers ~f:(fun (id, _ ) -> id = class_id) with
-  | None -> raise Busy
+  | None -> raise Amqp_types.Busy
   | Some elt -> Doubly_linked.remove c.content_handlers elt
 
 let set_flow t channel_no active =

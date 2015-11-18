@@ -100,15 +100,7 @@ let register_blocked_handler framing =
 let open_connection { framing; virtual_host; _ } =
   Open.request (framing, 0) { Open.virtual_host }
 
-let connect ~id ?exn_handler ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) host =
-
-  begin
-    match exn_handler with
-    | Some f ->
-      Monitor.create ~name:"amqp" ()
-      |> Monitor.detach_and_iter_errors ~f
-    | None -> ()
-  end;
+let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) host =
 
   let addr = Tcp.to_host_and_port host port in
   Tcp.connect addr >>= fun (socket, input, output) ->
@@ -118,7 +110,12 @@ let connect ~id ?exn_handler ?(virtual_host="/") ?(port=5672) ?(credentials=("gu
   Amqp_framing.init ~id input output >>= fun framing ->
   let t = { framing; virtual_host; channel = 0; closing=false } in
   don't_wait_for (Reader.close_finished input >>|
-                  fun () -> if t.closing then () else raise Amqp_framing.Connection_closed);
+                  fun () ->
+                  if t.closing then
+                    ()
+                  else
+                    raise Amqp_types.Connection_closed
+                 );
 
 
   reply_start framing credentials >>= fun () ->

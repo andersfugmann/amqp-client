@@ -7,8 +7,6 @@ type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
 type consumers = (string, consumer) Hashtbl.t
 (**/**)
 
-type close_handler = int -> Channel.Close.t -> unit Deferred.t
-
 type _ t
 
 (**/**)
@@ -37,12 +35,6 @@ val create : id:string -> 'a confirms ->
 
 (** Close the channel *)
 val close : _ t -> unit Deferred.t
-
-(** Register a handler if the connection closes unexpectedly.
-    This handler will not be called if the channel is closed by the user.
-    The default handler is to terminate the application
-*)
-val register_close_handler : _ t -> close_handler -> unit
 
 (** Receive all returned messages.
     This function may only be called once (per channel)

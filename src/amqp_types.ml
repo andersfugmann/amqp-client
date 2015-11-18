@@ -1,4 +1,10 @@
 (** Basic Amqp types *)
+exception Connection_closed
+exception Channel_closed of int
+exception Channel_not_found of int
+exception Unknown_frame_type of int
+exception No_handler_found
+exception Busy
 
 type class_id = int
 type method_id = int

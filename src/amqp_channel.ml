@@ -1,7 +1,6 @@
 open Async.Std
 open Amqp_spec
 
-
 type no_confirm = [ `Ok ]
 type with_confirm = [ `Ok | `Failed ]
 
@@ -22,7 +21,6 @@ type _ pcp =
   | Pcp_no_confirm: no_confirm pcp
   | Pcp_with_confirm: publish_confirm -> with_confirm pcp
 
-type close_handler = int -> Channel.Close.t -> unit Deferred.t
 type 'a t = { framing: Amqp_framing.t;
               channel_no: int;
               consumers: consumers;
@@ -55,7 +53,7 @@ module Internal = struct
     read ~once:false handler (channel t)
 
   let register_consumer_handler t consumer_tag handler =
-    if Hashtbl.mem t.consumers consumer_tag then raise Amqp_framing.Busy;
+    if Hashtbl.mem t.consumers consumer_tag then raise Amqp_types.Busy;
     Hashtbl.add t.consumers consumer_tag handler
 
   let deregister_consumer_handler t consumer_tag =
@@ -77,11 +75,7 @@ let close_handler channel_no close =
   eprintf "Reply code: %d\n" close.Channel.Close.reply_code;
   eprintf "Reply text: %s\n" close.Channel.Close.reply_text;
   eprintf "Message: (%d, %d)\n" close.Channel.Close.class_id close.Channel.Close.method_id;
-  Shutdown.shutdown 1;
-  return ()
-
-let register_close_handler t handler =
-  don't_wait_for (Channel.Close.reply (channel t) (handler t.channel_no))
+  raise (Amqp_types.Channel_closed channel_no)
 
 let register_flow_handler t =
   let (_, read) = Channel.Flow.Internal.read in
@@ -130,6 +124,7 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
   let consumers = Hashtbl.create 0 in
   let id = Printf.sprintf "%s.%s.%d" (Amqp_framing.id framing) id channel_no in
   Amqp_framing.open_channel framing channel_no >>= fun () ->
+  don't_wait_for (Channel.Close.reply (framing, channel_no) (close_handler channel_no));
   Channel.Open.request (framing, channel_no) () >>= fun () ->
   let publish_confirm : a pcp = match confirm_type with
     | With_confirm ->
@@ -140,7 +135,6 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
   let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm } in
   Internal.register_deliver_handler t;
 
-  register_close_handler t close_handler;
   register_flow_handler t;
   return t
 
