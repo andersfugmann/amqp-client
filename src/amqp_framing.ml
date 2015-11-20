@@ -122,6 +122,12 @@ let write_message (t, channel_no) (message_id, writer) content =
     create_method_frame channel_no message_id writer
     |> Pipe.write channel.writer
 
+let send_heartbeat t =
+  let channel = channel t 0 in
+  create_frame 0 Amqp_constants.frame_heartbeat (fun i -> i)
+  |> Pipe.write_without_pushback channel.writer
+
+
 let get_handler lst id =
   match Doubly_linked.find_elt ~f:(fun (id', _) -> id = id') lst with
   | Some elt -> Doubly_linked.move_to_front lst elt;
@@ -166,9 +172,7 @@ let decode_message t tpe channel_no size input =
     end
     else
       channel.state <- Waiting (class_id, content, offset + size, buffer)
-  | _, n when n = Amqp_constants.frame_heartbeat ->
-    create_frame 0 Amqp_constants.frame_heartbeat (fun i -> i)
-    |> Pipe.write_without_pushback channel.writer
+  | _, n when n = Amqp_constants.frame_heartbeat -> ()
   | _, n -> raise (Amqp_types.Unknown_frame_type n)
 
 (** Cannot just keep running. It should terminate on close... However unexpected close should
@@ -243,7 +247,7 @@ let open_channel t channel_no =
     t.channels <- Array.append t.channels (Array.create ~len None);
 
   let reader, writer = Pipe.create () in
-  Pipe.set_size_budget writer 1;
+  Pipe.set_size_budget writer 4;
   let ready = match t.flow with
     | true -> Ivar.create ()
     | false -> Ivar.create_full ()
@@ -310,7 +314,7 @@ let init ~id input output  =
     }
   in
   Writer.write output protocol_header;
-  Deferred.don't_wait_for (read_frame t);
+  don't_wait_for (read_frame t);
   open_channel t 0 >>= fun () ->
   return t
 

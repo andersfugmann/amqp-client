@@ -1,5 +1,6 @@
 open Amqp_spec.Basic
 
+module Channel = Amqp_channel
 type message = (Content.t * string)
 
 let string_header key value = key, Amqp_types.VLongstr value
@@ -54,7 +55,11 @@ let ack channel t =
   Ack.request (Amqp_channel.channel channel)
     { Ack.delivery_tag = t.delivery_tag; multiple = false }
 
-let reject ?(requeue = true) channel t =
+let reject ~requeue channel t =
   let open Amqp_spec.Basic in
   Reject.request (Amqp_channel.channel channel)
     { Reject.delivery_tag = t.delivery_tag; requeue }
+
+
+let recover ~requeue channel =
+  Amqp_spec.Basic.Recover.request  (Amqp_channel.channel channel) { Amqp_spec.Basic.Recover.requeue }

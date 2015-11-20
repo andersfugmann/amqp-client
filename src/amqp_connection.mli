@@ -12,6 +12,7 @@ type t
            Virtual must be defined on the amqp-server prior to connecting them.
            Default "/"
     @param port The port to connect to
+    @param heartbeat delay between hearbeats in seconds. Lower the number to detect copnnection loss faster.
 
 
     If an error occurs an excaption is raised. To capture and handle
@@ -27,7 +28,9 @@ val connect :
   id:string ->
   ?virtual_host:string ->
   ?port:int ->
-  ?credentials:string * string -> string -> t Deferred.t
+  ?credentials:string * string ->
+  ?heartbeat:int ->
+  string -> t Deferred.t
 
 (** Open a new channel.
     @param id identifies the channel for tracing and debugging

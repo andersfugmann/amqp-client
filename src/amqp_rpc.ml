@@ -98,7 +98,7 @@ module Server = struct
       let content = { content with Content.correlation_id } in
       Exchange.publish channel Exchange.default ~routing_key (content, body) >>= function
       | `Ok -> Message.ack channel message
-      | `Failed -> Message.reject channel message
+      | `Failed -> Message.reject ~requeue:true channel message
     in
     (* Start consuming. *)
     Queue.consume ~id:"rpc_server" channel queue >>= fun (consumer, reader) ->

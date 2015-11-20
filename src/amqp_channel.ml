@@ -169,3 +169,19 @@ let set_global_prefetch ?(count=0) ?(size=0) t =
   Basic.Qos.request (channel t) { Basic.Qos.prefetch_count=count;
                                   prefetch_size=size;
                                   global=true }
+
+module Transaction = struct
+  (** Hmm. Create an exsistential type? *)
+  type tx = EChannel: _ t -> tx
+
+  open Amqp_spec.Tx
+  let start t =
+    Select.request (channel t) () >>= fun () ->
+    return (EChannel t)
+
+  let commit (EChannel t) =
+    Commit.request (channel t) ()
+
+  let rollback (EChannel t) =
+    Rollback.request (channel t) ()
+end

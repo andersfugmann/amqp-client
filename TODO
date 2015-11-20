@@ -1,7 +1,7 @@
-* Allow setting tcp heartbeat
+* Allow setting tcp heartbeat - The system should also send heartbeats
+  to make sure the connecion is alive (or at least to keep it alive)
 
 * Support immutable strings
 
 * Consumer cancels: when a consumer is cancelled (on a channel) we should close the pipe.
 * Implement Recover message
-* Better use of Deferred.t when sending messages

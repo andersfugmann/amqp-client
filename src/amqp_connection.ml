@@ -54,12 +54,15 @@ let reply_start framing (username, password) =
   Start.reply (framing, 0) reply
 
 
-let reply_tune framing =
+let reply_tune hb framing =
+  let var = Ivar.create () in
   let reply { Tune.channel_max;
               frame_max; heartbeat; } =
     log "Channel max: %d" channel_max;
     log "Frame_max: %d" frame_max;
     log "Heartbeat: %d" heartbeat;
+    let hb = Option.value ~default:heartbeat hb in
+    Ivar.fill var (min heartbeat hb);
     log "Send tune_ok";
     Amqp_framing.set_max_length framing frame_max;
     return {
@@ -68,7 +71,7 @@ let reply_tune framing =
       heartbeat;
     }
   in
-  Tune.reply (framing, 0) reply
+  Tune.reply (framing, 0) reply >>= fun () -> Ivar.read var
 
 let reply_close framing =
   let reply { Close.reply_code;
@@ -82,6 +85,15 @@ let reply_close framing =
     return ()
   in
   Close.reply (framing, 0) reply
+
+let rec send_heartbeat delay t =
+  after (Time.Span.of_int_sec delay) >>= fun () ->
+  if t.closing then
+    return ()
+  else begin
+    Amqp_framing.send_heartbeat t.framing;
+    send_heartbeat delay t
+  end
 
 let register_blocked_handler framing =
 
@@ -100,7 +112,7 @@ let register_blocked_handler framing =
 let open_connection { framing; virtual_host; _ } =
   Open.request (framing, 0) { Open.virtual_host }
 
-let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) host =
+let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 
   let addr = Tcp.to_host_and_port host port in
   Tcp.connect addr >>= fun (socket, input, output) ->
@@ -119,7 +131,8 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
 
 
   reply_start framing credentials >>= fun () ->
-  reply_tune framing >>= fun () ->
+  reply_tune heartbeat framing >>= fun heartbeat ->
+  don't_wait_for (send_heartbeat heartbeat t);
   open_connection t >>= fun () ->
   register_blocked_handler framing;
   don't_wait_for (reply_close framing);

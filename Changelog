@@ -2,6 +2,10 @@
 * Flush on channel / connection close
 * Implement connection close
 * Replace hash tables with arrays
+* Add per channel transaction support
+* Limit number of queued messages
+* Add channel recover
+* Allow specification of hearbeat freq to detect connection stalls
 
 0.1.0:
 * Less data copying when constructing messages

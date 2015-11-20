@@ -1,4 +1,5 @@
 (** Operations on channels *)
+
 open Async.Std
 open Amqp_spec
 
@@ -66,6 +67,23 @@ val set_global_prefetch : ?count:int -> ?size:int -> _ t -> unit Deferred.t
     If not, the global prefetch settings is applied globally - across consumers and channels.
 *)
 
-
 (** Flush the channel, making sure all messages have been sent *)
 val flush : _ t -> unit Deferred.t
+
+(** Transactions.
+    Transactions can be made per channel.
+    After a transaction is started, all published messages and all changes (queue/exchange bindings, creations or deletions) and message acknowledgements are not visible outside the transaction.
+    The changes becomes visible after a [commit] or canceled by call to [rollback].
+*)
+module Transaction : sig
+  type tx
+
+  (** Start a transacction *)
+  val start : _ t -> tx Async.Std.Deferred.t
+
+  (** Commit an transaction *)
+  val commit : tx -> unit Async.Std.Deferred.t
+
+  (** Rollback a transaction, discarding all changes and messages *)
+  val rollback : tx -> unit Async.Std.Deferred.t
+end

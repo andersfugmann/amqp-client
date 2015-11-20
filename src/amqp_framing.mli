@@ -18,6 +18,8 @@ val write_message : t * channel_no ->
   (class_id * (Amqp_io.Output.t -> Amqp_io.Output.t) * Core.Std.String.t) option ->
   unit Deferred.t
 
+val send_heartbeat: t -> unit
+
 val register_method_handler : t * channel_no -> message_id -> method_handler -> unit
 val register_content_handler : t * channel_no -> class_id -> content_handler -> unit
 val deregister_method_handler : t * channel_no -> message_id -> unit
