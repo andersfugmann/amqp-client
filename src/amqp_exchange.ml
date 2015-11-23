@@ -7,10 +7,10 @@ open Amqp_spec.Exchange
 (* type match_type = Any | All *)
 
 type _ exchange_type =
-  | Direct: string exchange_type
-  | Fanout: string exchange_type
-  | Topic: string exchange_type
-  | Match: Amqp_types.header list exchange_type
+  | Direct: (queue:string -> unit Deferred.t) exchange_type
+  | Fanout: (unit Deferred.t) exchange_type
+  | Topic: (topic:string -> unit Deferred.t) exchange_type
+  | Match: (headers:(Amqp_types.header list) -> unit Deferred.t) exchange_type
 
 let direct_t = Direct
 let fanout_t = Fanout
@@ -42,7 +42,7 @@ let string_of_exchange_type: type a. a exchange_type -> string  = function
   | Match -> "match"
 
 module Internal = struct
-  let bind_queue: type a. _ Channel.t -> a t -> string -> a -> unit Deferred.t =
+  let bind_queue: type a. _ Channel.t -> a t -> string -> a =
     let open Amqp_spec.Queue in
     fun channel { name; exchange_type} queue ->
       let bind ?(routing_key="") ?(arguments=[]) () =
@@ -56,12 +56,12 @@ module Internal = struct
         Bind.request (Channel.channel channel) query
       in
       match exchange_type with
-      | Direct -> fun routing_key -> bind ~routing_key ()
-      | Fanout -> fun routing_key -> bind ~routing_key ()
-      | Topic -> fun routing_key -> bind ~routing_key ()
-      | Match -> fun arguments -> bind ~arguments ()
+      | Direct -> fun ~queue:routing_key -> bind ~routing_key ()
+      | Fanout -> bind ()
+      | Topic -> fun ~topic:routing_key -> bind ~routing_key ()
+      | Match -> fun ~headers:arguments -> bind ~arguments ()
 
-  let unbind_queue: type a. _ Channel.t -> a t -> string -> a -> unit Deferred.t =
+  let unbind_queue: type a. _ Channel.t -> a t -> string -> a =
     let open Amqp_spec.Queue in
     fun channel { name; exchange_type} queue ->
       let unbind ?(routing_key="") ?(arguments=[]) () =
@@ -74,10 +74,10 @@ module Internal = struct
         Unbind.request (Channel.channel channel) query
       in
       match exchange_type with
-      | Direct -> fun routing_key -> unbind ~routing_key ()
-      | Fanout -> fun routing_key -> unbind ~routing_key ()
-      | Topic -> fun routing_key -> unbind ~routing_key ()
-      | Match -> fun arguments -> unbind ~arguments ()
+      | Direct -> fun ~queue:routing_key -> unbind ~routing_key ()
+      | Fanout -> unbind ()
+      | Topic -> fun ~topic:routing_key -> unbind ~routing_key ()
+      | Match -> fun ~headers:arguments -> unbind ~arguments ()
 
 end
 
@@ -102,7 +102,7 @@ let delete ?(if_unused=false) channel t =
       no_wait = false;
     }
 
-let bind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit Deferred.t=
+let bind: type a. _ Channel.t -> destination:_ t -> source:a t -> a =
   fun channel ~destination ~source ->
     let bind ?(routing_key="") ?(arguments=[]) () =
       let query = { Bind.destination = destination.name;
@@ -115,12 +115,13 @@ let bind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit Defe
       Bind.request (Channel.channel channel) query
     in
     match source.exchange_type with
-    | Direct -> fun routing_key -> bind ~routing_key ()
-    | Fanout -> fun routing_key -> bind ~routing_key ()
-    | Topic -> fun routing_key -> bind ~routing_key ()
-    | Match -> fun arguments -> bind ~arguments ()
+    | Direct -> fun ~queue:routing_key -> bind ~routing_key ()
+    | Fanout -> bind ()
+    | Topic -> fun ~topic:routing_key -> bind ~routing_key ()
+    | Match -> fun ~headers:arguments -> bind ~arguments ()
 
-let unbind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit Deferred.t=
+
+let unbind: type a. _ Channel.t -> destination:_ t -> source:a t -> a =
   fun channel ~destination ~source ->
     let unbind ?(routing_key="") ?(arguments=[]) () =
       let query = { Unbind.destination = destination.name;
@@ -133,10 +134,10 @@ let unbind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit De
       Unbind.request (Channel.channel channel) query
     in
     match source.exchange_type with
-    | Direct -> fun routing_key -> unbind ~routing_key ()
-    | Fanout -> fun routing_key -> unbind ~routing_key ()
-    | Topic -> fun routing_key -> unbind ~routing_key ()
-    | Match -> fun arguments -> unbind ~arguments ()
+      | Direct -> fun ~queue:routing_key -> unbind ~routing_key ()
+      | Fanout -> unbind ()
+      | Topic -> fun ~topic:routing_key -> unbind ~routing_key ()
+      | Match -> fun ~headers:arguments -> unbind ~arguments ()
 
 let publish channel t
     ?(mandatory=false)

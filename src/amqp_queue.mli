@@ -62,10 +62,10 @@ val cancel : _ consumer -> unit Deferred.t
     (and optionally match the headers)
     will be routed to the queue
 *)
-val bind : _ Amqp_channel.t -> t -> 'b Amqp_exchange.t -> 'b -> unit Deferred.t
+val bind : _ Amqp_channel.t -> t -> 'b Amqp_exchange.t -> 'b
 
 (** Remove a binding from an exhange to a queue *)
-val unbind : _ Amqp_channel.t -> t -> 'b Amqp_exchange.t -> 'b -> unit Deferred.t
+val unbind : _ Amqp_channel.t -> t -> 'b Amqp_exchange.t -> 'b
 
 (** Purge all messages on a queue *)
 val purge : _ Amqp_channel.t -> t -> unit Deferred.t

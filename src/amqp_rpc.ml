@@ -41,7 +41,7 @@ module Client = struct
       ~auto_delete:true
       id >>= fun queue ->
 
-    Queue.bind channel queue Exchange.amq_match ["reply_to", VLongstr (Queue.name queue)] >>= fun () ->
+    Queue.bind channel queue Exchange.amq_match ~headers:["reply_to", VLongstr (Queue.name queue)] >>= fun () ->
 
     Queue.consume ~id:"rpc_client" ~no_ack:true ~exclusive:true channel queue >>= fun (consumer, reader) ->
     let t = { queue; channel; id; outstanding = Hashtbl.create 0; counter = 0; consumer } in
