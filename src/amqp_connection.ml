@@ -62,7 +62,7 @@ let reply_tune hb framing =
     log "Frame_max: %d" frame_max;
     log "Heartbeat: %d" heartbeat;
     let hb = Option.value ~default:heartbeat hb in
-    Ivar.fill var (min heartbeat hb);
+    Ivar.fill var (if heartbeat > 0 then min heartbeat hb else hb);
     log "Send tune_ok";
     Amqp_framing.set_max_length framing frame_max;
     return {
@@ -88,7 +88,7 @@ let reply_close framing =
 
 let rec send_heartbeat delay t =
   after (Time.Span.of_int_sec delay) >>= fun () ->
-  if t.closing then
+  if t.closing || delay = 0 then
     return ()
   else begin
     Amqp_framing.send_heartbeat t.framing;
