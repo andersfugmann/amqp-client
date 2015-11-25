@@ -49,7 +49,7 @@ vmount(-l, tests, _build)
 
         OCamlLibrary(amqp-client, $(FILES))
 
-	.doc.made: amqp.client.a
+	.doc.made: amqp-client.a
 	.doc.made: $(filter-exists $(addsuffix .mli, $(FILES))) $(addsuffix .ml, $(FILES))
 		mkdir -p doc
 		ocamlfind ocamldoc -thread -html -d doc $^ -package "$(OCAMLPACKS)"
