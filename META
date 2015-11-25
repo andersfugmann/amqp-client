@@ -1,5 +1,5 @@
-version = "0.1.1"
+version = "0.2.0"
 description = "AMQP client"
 requires = "async async_unix core"
-archive(byte) = "ocaml-amqp.cma"
-archive(native) = "ocaml-amqp.cmxa"
+archive(byte) = "amqp-client.cma"
+archive(native) = "amqp-client.cmxa"

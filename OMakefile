@@ -47,22 +47,22 @@ vmount(-l, tests, _build)
             amqp_message
             amqp
 
-        OCamlLibrary(ocaml-amqp, $(FILES))
+        OCamlLibrary(amqp-client, $(FILES))
 
-	.doc.made: ocaml-amqp.a
+	.doc.made: amqp.client.a
 	.doc.made: $(filter-exists $(addsuffix .mli, $(FILES))) $(addsuffix .ml, $(FILES))
 		mkdir -p doc
 		ocamlfind ocamldoc -thread -html -d doc $^ -package "$(OCAMLPACKS)"
 		touch $@
 
 	.PHONY: install
-	install: ocaml-amqp.cma ocaml-amqp.cmxa
-		ocamlfind remove ocaml-amqp || true
-		ocamlfind install ocaml-amqp $(filter-exists $(addsuffix .cmt, $(FILES)) $(addsuffix .cmi, $(FILES)) $(addsuffix .mli, $(FILES))) ocaml-amqp.cmxa ocaml-amqp.a ocaml-amqp.cma ../META
+	install: amqp-client.cma amqp-client.cmxa
+		ocamlfind remove amqp-client || true
+		ocamlfind install amqp-client $(filter-exists $(addsuffix .cmt, $(FILES)) $(addsuffix .cmi, $(FILES)) $(addsuffix .mli, $(FILES))) amqp-client.cmxa amqp-client.a amqp-client.cma ../META
 
     section
 	OCAML_LINK_FLAGS = -linkpkg
-	OCAML_LIBS += ocaml-amqp
+	OCAML_LIBS += amqp-client
 
 	TESTS=$(rootname $(basename $(find ../tests/ -name *.ml)))
 
