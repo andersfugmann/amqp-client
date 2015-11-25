@@ -5,16 +5,16 @@ type _ t
 
 type _ exchange_type
 
-val direct_t : string exchange_type
-val fanout_t : string exchange_type
-val topic_t  : string exchange_type
-val match_t  : Amqp_types.header list exchange_type
+val direct_t : [`Queue of string] exchange_type
+val fanout_t : unit exchange_type
+val topic_t  : [`Topic of string] exchange_type
+val match_t  : [`Headers of Amqp_types.header list] exchange_type
 
-val default : string t
-val amq_direct : string t
-val amq_fanout : string t
-val amq_topic : string t
-val amq_match : Amqp_types.header list t
+val default    : [`Queue of string] t
+val amq_direct : [`Queue of string] t
+val amq_fanout : unit t
+val amq_topic  : [`Topic of string] t
+val amq_match  : [`Headers of Amqp_types.header list] t
 
 (**/**)
 module Internal : sig

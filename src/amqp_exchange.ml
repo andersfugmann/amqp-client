@@ -7,10 +7,10 @@ open Amqp_spec.Exchange
 (* type match_type = Any | All *)
 
 type _ exchange_type =
-  | Direct: string exchange_type
-  | Fanout: string exchange_type
-  | Topic: string exchange_type
-  | Match: Amqp_types.header list exchange_type
+  | Direct: [`Queue of string] exchange_type
+  | Fanout: unit exchange_type
+  | Topic:  [`Topic of string] exchange_type
+  | Match:  [`Headers of Amqp_types.header list] exchange_type
 
 let direct_t = Direct
 let fanout_t = Fanout
@@ -56,10 +56,10 @@ module Internal = struct
         Bind.request (Channel.channel channel) query
       in
       match exchange_type with
-      | Direct -> fun routing_key -> bind ~routing_key ()
-      | Fanout -> fun routing_key -> bind ~routing_key ()
-      | Topic -> fun routing_key -> bind ~routing_key ()
-      | Match -> fun arguments -> bind ~arguments ()
+      | Direct -> fun (`Queue routing_key) -> bind ~routing_key ()
+      | Fanout -> fun () -> bind ()
+      | Topic -> fun (`Topic routing_key) -> bind ~routing_key ()
+      | Match -> fun (`Headers arguments) -> bind ~arguments ()
 
   let unbind_queue: type a. _ Channel.t -> a t -> string -> a -> unit Deferred.t =
     let open Amqp_spec.Queue in
@@ -74,11 +74,10 @@ module Internal = struct
         Unbind.request (Channel.channel channel) query
       in
       match exchange_type with
-      | Direct -> fun routing_key -> unbind ~routing_key ()
-      | Fanout -> fun routing_key -> unbind ~routing_key ()
-      | Topic -> fun routing_key -> unbind ~routing_key ()
-      | Match -> fun arguments -> unbind ~arguments ()
-
+      | Direct -> fun (`Queue routing_key) -> unbind ~routing_key ()
+      | Fanout -> fun () -> unbind ()
+      | Topic -> fun (`Topic routing_key) -> unbind ~routing_key ()
+      | Match -> fun (`Headers arguments) -> unbind ~arguments ()
 end
 
 
@@ -115,10 +114,10 @@ let bind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit Defe
       Bind.request (Channel.channel channel) query
     in
     match source.exchange_type with
-    | Direct -> fun routing_key -> bind ~routing_key ()
-    | Fanout -> fun routing_key -> bind ~routing_key ()
-    | Topic -> fun routing_key -> bind ~routing_key ()
-    | Match -> fun arguments -> bind ~arguments ()
+    | Direct -> fun (`Queue routing_key) -> bind ~routing_key ()
+    | Fanout -> fun () -> bind ()
+    | Topic -> fun (`Topic routing_key) -> bind ~routing_key ()
+    | Match -> fun (`Headers arguments) -> bind ~arguments ()
 
 let unbind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit Deferred.t=
   fun channel ~destination ~source ->
@@ -133,10 +132,10 @@ let unbind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit De
       Unbind.request (Channel.channel channel) query
     in
     match source.exchange_type with
-    | Direct -> fun routing_key -> unbind ~routing_key ()
-    | Fanout -> fun routing_key -> unbind ~routing_key ()
-    | Topic -> fun routing_key -> unbind ~routing_key ()
-    | Match -> fun arguments -> unbind ~arguments ()
+    | Direct -> fun (`Queue routing_key) -> unbind ~routing_key ()
+    | Fanout -> fun () -> unbind ()
+    | Topic -> fun (`Topic routing_key) -> unbind ~routing_key ()
+    | Match -> fun (`Headers arguments) -> unbind ~arguments ()
 
 let publish channel t
     ?(mandatory=false)

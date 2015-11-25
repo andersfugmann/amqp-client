@@ -12,9 +12,9 @@ let test =
   log "Exchange declared";
   Exchange.declare channel ~auto_delete:true Exchange.direct_t "test2" >>= fun exchange2 ->
   log "Exchange declared";
-  Exchange.bind channel ~source:exchange1 ~destination:exchange2 "test" >>= fun () ->
+  Exchange.bind channel ~source:exchange1 ~destination:exchange2 (`Queue "test") >>= fun () ->
   log "Exchange Bind";
-  Exchange.unbind channel ~source:exchange1 ~destination:exchange2 "test" >>= fun () ->
+  Exchange.unbind channel ~source:exchange1 ~destination:exchange2 (`Queue "test") >>= fun () ->
   log "Exchange Unbind";
   Exchange.delete channel exchange1 >>= fun () ->
   log "Exchange deleted";
