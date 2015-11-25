@@ -54,15 +54,14 @@ let reply_start framing (username, password) =
   Start.reply (framing, 0) reply
 
 
-let reply_tune hb framing =
+let reply_tune framing =
   let var = Ivar.create () in
   let reply { Tune.channel_max;
               frame_max; heartbeat; } =
     log "Channel max: %d" channel_max;
     log "Frame_max: %d" frame_max;
     log "Heartbeat: %d" heartbeat;
-    let hb = Option.value ~default:heartbeat hb in
-    Ivar.fill var (min heartbeat hb);
+    Ivar.fill var (if heartbeat = 0 then `Disabled else `Heartbeat heartbeat);
     log "Send tune_ok";
     Amqp_framing.set_max_length framing frame_max;
     return {
@@ -131,8 +130,16 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
 
 
   reply_start framing credentials >>= fun () ->
-  reply_tune heartbeat framing >>= fun heartbeat ->
-  don't_wait_for (send_heartbeat heartbeat t);
+  reply_tune framing >>= fun server_heartbeat ->
+  begin
+    match heartbeat, server_heartbeat with
+    | None, `Disabled -> ()
+    | Some hb, `Disabled
+    | None, `Heartbeat hb ->
+      don't_wait_for (send_heartbeat hb t);
+    | Some hb, `Heartbeat hb' ->
+      don't_wait_for (send_heartbeat (min hb hb') t);
+  end;
   open_connection t >>= fun () ->
   register_blocked_handler framing;
   don't_wait_for (reply_close framing);
