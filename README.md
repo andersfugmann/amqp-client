@@ -25,4 +25,4 @@ The high level interface exposes usage patterns such as
 
 The idea is to avoid clients crashing because they rely on other service to create resources (queues / exchanges) on the amqp server, and in all make use of AMQP simple.
 
-Read the API Documentation here: http://andersfugmann.github.io/ocaml-amqp/
+Read the API Documentation here: http://andersfugmann.github.io/amqp-client/
