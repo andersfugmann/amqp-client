@@ -1,6 +1,6 @@
 (** Internal *)
 
-open Async.Std
+open Amqp_thread
 open Core.Std
 open Amqp_protocol
 open Amqp_protocol.Spec
@@ -293,7 +293,7 @@ let close_channel t channel_no =
 let rec start_writer output channels =
   Pipe.read channels >>= function
   | `Ok data ->
-    Async_unix.Writer.write_bigstring output data;
+    Writer.write_bigstring output data;
     start_writer output channels
   | `Eof -> return ()
 
@@ -303,7 +303,7 @@ let id {id; _} = id
 let init ~id input output  =
   let id = Printf.sprintf "%s.%s.%s.%s" id (Unix.gethostname ()) (Unix.getpid () |> Pid.to_string) (Sys.executable_name |> Filename.basename) in
   let reader, writer = Pipe.create () in
-  don't_wait_for (start_writer output (Pipe.interleave_pipe reader));
+  spawn (start_writer output (Pipe.interleave_pipe reader));
   let t =
     { input; output;
       max_length = 1024;
@@ -314,7 +314,7 @@ let init ~id input output  =
     }
   in
   Writer.write output protocol_header;
-  don't_wait_for (read_frame t);
+  spawn (read_frame t);
   open_channel t 0 >>= fun () ->
   return t
 
