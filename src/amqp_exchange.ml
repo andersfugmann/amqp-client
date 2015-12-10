@@ -1,4 +1,4 @@
-open Async.Std
+open Amqp_thread
 module Connection = Amqp_connection
 module Channel = Amqp_channel
 

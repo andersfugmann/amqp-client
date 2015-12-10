@@ -1,5 +1,5 @@
 open Core.Std
-open Async.Std
+open Amqp_thread
 open Amqp_spec.Connection
 
 let version = "0.1.1"
@@ -113,21 +113,18 @@ let open_connection { framing; virtual_host; _ } =
 
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 
-  let addr = Tcp.to_host_and_port host port in
-  Tcp.connect addr >>= fun (socket, input, output) ->
-
-  Socket.setopt socket Socket.Opt.nodelay true;
+  Tcp.connect host port >>= fun (socket, input, output) ->
+  Tcp.nodelay socket true;
 
   Amqp_framing.init ~id input output >>= fun framing ->
   let t = { framing; virtual_host; channel = 0; closing=false } in
-  don't_wait_for (Reader.close_finished input >>|
-                  fun () ->
-                  if t.closing then
-                    ()
-                  else
-                    raise Amqp_types.Connection_closed
-                 );
-
+  spawn (Reader.close_finished input >>=
+         fun () ->
+         if t.closing then
+           return ()
+         else
+           raise Amqp_types.Connection_closed
+        );
 
   reply_start framing credentials >>= fun () ->
   reply_tune framing >>= fun server_heartbeat ->
@@ -136,13 +133,13 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
     | None, `Disabled -> ()
     | Some hb, `Disabled
     | None, `Heartbeat hb ->
-      don't_wait_for (send_heartbeat hb t);
+      spawn (send_heartbeat hb t);
     | Some hb, `Heartbeat hb' ->
-      don't_wait_for (send_heartbeat (min hb hb') t);
+      spawn (send_heartbeat (min hb hb') t);
   end;
   open_connection t >>= fun () ->
   register_blocked_handler framing;
-  don't_wait_for (reply_close framing);
+  spawn (reply_close framing);
   return t
 
 let open_channel ~id confirms t =

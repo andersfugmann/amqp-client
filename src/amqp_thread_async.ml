@@ -9,6 +9,7 @@ end
 
 let (>>=) = (>>=)
 let return = return
+let after = after
 
 module Ivar = struct
   type 'a t = 'a Ivar.t
@@ -24,10 +25,14 @@ module Tcp = struct
   let connect host port =
     let addr = Tcp.to_host_and_port host port in
     Tcp.connect addr
+
+  let nodelay socket value =
+    Socket.setopt socket Socket.Opt.nodelay value;
 end
 module Reader = struct
   type t = Reader.t
   let close = Reader.close
+  let close_finished = Reader.close_finished
   let really_read_bigsubstring = Reader.really_read_bigsubstring
 end
 module Writer = struct
@@ -40,7 +45,6 @@ end
 
 let spawn = don't_wait_for
 
-
 (* Pipes *)
 module Pipe = struct
   type ('a, 'phantom) t = ('a, 'phantom) Pipe.t
@@ -51,6 +55,9 @@ module Pipe = struct
   let transfer_in = Pipe.transfer_in
   let close = Pipe.close
   let read = Pipe.read
+  let iter = Pipe.iter
+  let iter_without_pushback = Pipe.iter_without_pushback
+
   module Writer = struct
     type 'a t = 'a Pipe.Writer.t
   end

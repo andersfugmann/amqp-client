@@ -1,4 +1,4 @@
-open Async.Std
+open Amqp_thread
 module Connection = Amqp_connection
 module Channel = Amqp_channel
 module Queue = Amqp_queue
@@ -45,8 +45,8 @@ module Client = struct
 
     Queue.consume ~id:"rpc_client" ~no_ack:true ~exclusive:true channel queue >>= fun (consumer, reader) ->
     let t = { queue; channel; id; outstanding = Hashtbl.create 0; counter = 0; consumer } in
-    don't_wait_for (Pipe.iter reader ~f:(fun { Message.message; routing_key; _ } -> handle_reply t (routing_key = Queue.name queue) message));
-    don't_wait_for (Pipe.iter (Channel.on_return channel) ~f:(fun (_, message) -> handle_reply t false message));
+    spawn (Pipe.iter reader ~f:(fun { Message.message; routing_key; _ } -> handle_reply t (routing_key = Queue.name queue) message));
+    spawn (Pipe.iter (Channel.on_return channel) ~f:(fun (_, message) -> handle_reply t false message));
     return t
 
   let call t ~ttl ~routing_key ~headers exchange (header, body) =
@@ -103,10 +103,10 @@ module Server = struct
     (* Start consuming. *)
     Queue.consume ~id:"rpc_server" channel queue >>= fun (consumer, reader) ->
     let read = match async with
-      | true -> (Pipe.iter_without_pushback reader ~f:(fun m -> don't_wait_for (handler m)))
+      | true -> (Pipe.iter_without_pushback reader ~f:(fun m -> spawn (handler m)))
       | false -> Pipe.iter reader ~f:handler
     in
-    don't_wait_for read;
+    spawn read;
     return { consumer }
 
   let stop t =

@@ -1,4 +1,4 @@
-open Async.Std
+open Amqp_thread
 open Amqp_spec
 
 type no_confirm = [ `Ok ]
@@ -71,17 +71,17 @@ module Internal = struct
 end
 
 let close_handler channel_no close =
-  eprintf "Channel closed: %d\n" channel_no;
-  eprintf "Reply code: %d\n" close.Channel.Close.reply_code;
-  eprintf "Reply text: %s\n" close.Channel.Close.reply_text;
-  eprintf "Message: (%d, %d)\n" close.Channel.Close.class_id close.Channel.Close.method_id;
+  Printf.eprintf "Channel closed: %d\n" channel_no;
+  Printf.eprintf "Reply code: %d\n" close.Channel.Close.reply_code;
+  Printf.eprintf "Reply text: %s\n" close.Channel.Close.reply_text;
+  Printf.eprintf "Message: (%d, %d)\n" close.Channel.Close.class_id close.Channel.Close.method_id;
   raise (Amqp_types.Channel_closed channel_no)
 
 let register_flow_handler t =
   let (_, read) = Channel.Flow.Internal.read in
   let handler { Channel.Flow.active } =
     Amqp_framing.set_flow t.framing t.channel_no active;
-    don't_wait_for (Channel.Flow_ok.Internal.write (channel t) { Channel.Flow_ok.active })
+    spawn (Channel.Flow_ok.Internal.write (channel t) { Channel.Flow_ok.active })
   in
   read ~once:false handler (channel t)
 
@@ -124,7 +124,7 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
   let consumers = Hashtbl.create 0 in
   let id = Printf.sprintf "%s.%s.%d" (Amqp_framing.id framing) id channel_no in
   Amqp_framing.open_channel framing channel_no >>= fun () ->
-  don't_wait_for (Channel.Close.reply (framing, channel_no) (close_handler channel_no));
+  spawn (Channel.Close.reply (framing, channel_no) (close_handler channel_no));
   Channel.Open.request (framing, channel_no) () >>= fun () ->
   let publish_confirm : a pcp = match confirm_type with
     | With_confirm ->
