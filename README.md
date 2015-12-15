@@ -1,10 +1,8 @@
-OCaml client library for amqp
+OCaml client library for RabbitMQ (AMQP 0-9-1)
 =============================
 
-The idea is to create a simple implementation for OCaml based
-on XML specification of rabbitmq version 0.9.1 extended.
-
-The library uses core async.
+This is a RabbitMQ (AMQP 0-9-1 plus RabbitMQ extensions) client
+that uses core async.
 
 The library can make use of rabbitmq specific features
 but the goal is to make use of these features optional.
