@@ -1,7 +1,7 @@
-open Async.Std
+open Amqp_thread
 open Amqp
 
-let log fmt = printf (fmt ^^ "\n%!")
+let log fmt = Printf.printf (fmt ^^ "\n%!")
 
 let req_queue = "test.rpc"
 
@@ -27,12 +27,12 @@ let test =
   log "Connection started";
   Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
   log "Channel opened";
-  don't_wait_for (start_server channel);
+  spawn (start_server channel);
   Rpc.Client.init ~id:"rpc.client.test" connection >>= fun client ->
   run_tests client 0 >>= fun () ->
   Channel.close channel >>| fun () ->
   log "Channel closed";
-  Shutdown.shutdown 0
+  Scheduler.shutdown 0
 
 let _ =
   Scheduler.go ()

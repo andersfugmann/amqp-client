@@ -5,9 +5,14 @@ open Async.Std
 module Deferred = struct
   type 'a t = 'a Deferred.t
   let all_unit = Deferred.all_unit
+  module List = struct
+    let init ~f n = Deferred.List.init ~f n
+    let iter ~f l = Deferred.List.iter ~f l
+  end
 end
 
 let (>>=) = (>>=)
+let (>>|) = (>>|)
 let return = return
 let after = after
 let spawn = don't_wait_for
@@ -68,4 +73,9 @@ module Pipe = struct
   let write = Pipe.write
   let write_without_pushback = Pipe.write_without_pushback
 
+end
+
+module Scheduler = struct
+  let go = Scheduler.go
+  let shutdown n = Shutdown.shutdown n
 end

@@ -1,9 +1,7 @@
-module P = Printf
-open Async.Std
+open Amqp_thread
 open Amqp
 
-let log fmt =
-  P.eprintf (fmt ^^ "\n%!")
+let log fmt = Printf.printf (fmt ^^ "\n%!")
 
 let handler (h, s) =
   log "Recieved request: %s" s;

@@ -1,7 +1,7 @@
-open Async.Std
+open Amqp_thread
 open Amqp
 
-let log fmt = printf (fmt ^^ "\n%!")
+let log fmt = Printf.printf (fmt ^^ "\n%!")
 
 let test =
   Connection.connect ~id:"ocaml-amqp-tests" "localhost" >>= fun connection ->
@@ -16,7 +16,7 @@ let test =
   log "Channels closed";
   Connection.close connection >>| fun () ->
   log "Connection closed";
-  Shutdown.shutdown 0
+  Scheduler.shutdown 0
 
 let _ =
   Scheduler.go ()

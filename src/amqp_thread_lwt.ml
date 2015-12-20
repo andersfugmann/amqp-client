@@ -4,9 +4,19 @@
 module Deferred = struct
   type 'a t = 'a Lwt.t
   let all_unit = Lwt.join
+  module List = struct
+    let init ~f n =
+      let rec inner = function
+        | i when i = n -> []
+        | i -> i :: inner (i - 1)
+      in
+      inner 0 |> Lwt_list.map_p f
+    let iter ~f l = Lwt_list.iter_p ~f l
+  end
 end
 
 let (>>=) = Lwt.(>>=)
+let (>>|) = Lwt.(>|=)
 let return = Lwt.return
 let after _ = failwith "Not implemented"
 let spawn t = Lwt.async (fun () -> t)
@@ -172,4 +182,10 @@ module Tcp = struct
 
   let nodelay (fd: Lwt_unix.file_descr) (value : bool) =
     Lwt_unix.(setsockopt fd TCP_NODELAY value)
+end
+
+module Scheduler = struct
+  let cond = Lwt_condition.create ()
+  let go () = Lwt_main.run (Lwt_condition.wait cond)
+  let shutdown n = Lwt_condition.signal n
 end

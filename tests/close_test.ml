@@ -1,7 +1,7 @@
-open Async.Std
+open Amqp_thread
 open Amqp
 
-let log fmt = printf (fmt ^^ "\n%!")
+let log fmt = Printf.printf (fmt ^^ "\n%!")
 
 let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return ()
 
@@ -32,7 +32,7 @@ let test () =
   Queue.delete channel queue >>= fun () ->
   log "Queue deleted";
   Connection.close connection >>| fun () ->
-  Shutdown.shutdown 0
+  Scheduler.shutdown 0
 
 let _ =
   test () |> ignore;

@@ -1,7 +1,7 @@
-open Async.Std
+open Amqp_thread
 open Amqp
 
-let log fmt = printf (fmt ^^ "\n%!")
+let log fmt = Printf.printf (fmt ^^ "\n%!")
 
 
 let rec request t i =
