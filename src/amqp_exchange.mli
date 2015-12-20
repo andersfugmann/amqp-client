@@ -1,5 +1,5 @@
 (** Operations on exchanges *)
-open Async.Std
+open Amqp_thread
 
 type _ t
 

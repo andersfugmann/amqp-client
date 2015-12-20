@@ -125,7 +125,7 @@ let write_message (t, channel_no) (message_id, writer) content =
 let send_heartbeat t =
   let channel = channel t 0 in
   create_frame 0 Amqp_constants.frame_heartbeat (fun i -> i)
-  |> Pipe.write_without_pushback channel.writer
+  |> Pipe.write channel.writer
 
 
 let get_handler lst id =
@@ -265,14 +265,14 @@ let open_channel t channel_no =
 let flush t =
   Array.to_list t.channels
   |> List.filter_opt
-  |> List.map ~f:(fun channel -> Pipe.downstream_flushed channel.writer >>= fun _ -> return ())
+  |> List.map ~f:(fun channel -> Pipe.flush channel.writer >>= fun _ -> return ())
   |> Deferred.all_unit >>= fun () ->
-  Writer.flushed t.output
+  Writer.flush t.output
 
 let flush_channel t channel_no =
   let channel = channel t channel_no in
-  Pipe.downstream_flushed channel.writer >>= fun _ ->
-  Writer.flushed t.output
+  Pipe.flush channel.writer >>= fun _ ->
+  Writer.flush t.output
 
 let close t =
   Array.to_list t.channels
@@ -287,7 +287,7 @@ let close_channel t channel_no =
   let channel = channel t channel_no in
   t.channels.(channel_no) <- None;
   Pipe.close channel.writer;
-  Pipe.downstream_flushed channel.writer >>= fun _ ->
+  Pipe.flush channel.writer >>= fun _ ->
   flush t
 
 let rec start_writer output channels =

@@ -1,6 +1,6 @@
 (** Amqp message type and functions *)
 
-open Async.Std
+open Amqp_thread
 module Channel = Amqp_channel
 
 type message = Amqp_spec.Basic.Content.t * string

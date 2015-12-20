@@ -10,6 +10,7 @@ end
 let (>>=) = (>>=)
 let return = return
 let after = after
+let spawn = don't_wait_for
 
 module Ivar = struct
   type 'a t = 'a Ivar.t
@@ -27,30 +28,30 @@ module Tcp = struct
     Tcp.connect addr
 
   let nodelay socket value =
-    Socket.setopt socket Socket.Opt.nodelay value;
+    Socket.setopt socket Socket.Opt.nodelay value
+
 end
 module Reader = struct
   type t = Reader.t
   let close = Reader.close
-  let close_finished = Reader.close_finished
   let really_read_bigsubstring = Reader.really_read_bigsubstring
 end
+
 module Writer = struct
   type t = Writer.t
   let write_bigstring = Writer.write_bigstring
-  let close = Writer.close
-  let flushed = Writer.flushed
   let write = Writer.write
+  let close = Writer.close
+  let flush = Writer.flushed
 end
 
-let spawn = don't_wait_for
 
 (* Pipes *)
 module Pipe = struct
   type ('a, 'phantom) t = ('a, 'phantom) Pipe.t
   let create = Pipe.create
   let set_size_budget = Pipe.set_size_budget
-  let downstream_flushed t = Pipe.downstream_flushed t
+  let flush t = Pipe.downstream_flushed t
   let interleave_pipe = Pipe.interleave_pipe
   let transfer_in = Pipe.transfer_in
   let close = Pipe.close

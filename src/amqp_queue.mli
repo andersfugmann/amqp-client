@@ -1,5 +1,5 @@
 (** Operations on Queues *)
-open Async.Std
+open Amqp_thread
 
 type t
 type 'a consumer

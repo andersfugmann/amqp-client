@@ -1,6 +1,6 @@
 (** Operations on channels *)
 
-open Async.Std
+open Amqp_thread
 open Amqp_spec
 
 (**/**)
@@ -79,11 +79,11 @@ module Transaction : sig
   type tx
 
   (** Start a transacction *)
-  val start : _ t -> tx Async.Std.Deferred.t
+  val start : _ t -> tx Amqp_thread.Deferred.t
 
   (** Commit an transaction *)
-  val commit : tx -> unit Async.Std.Deferred.t
+  val commit : tx -> unit Amqp_thread.Deferred.t
 
   (** Rollback a transaction, discarding all changes and messages *)
-  val rollback : tx -> unit Async.Std.Deferred.t
+  val rollback : tx -> unit Amqp_thread.Deferred.t
 end

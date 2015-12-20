@@ -90,7 +90,7 @@ let rec send_heartbeat delay t =
   if t.closing then
     return ()
   else begin
-    Amqp_framing.send_heartbeat t.framing;
+    Amqp_framing.send_heartbeat t.framing >>= fun () ->
     send_heartbeat delay t
   end
 
@@ -118,6 +118,7 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
 
   Amqp_framing.init ~id input output >>= fun framing ->
   let t = { framing; virtual_host; channel = 0; closing=false } in
+  (* Hmm. We need to monitor if the socket is closed *=
   spawn (Reader.close_finished input >>=
          fun () ->
          if t.closing then
@@ -125,7 +126,7 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
          else
            raise Amqp_types.Connection_closed
         );
-
+*)
   reply_start framing credentials >>= fun () ->
   reply_tune framing >>= fun server_heartbeat ->
   begin
