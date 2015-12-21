@@ -14,7 +14,7 @@ end
 let (>>=) = (>>=)
 let (>>|) = (>>|)
 let return = return
-let after = after
+let after ms = after (Core.Std.Time.Span.of_ms ms)
 let spawn = don't_wait_for
 
 module Ivar = struct

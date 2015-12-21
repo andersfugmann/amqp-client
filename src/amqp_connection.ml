@@ -62,7 +62,6 @@ let reply_tune framing =
     log "Frame_max: %d" frame_max;
     log "Heartbeat: %d" heartbeat;
     Ivar.fill var (if heartbeat = 0 then `Disabled else `Heartbeat heartbeat);
-    log "Send tune_ok";
     Amqp_framing.set_max_length framing frame_max;
     return {
       Tune_ok.channel_max;
@@ -70,7 +69,9 @@ let reply_tune framing =
       heartbeat;
     }
   in
-  Tune.reply (framing, 0) reply >>= fun () -> Ivar.read var
+  Tune.reply (framing, 0) reply >>= fun () ->
+  Ivar.read var >>= fun v ->
+  return v
 
 let reply_close framing =
   let reply { Close.reply_code;
@@ -86,7 +87,7 @@ let reply_close framing =
   Close.reply (framing, 0) reply
 
 let rec send_heartbeat delay t =
-  after (Time.Span.of_int_sec delay) >>= fun () ->
+  after (float delay *. 1000.0) >>= fun () ->
   if t.closing then
     return ()
   else begin
@@ -109,7 +110,8 @@ let register_blocked_handler framing =
   read_unblocked ~once:false unblocked_handler (framing, 0)
 
 let open_connection { framing; virtual_host; _ } =
-  Open.request (framing, 0) { Open.virtual_host }
+  Open.request (framing, 0) { Open.virtual_host } >>= fun x ->
+  return x
 
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 

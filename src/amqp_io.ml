@@ -2,8 +2,7 @@
 open Core.Std
 
 let log fmt =
-  (* Printf.eprintf (fmt ^^ "\n%!") *)
-  Printf.ifprintf stderr fmt
+  Printf.ifprintf stderr (fmt ^^ "\n%!")
 
 module Input = struct
   open Bigstring

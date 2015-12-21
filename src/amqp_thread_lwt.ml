@@ -1,6 +1,7 @@
 (** Async compatability layer *)
 
 
+let log fmt = Printf.eprintf (fmt ^^ "\n%!")
 module Deferred = struct
   type 'a t = 'a Lwt.t
   let all_unit = Lwt.join
@@ -18,28 +19,40 @@ end
 let (>>=) = Lwt.(>>=)
 let (>>|) = Lwt.(>|=)
 let return = Lwt.return
-let after _ = failwith "Not implemented"
+let after ms = Lwt_unix.sleep (ms *. 1000.0)
 let spawn t = Lwt.async (fun () -> t)
 
 module Ivar = struct
   type 'a state = Empty of 'a Lwt_condition.t
                 | Full of 'a
-  type 'a t = 'a state ref
-  let create () = ref (Empty (Lwt_condition.create ()))
-  let create_full v = ref (Full v)
+  type 'a t = { mutable state: 'a state }
+  let create () =
+    log "Ivar: create";
+    { state = Empty (Lwt_condition.create ()) }
+
+  let create_full v = { state = Full v }
+
   let fill t v =
-    match !t with
+    log "Ivar: fill";
+
+    match t.state with
     | Empty c -> Lwt_condition.broadcast c v;
-      t := Full v
+      t.state <- Full v
     | Full _ -> failwith "Var already filled"
 
   let read t =
-    match !t with
-    | Empty c -> Lwt_condition.wait c
-    | Full v -> return v
+    log "Ivar: read block";
+    match t.state with
+    | Empty c ->
+      Lwt_condition.wait c >>= fun v ->
+      log "Ivar: read unblock";
+      return v
+    | Full v ->
+      log "Ivar: read unblock";
+      return v
 
   let is_full t =
-    match !t with
+    match t.state with
     | Empty _ -> false
     | Full _ -> true
 
@@ -141,7 +154,7 @@ module Reader = struct
         Core.Std.Bigsubstring.blit_from_string bigsubstr ~src:buffer ~src_pos:0 ~len;
         return `Ok
       | offset ->
-        Lwt_unix.recv t buffer offset (len - offset) [] >>= fun read ->
+        Lwt_unix.read t buffer offset (len - offset) >>= fun read ->
         inner (read + offset)
     in
     inner 0
@@ -165,19 +178,21 @@ module Tcp = struct
   let write fd data =
     let len = String.length data in
     let rec inner = function
-      | offset when offset = len -> return ()
-      | offset -> Lwt_unix.send fd data offset (len - offset) [] >>= fun sent ->
+      | offset when offset = len ->
+        return ()
+      | offset -> Lwt_unix.write fd data offset (len - offset) >>= fun sent ->
         inner (offset + sent)
     in
     inner 0
 
   let connect host port =
     let fd = Lwt_unix.(socket PF_INET SOCK_STREAM 0) in
-    let inet_addr = Unix.inet_addr_of_string host in
+    Lwt_unix.gethostbyname host >>= fun entry ->
+    let inet_addr = entry.Lwt_unix.h_addr_list.(0) in
     Lwt_unix.connect fd (Lwt_unix.ADDR_INET (inet_addr, port)) >>= fun () ->
     (* Start a process that writes *)
     let (reader, writer) = Pipe.create () in
-    spawn (Pipe.iter ~f:(write fd) reader);
+    spawn (Pipe.iter ~f:(fun str -> Printf.printf "Write %d\n%!" (String.length str); write fd str) reader);
     return (fd, fd, writer)
 
   let nodelay (fd: Lwt_unix.file_descr) (value : bool) =

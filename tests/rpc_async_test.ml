@@ -8,7 +8,7 @@ let req_queue = "test.rpc"
 let start_server channel =
   let handler (content, body) =
     let i = int_of_string body in
-    after (Core.Std.Time.Span.of_ms (Random.float 100.0)) >>= fun () ->
+    after (Random.float 100.0) >>= fun () ->
     return (content, (string_of_int (i * i)))
   in
   Queue.declare channel ~auto_delete:true req_queue >>= fun queue ->
@@ -16,7 +16,7 @@ let start_server channel =
   return ()
 
 let call rpc_client i =
-  after (Core.Std.Time.Span.of_ms (Random.float 100.0)) >>= fun () ->
+  after (Random.float 100.0) >>= fun () ->
   Rpc.Client.call ~ttl:100 rpc_client Exchange.default ~routing_key:req_queue ~headers:[] (Message.make (string_of_int i)) >>= function
   | Some (_, v) ->
     assert (int_of_string v = (i*i));
