@@ -1,7 +1,7 @@
-open Async.Std
+open Amqp_thread
 open Amqp
 
-let log fmt = printf (fmt ^^ "\n%!")
+let log fmt = Printf.printf (fmt ^^ "\n%!")
 
 let consume channel queue =
   let handler { Message.message = (_content, body); _ } =
@@ -11,13 +11,13 @@ let consume channel queue =
         log "%i" i
       | 1 ->
         log "Done";
-        Shutdown.shutdown 0
+        Scheduler.shutdown 0
       | _ -> ()
     end;
     return ()
   in
   Queue.consume ~no_ack:true ~id:"test" channel queue >>= fun (_consumer, reader) ->
-  don't_wait_for (Pipe.iter_without_pushback reader ~f:(fun m -> don't_wait_for (handler m)));
+  spawn (Pipe.iter_without_pushback reader ~f:(fun m -> spawn (handler m)));
   return ()
 
 let rec produce channel queue = function
@@ -35,7 +35,7 @@ let _ =
     log "Channel opened";
     Queue.declare channel ~arguments:[] ~auto_delete:true "test.main" >>= fun queue ->
 
-    don't_wait_for (consume channel queue);
+    spawn (consume channel queue);
     produce channel queue 100000 >>= fun () ->
     log "Done producing";
     return ();

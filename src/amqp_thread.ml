@@ -1,1 +1,1 @@
-amqp_thread_async.ml
+amqp_thread_lwt.ml

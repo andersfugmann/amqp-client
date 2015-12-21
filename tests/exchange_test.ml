@@ -1,7 +1,7 @@
-open Async.Std
+open Amqp_thread
 open Amqp
 
-let log fmt = printf (fmt ^^ "\n%!")
+let log fmt = Printf.printf (fmt ^^ "\n%!")
 
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
@@ -22,7 +22,7 @@ let test =
   log "Exchange deleted";
   Channel.close channel >>| fun () ->
   log "Channel closed";
-  Shutdown.shutdown 0
+  Scheduler.shutdown 0
 
 let _ =
   Scheduler.go ()

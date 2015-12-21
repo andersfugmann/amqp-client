@@ -11,7 +11,7 @@ module Deferred = struct
         | i -> i :: inner (i - 1)
       in
       inner 0 |> Lwt_list.map_p f
-    let iter ~f l = Lwt_list.iter_p ~f l
+    let iter ~f l = Lwt_list.iter_p f l
   end
 end
 
@@ -187,5 +187,5 @@ end
 module Scheduler = struct
   let cond = Lwt_condition.create ()
   let go () = Lwt_main.run (Lwt_condition.wait cond)
-  let shutdown n = Lwt_condition.signal n
+  let shutdown (n : int) = Lwt_condition.signal cond n
 end
