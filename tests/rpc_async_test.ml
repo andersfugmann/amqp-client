@@ -6,17 +6,13 @@ let log fmt = Printf.printf (fmt ^^ "\n%!")
 let req_queue = "test.rpc"
 
 let start_server channel =
-  log "Server: starting";
   let handler (content, body) =
     let i = int_of_string body in
     after (Random.float 100.0) >>= fun () ->
     return (content, (string_of_int (i * i)))
   in
-  log "Server: Declare queue";
   Queue.declare channel ~auto_delete:true req_queue >>= fun queue ->
-  log "Server: Start server";
   Rpc.Server.start ~async:true channel queue handler >>= fun _ ->
-  log "Server: ended";
   return ()
 
 let call rpc_client i =

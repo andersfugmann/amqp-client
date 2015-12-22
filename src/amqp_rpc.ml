@@ -103,7 +103,7 @@ module Server = struct
     (* Start consuming. *)
     Queue.consume ~id:"rpc_server" channel queue >>= fun (consumer, reader) ->
     let read = match async with
-      | true -> (Pipe.iter_without_pushback reader ~f:(fun m -> spawn (handler m)))
+      | true -> Pipe.iter_without_pushback reader ~f:(fun m -> spawn (handler m))
       | false -> Pipe.iter reader ~f:handler
     in
     spawn read;

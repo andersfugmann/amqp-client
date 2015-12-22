@@ -19,8 +19,8 @@ end
 let (>>=) = Lwt.(>>=)
 let (>>|) = Lwt.(>|=)
 let return = Lwt.return
-let after ms = Lwt_unix.sleep (ms *. 1000.0)
-let spawn t = Lwt.async (fun () -> t)
+let after ms = Lwt_unix.sleep (ms /. 1000.0)
+let spawn (t : unit Lwt.t) = Lwt.async (fun () -> t)
 
 module Ivar = struct
   type 'a state = Empty of 'a Lwt_condition.t
@@ -130,12 +130,23 @@ module Pipe = struct
   let iter ~f (t: 'a Reader.t) =
     let rec inner () =
       read t >>= function
-      | `Eof -> return ()
-      | `Ok d -> f d; inner ()
+      | `Eof ->
+        log "Iter: eof";
+        return ()
+      | `Ok d -> f d >>= fun () ->
+        inner ()
     in
     inner ()
 
-  let iter_without_pushback = iter
+  let iter_without_pushback ~f t =
+    let rec inner () =
+      read t >>= function
+      | `Eof ->
+        log "Iter_without_pushback: eof";
+        return ()
+      | `Ok d -> f d; inner ()
+    in
+    inner ()
 
 end
 
