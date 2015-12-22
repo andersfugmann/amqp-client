@@ -277,8 +277,7 @@ let flush_channel t channel_no =
 let close t =
   Array.to_list t.channels
   |> List.filter_opt
-  |> List.iter ~f:(fun ch -> Pipe.close ch.writer);
-  flush t >>= fun () ->
+  |> fun l -> Deferred.List.iter ~f:(fun ch -> Pipe.close ch.writer) l >>= fun () ->
   Reader.close t.input >>= fun () ->
   Writer.close t.output >>= fun () ->
   return ()
@@ -286,8 +285,7 @@ let close t =
 let close_channel t channel_no =
   let channel = channel t channel_no in
   t.channels.(channel_no) <- None;
-  Pipe.close channel.writer;
-  Pipe.flush channel.writer >>= fun _ ->
+  Pipe.close channel.writer >>= fun _ ->
   flush t
 
 let rec start_writer output channels =

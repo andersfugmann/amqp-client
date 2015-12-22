@@ -87,8 +87,7 @@ let cancel consumer =
   let open Amqp_spec.Basic in
   Cancel.request (Channel.channel consumer.channel) { Cancel.consumer_tag = consumer.tag; no_wait = false } >>= fun _rep ->
   Channel.Internal.deregister_consumer_handler consumer.channel consumer.tag;
-  Pipe.close consumer.writer;
-  return ()
+  Pipe.close consumer.writer
 
 let bind channel t exchange = Exchange.Internal.bind_queue channel exchange t.name
 let unbind channel t exchange = Exchange.Internal.unbind_queue channel exchange t.name
