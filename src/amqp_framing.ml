@@ -280,6 +280,7 @@ let close t =
   |> fun l -> Deferred.List.iter ~f:(fun ch -> Pipe.close ch.writer) l >>= fun () ->
   Reader.close t.input >>= fun () ->
   Writer.close t.output >>= fun () ->
+
   return ()
 
 let close_channel t channel_no =

@@ -59,7 +59,7 @@ module Pipe = struct
   let flush t = Pipe.downstream_flushed t
   let interleave_pipe = Pipe.interleave_pipe
   let transfer_in = Pipe.transfer_in
-  let close t = Pipe.close t; flush t
+  let close t = Pipe.close t; flush t >>= fun _ -> return ()
   let read = Pipe.read
   let iter = Pipe.iter
   let iter_without_pushback = Pipe.iter_without_pushback

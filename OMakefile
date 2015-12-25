@@ -5,14 +5,24 @@ NATIVE_ENABLED = true
 BYTE_ENABLED = true
 
 OCAMLFLAGS = -thread -g -w @A-4-29-41-44-45 -bin-annot
-OCAMLPACKS[] = xml-light async async_unix lwt lwt.unix str
-
+OCAMLPACKS[] = xml-light str
+if $(defined lwt)
+   OCAMLPACKS[] += lwt lwt.unix core
+   THREAD_FILE = amqp_thread_lwt.ml
+   export
+else
+   OCAMLPACKS[] += async async_unix
+   THREAD_FILE = amqp_thread_async.ml
+   export
 
 mkdir -p _build
 vmount(-l, src, _build)
 vmount(-l, tests, _build)
 
 .SUBDIRS: _build
+    amqp_thread.ml: $(THREAD_FILE)
+        ln -fs $< $@
+
     section
         OCamlProgram(gen_spec, gen_spec)
 
