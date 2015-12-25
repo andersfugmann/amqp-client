@@ -1,4 +1,4 @@
 * Support immutable strings
 
-* Consumer cancels:
-  when a consumer is cancelled (on a channel) we should close the pipe.
+* Fix connection stalls
+* Fix non-existing vhosts connection stalls

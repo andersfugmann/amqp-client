@@ -5,14 +5,14 @@ NATIVE_ENABLED = true
 BYTE_ENABLED = true
 
 OCAMLFLAGS = -thread -g -w @A-4-29-41-44-45 -bin-annot
-OCAMLPACKS[] = xml-light str ocplib-endian
+OCAMLPACKS[] = ocplib-endian
 
-if $(defined lwt)
+if $(defined-env use_lwt)
    OCAMLPACKS[] += lwt lwt.unix core
    THREAD_FILE = amqp_thread_lwt.ml
    export
 else
-   OCAMLPACKS[] += async async_unix
+   OCAMLPACKS[] += async async_unix core
    THREAD_FILE = amqp_thread_async.ml
    export
 
@@ -25,7 +25,8 @@ vmount(-l, tests, _build)
         ln -fs $< $@
 
     section
-        OCamlProgram(gen_spec, gen_spec)
+	gen_spec: gen_spec.ml
+            ocamlfind ocamlopt -package xml-light,str -linkpkg -o $@ $<
 
         AMQP_SPEC_URL = http://www.rabbitmq.com/resources/specs/amqp0-9-1.extended.xml
         AMQP_SPEC = $(rootname $(basename $(AMQP_SPEC_URL)))
@@ -40,8 +41,6 @@ vmount(-l, tests, _build)
             ./gen_spec -type constants $(AMQP_SPEC) > $@
 
     section
-	OCAMLFLAGS += -no-alias-deps
-        #export OCAMLPACKS
         FILES[] =
             amqp_types
             amqp_spec
@@ -73,7 +72,6 @@ vmount(-l, tests, _build)
 		ocamlfind install amqp-client $(filter-exists $(addsuffix .cmt, $(FILES)) $(addsuffix .cmi, $(FILES)) $(addsuffix .mli, $(FILES))) amqp-client.cmxa amqp-client.a amqp-client.cma ../META
 
     section
-	OCAML_LINK_FLAGS = -linkpkg
 	OCAML_LIBS += amqp-client
 
 	TESTS=$(rootname $(basename $(find ../tests/ -name *.ml)))
@@ -87,9 +85,9 @@ vmount(-l, tests, _build)
 
 	TESTS=$(filter %_test, $(TESTS))
 	test: $(TESTS)
-		foreach(test => ..., $(TESTS))
-			echo "====== $(test) ======"
-			./$(test)
+	    foreach(test => ..., $(TESTS))
+	        echo "====== $(test) ======"
+		./$(test)
 
 .PHONY: clean
 clean:
