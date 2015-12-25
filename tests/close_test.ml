@@ -6,7 +6,7 @@ let log fmt = Printf.printf (fmt ^^ "\n%!")
 let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return ()
 
 let test () =
-  Connection.connect ~virtual_host:"/test" ~id:"ocaml-amqp-test" "localhost" >>= fun connection ->
+  Connection.connect ~virtual_host:"/" ~id:"ocaml-amqp-test" "localhost" >>= fun connection ->
   log "Connection started";
   Connection.open_channel ~id:"queue.test" Channel.no_confirm connection >>= fun channel ->
   log "Channel opened";
@@ -17,7 +17,7 @@ let test () =
   log "Message published";
   Connection.close connection >>= fun () ->
   log "Connection closed";
-  Connection.connect ~virtual_host:"/test" ~id:"ocaml-amqp-test" "localhost" >>= fun connection ->
+  Connection.connect ~virtual_host:"/" ~id:"ocaml-amqp-test" "localhost" >>= fun connection ->
   log "Connection started";
   Connection.open_channel ~id:"queue.test" Channel.no_confirm connection >>= fun channel ->
   log "Channel opened";

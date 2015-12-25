@@ -5,7 +5,8 @@ NATIVE_ENABLED = true
 BYTE_ENABLED = true
 
 OCAMLFLAGS = -thread -g -w @A-4-29-41-44-45 -bin-annot
-OCAMLPACKS[] = xml-light str
+OCAMLPACKS[] = xml-light str ocplib-endian
+
 if $(defined lwt)
    OCAMLPACKS[] += lwt lwt.unix core
    THREAD_FILE = amqp_thread_lwt.ml

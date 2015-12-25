@@ -1,7 +1,8 @@
-(** Async compatability layer *)
-
+(** Lwt compatability layer *)
 
 let log fmt = Printf.eprintf (fmt ^^ "\n%!")
+
+
 module Deferred = struct
   type 'a t = 'a Lwt.t
   let all_unit = Lwt.join
@@ -158,27 +159,17 @@ module Reader = struct
     Lwt_io.close t >>|
     fun () -> log "Close done lwt "
 
-  let really_read_bigsubstring (t : t) (bigsubstr : Core.Std.Bigsubstring.t)
-    : [ `Eof of int | `Ok ] Deferred.t =
-    let len = Core.Std.Bigsubstring.length bigsubstr in
-    (* Can we get a string of equal size, or do we need to create a new? *)
-    let buffer = Bytes.create len in
-    Lwt.catch
-      (fun () ->
-         Lwt_io.read_into_exactly t buffer 0 len >>= fun () ->
-         Core.Std.Bigsubstring.blit_from_string bigsubstr ~src:buffer ~src_pos:0 ~len;
-         return `Ok)
+  let really_read input buf : [ `Eof of int | `Ok ] Deferred.t =
+
+    Lwt.catch (fun () ->
+        Lwt_io.read_into_exactly input buf 0 (String.length buf) >>= fun () ->
+        return `Ok)
       (fun _exn -> return (`Eof 0))
 end
 
 (** Byte writers *)
 module Writer = struct
   type t = string Pipe.Writer.t
-
-  let write_bigstring t bigstr =
-    let data = Core.Std.Bigstring.to_string bigstr in
-    Pipe.write_without_pushback t data
-
   let close t = Pipe.close t (* TODO: Need to close input  *)
   let flush t = Pipe.flush t
   let write t data = Pipe.write_without_pushback t data

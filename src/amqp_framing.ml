@@ -24,12 +24,12 @@ type method_handler = data -> unit
 type channel = { mutable state: channel_state;
                  method_handlers: (Amqp_types.message_id * method_handler) Doubly_linked.t;
                  content_handlers: (Amqp_types.class_id * content_handler) Doubly_linked.t;
-                 writer: Bigstring.t Pipe.Writer.t;
+                 writer: String.t Pipe.Writer.t;
                  mutable ready: unit Ivar.t;
                }
 
 type t = { input: Reader.t; output: Writer.t;
-           multiplex: Bigstring.t Pipe.Reader.t Pipe.Writer.t;
+           multiplex: String.t Pipe.Reader.t Pipe.Writer.t;
            mutable channels: channel option Array.t;
            mutable max_length: int;
            id: string;
@@ -145,7 +145,6 @@ let decode_message t tpe channel_no size input =
     log "Received method on channel: %d (%d, %d)" channel_no (fst message_id) (snd message_id);
     let handler = get_handler channel.method_handlers message_id in
     handler input;
-    Input.destroy input
   | Ready, n when n = Amqp_constants.frame_header ->
     let class_id, _weight, size =
       read_content_header (fun a b c -> a, b, c) input
@@ -162,13 +161,11 @@ let decode_message t tpe channel_no size input =
   | Waiting (class_id, content, offset, buffer), n when n = Amqp_constants.frame_body ->
     log "Received body data on channel: %d (%d) " channel_no class_id;
     Input.copy input ~dst_pos:offset ~len:size buffer;
-    Input.destroy input;
     if (String.length buffer = offset + size) then begin
       channel.state <- Ready;
       log "Received body on channel: %d (%d)" channel_no class_id;
       let handler = get_handler channel.content_handlers class_id in
       handler (content, buffer);
-      Input.destroy content
     end
     else
       channel.state <- Waiting (class_id, content, offset + size, buffer)
@@ -178,18 +175,16 @@ let decode_message t tpe channel_no size input =
 (** Cannot just keep running. It should terminate on close... However unexpected close should
     raise an error. What about a listener, that can be disabled? *)
 let rec read_frame t =
-  let buf = Bigstring.create (1+2+4) in
-  Reader.really_read_bigsubstring t.input (Bigsubstring.create buf) >>= function
+  let buf = String.create (1+2+4) in
+  Reader.really_read t.input buf >>= function
   | `Eof _ -> return ()
   | `Ok ->
     let input = Input.init buf in
-    let tpe, channel_no, length = read_frame_header (fun a b c -> a,b,c) input in
-    Bigstring.unsafe_destroy buf;
-
-    let buf = Bigstring.create (length+1) in
-    Reader.really_read_bigsubstring t.input (Bigsubstring.create buf) >>= function
+    let tpe, channel_no, length = read_frame_header (fun a b c -> a, b, c) input in
+    let buf = String.create (length+1) in
+    Reader.really_read t.input buf >>= function
     | `Eof _ -> return ()
-    | `Ok -> match Bigstring.get buf length |> Char.to_int with
+    | `Ok -> match buf.[length] |> Char.to_int with
       | n when n = Amqp_constants.frame_end ->
         let input = Input.init buf in
         decode_message t tpe channel_no length input;
@@ -292,7 +287,7 @@ let close_channel t channel_no =
 let rec start_writer output channels =
   Pipe.read channels >>= function
   | `Ok data ->
-    Writer.write_bigstring output data;
+    Writer.write output data;
     start_writer output channels
   | `Eof -> return ()
 

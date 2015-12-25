@@ -39,12 +39,11 @@ end
 module Reader = struct
   type t = Reader.t
   let close = Reader.close
-  let really_read_bigsubstring = Reader.really_read_bigsubstring
+  let really_read = Reader.really_read
 end
 
 module Writer = struct
   type t = Writer.t
-  let write_bigstring = Writer.write_bigstring
   let write = Writer.write
   let close = Writer.close
   let flush = Writer.flushed
