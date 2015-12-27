@@ -41,7 +41,7 @@ install: $(LIBS)
 else ifeq ($(MAKECMDGOALS), uninstall)
 .PHONY: uninstall
 uninstall:
-	@D=$$(ocamlfind query amqp-client) && echo rm -fr $${D}
+	@D=$$(ocamlfind query amqp-client) && rm -fr $${D}
 
 else
 $(MAKECMDGOALS):
