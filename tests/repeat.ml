@@ -1,0 +1,29 @@
+open Amqp_thread
+open Amqp
+
+let log fmt = Printf.printf (fmt ^^ "\n%!")
+
+let rec repeat channel queue =
+  log "rep";
+  Queue.publish channel queue (Message.make "Test") >>= function
+  | `Ok ->
+      begin
+        Queue.get ~no_ack:true channel queue >>= function
+        | Some _ ->
+            after 1000.0 >>= fun () ->
+            repeat channel queue
+        | None -> failwith "No message"
+      end
+  | _ -> failwith "Cannot publish"
+
+let test =
+  Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
+  log "Connection started";
+  Connection.open_channel ~id:"test.repeat" Channel.no_confirm connection >>= fun channel ->
+  Queue.declare channel ~auto_delete:true "test.repeat" >>= fun queue ->
+  repeat channel queue >>= fun () ->
+  Connection.close connection >>= fun () ->
+  Scheduler.shutdown 0 |> return
+
+let _ =
+  Scheduler.go ()
