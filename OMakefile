@@ -7,7 +7,7 @@ BYTE_ENABLED = true
 OCAMLFLAGS = -thread -g -w @A-4-29-41-44-45 -bin-annot
 OCAMLPACKS[] = ocplib-endian
 
-if $(defined-env use_lwt)
+if $(equal $(getenv thread, async), lwt)
    OCAMLPACKS[] += lwt lwt.unix core
    THREAD_FILE = amqp_thread_lwt.ml
    export
@@ -67,9 +67,6 @@ vmount(-l, tests, _build)
 		touch $@
 
 	.PHONY: install
-	install: amqp-client.cma amqp-client.cmxa
-		ocamlfind remove amqp-client || true
-		ocamlfind install amqp-client $(filter-exists $(addsuffix .cmt, $(FILES)) $(addsuffix .cmi, $(FILES)) $(addsuffix .mli, $(FILES))) amqp-client.cmxa amqp-client.a amqp-client.cma ../META
 
     section
 	OCAML_LIBS += amqp-client

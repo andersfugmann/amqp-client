@@ -2,7 +2,7 @@
 open Core.Std
 
 let log fmt =
-  Printf.ifprintf stderr (fmt ^^ "\n%!")
+  Printf.fprintf stderr (fmt ^^ "\n%!")
 
 module Input = struct
   open EndianString.BigEndian

@@ -119,16 +119,8 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
   Tcp.nodelay socket true;
 
   Amqp_framing.init ~id input output >>= fun framing ->
-  let t = { framing; virtual_host; channel = 0; closing=false } in
-  (* Hmm. We need to monitor if the socket is closed *=
-  spawn (Reader.close_finished input >>=
-         fun () ->
-         if t.closing then
-           return ()
-         else
-           raise Amqp_types.Connection_closed
-        );
-*)
+  let t = { framing; virtual_host; channel = 0; closing = false } in
+
   reply_start framing credentials >>= fun () ->
   reply_tune framing >>= fun server_heartbeat ->
   begin

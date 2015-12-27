@@ -38,21 +38,18 @@ let reserved_value: type a. a elem -> a = function
 
 let rec decode: type a. a elem -> Input.t -> a = fun elem t ->
   match elem with
-  | Bit -> Input.octet t = 1 |> tap (log "Bit %b")
-  | Octet -> Input.octet t |> tap (log "Octet 0x%02x")
-  | Short -> Input.short t |> tap (log "Short 0x%04x")
-  | Long -> Input.long t |> tap (log "Long 0x%08x")
-  | Longlong -> Input.longlong t |> tap (log "Longlong 0x%016x")
+  | Bit -> Input.octet t = 1
+  | Octet -> Input.octet t
+  | Short -> Input.short t
+  | Long -> Input.long t
+  | Longlong -> Input.longlong t
   | Shortstr ->
-    log "Shortstr";
     let len = decode Octet t in
     Input.string t len
   | Longstr ->
-    log "Longstr";
     let len = decode Long t in
     Input.string t len
   | Table ->
-    log "Table";
     let size = decode Long t in
     let offset = Input.offset t in
     let rec read_table_value t =

@@ -1,5 +1,23 @@
-version = "0.2.0"
-description = "AMQP client"
-requires = "async async_unix core"
-archive(byte) = "amqp-client.cma"
-archive(native) = "amqp-client.cmxa"
+version = "0.3.0"
+description = "AMQP client - Meta package."
+requires = "amqp-client.async"
+
+package "lwt" (
+  version = "0.3.0"
+  description = "AMQP client using the LWT threadming model"
+  directory = "lwt"
+  archive(byte) = "amqp-client.cma"
+  archive(native) = "amqp-client.cmxa"
+  requires = "lwt lwt.unix core ocplib-endian"
+  exists_if = "amqp-client.cmxa"
+)
+
+package "async" (
+  version = "0.3.0"
+  description = "AMQP client using the async threading model"
+  directory = "async"
+  archive(byte) = "amqp-client.cma"
+  archive(native) = "amqp-client.cmxa"
+  requires = "async async_unix core ocplib-endian"
+  exists_if = "amqp-client.cmxa"
+)
