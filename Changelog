@@ -1,3 +1,8 @@
+0.3.0: (Not released)
+* Added support for Lwt in addition to Async
+* Do away with bigstrings (bigarrays)
+* Use ocplib-endian for endian conversions
+
 0.2.0:
 * Library renamed to amqp-client
 * Fix bug when heartbeats are disabled serverside.
