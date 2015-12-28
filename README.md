@@ -1,12 +1,11 @@
 OCaml client library for amqp
 =============================
 
-Amqp-client is a AMQP (AMQP 0-9-1) client library written in pure
-ocaml. The library implements AMQP spec 0-9-1 as well as as rabbitmq
-specific extensions. It supports both Core async and Lwt threading
-models.
+Amqp-client is a AMQP client library written in pure OCaml. The
+library implements AMQP spec 0-9-1 as well as as RabbitMQ specific
+extensions. It supports both Core Async and Lwt threading models.
 
-Amqp-client is tested extensivly against rabbitmq, but should work
+Amqp-client is tested extensively against RabbitMQ, but should work
 with any AMQP server.
 
 The library exposes low level protocol handling though ```Amqp_spec```
@@ -27,27 +26,31 @@ The goal is to avoid clients crashing because they rely on other
 service to create resources (queues / exchanges) on the amqp server,
 and in all make use of AMQP simple.
 
-Read the API Documentation here: http://andersfugmann.github.io/amqp-client/
+Documentation for the API can be found here: http://andersfugmann.github.io/amqp-client/
 
 ### Build instructions
 The system is not functorized over an abstraction to the threading model. Instead the
-build system chooses which threding model abstraction to be used and stacially compiles it in.
-This has the advantage that files do not need to carry functor boilerplace and that the compiler can inline function calls.
+build system chooses which threading model abstraction to be used and stacially compiles it in.
+This has the advantage that files do not need to carry functor boilerplate and that the compiler can inline function calls.
 The disadvantage is that it does not allow users to supply their own threading model implementation.
 
-To build the library using
-* async:```make thread=async```
-* lwt: ```make thread=lwt```
+To build the library using Async:
 
-```make install``` will install both lwt and async depending on availability of async / lwt though ocamlfind:
+```make thread=async```
+
+To build the Lwt version the the library:
+```make thread=lwt```
+
+```make install``` will install both Lwt and Async depending on availability of Async / Lwt though ocamlfind:
 
 
 ### Using the library
-To compile using async do:
+To compile using Async do:
 
 ```ocamlfind ocamlopt -package amqp_client.async myprog.ml```
 
-For lwt use:
+To compile using the Lwt version of the library do:
+
 ```ocamlfind ocamlopt -package amqp_client.lwt myprog.ml```
 
 
