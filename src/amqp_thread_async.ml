@@ -57,7 +57,13 @@ module Pipe = struct
   let set_size_budget = Pipe.set_size_budget
   let flush t = Pipe.downstream_flushed t
   let interleave_pipe = Pipe.interleave_pipe
-  let transfer_in = Pipe.transfer_in
+  let write = Pipe.write
+  let write_without_pushback = Pipe.write_without_pushback
+
+  let transfer_in ~from t =
+    Queue.iter (write_without_pushback t) from;
+    return ()
+
   let close t = Pipe.close t; flush t >>= fun _ -> return ()
   let read = Pipe.read
   let iter = Pipe.iter
@@ -69,8 +75,6 @@ module Pipe = struct
   module Reader = struct
     type 'a t = 'a Pipe.Reader.t
   end
-  let write = Pipe.write
-  let write_without_pushback = Pipe.write_without_pushback
 
 end
 

@@ -5,6 +5,13 @@ let log fmt = Printf.printf (fmt ^^ "\n%!")
 
 let req_queue = "test.rpc"
 
+let list_init ~f n =
+  let rec inner = function
+    | i when i = n -> []
+    | i -> f i :: inner (i + 1)
+  in
+  inner 0
+
 let start_server channel =
   let handler (content, body) =
     let i = int_of_string body in
@@ -32,7 +39,7 @@ let test =
   log "Server started";
   Rpc.Client.init ~id:"rpc.client.test" connection >>= fun client ->
   log "Client initialized";
-  Core.Std.List.init 1000 ~f:(call client) |> Deferred.all_unit >>= fun () ->
+  list_init 1000 ~f:(call client) |> Deferred.all_unit >>= fun () ->
   log "All clients returned";
   Channel.close channel >>| fun () ->
   log "Channel closed";

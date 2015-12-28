@@ -15,7 +15,7 @@ type t
 
 val write_message : t * channel_no ->
   message_id * (Amqp_io.Output.t -> Amqp_io.Output.t) ->
-  (class_id * (Amqp_io.Output.t -> Amqp_io.Output.t) * Core.Std.String.t) option ->
+  (class_id * (Amqp_io.Output.t -> Amqp_io.Output.t) * string) option ->
   unit Deferred.t
 
 val send_heartbeat: t -> unit Deferred.t

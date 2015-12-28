@@ -8,7 +8,7 @@ package "lwt" (
   directory = "lwt"
   archive(byte) = "amqp-client.cma"
   archive(native) = "amqp-client.cmxa"
-  requires = "lwt lwt.unix core ocplib-endian"
+  requires = "lwt lwt.unix ocplib-endian"
   exists_if = "amqp-client.cmxa"
 )
 
@@ -18,6 +18,6 @@ package "async" (
   directory = "async"
   archive(byte) = "amqp-client.cma"
   archive(native) = "amqp-client.cmxa"
-  requires = "async async_unix core ocplib-endian"
+  requires = "async async_unix ocplib-endian"
   exists_if = "amqp-client.cmxa"
 )

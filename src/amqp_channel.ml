@@ -1,8 +1,10 @@
+module Q = Queue
 open Amqp_thread
 open Amqp_spec
 
 type no_confirm = [ `Ok ]
 type with_confirm = [ `Ok | `Failed ]
+
 
 type _ confirms =
   | No_confirm: no_confirm confirms
@@ -15,7 +17,7 @@ type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
 type consumers = (string, consumer) Hashtbl.t
 
 type publish_confirm = { mutable message_count: int;
-                         unacked: (int * [ `Ok | `Failed ] Ivar.t) Core.Doubly_linked.t }
+                         unacked: (int * [ `Ok | `Failed ] Ivar.t) Q.t }
 
 type _ pcp =
   | Pcp_no_confirm: no_confirm pcp
@@ -65,7 +67,7 @@ module Internal = struct
       let var = Ivar.create () in
       let id = t.message_count + 1 in
       t.message_count <- id;
-      let (_:'a Core.Doubly_linked.Elt.t) = Core.Doubly_linked.insert_last t.unacked (id, var) in
+      Q.add (id, var) t.unacked;
       (Ivar.read var : [`Ok | `Failed] Deferred.t)
     | Pcp_no_confirm -> return `Ok
 end
@@ -86,38 +88,51 @@ let register_flow_handler t =
   read ~once:false handler (channel t)
 
 let handle_confirms channel t =
-  let module Dl = Core.Doubly_linked in
+
+  let confirm multiple =
+    let confirm_single s tag =
+      let tmp = Q.create () in
+      let rec inner () =
+        match Q.take t.unacked with
+        | (id, _) as e when id < tag ->
+            Q.add e tmp;
+            inner ()
+        | (id, v) when id = tag ->
+            Ivar.fill v s;
+        | e ->
+            Q.add e tmp;
+        | exception Q.Empty ->
+            failwith (Printf.sprintf "Unexpected confirm: %d %d"
+                        tag
+                        (Q.length t.unacked));
+            (* Strange. Tag cannot be found *)
+      in
+      inner ();
+      Q.transfer t.unacked tmp;
+      Q.transfer tmp t.unacked
+    in
+
+    let rec confirm_multiple s tag =
+      match Q.peek t.unacked with
+      | (id, v) when id <= tag ->
+          Ivar.fill v s;
+          Q.take t.unacked |> ignore;
+          confirm_multiple s tag
+      | _ -> ()
+      | exception Q.Empty -> ()
+    in
+    match multiple with
+    | true -> confirm_multiple
+    | false -> confirm_single
+  in
+
+
   let open Basic in
 
-  (* Handle ack or nack *)
-  let handle s tag = function
-    | true ->
-      let rec loop () =
-        match Dl.first (t.unacked) with
-        | Some (id, var) when id <= tag ->
-          Ivar.fill var s;
-          let (_: 'a option) = Dl.remove_first t.unacked in
-          loop ()
-        | Some _
-        | None -> ()
-      in
-      loop ()
-    | false ->
-      begin match Dl.find_elt t.unacked ~f:(fun (id, _) -> id = tag) with
-        | Some elt ->
-          let (_, var) = Dl.Elt.value elt in
-          Ivar.fill var s;
-          Dl.remove t.unacked elt
-        | None ->
-          failwith (Printf.sprintf "Unexpected confirm: %d %d"
-                      tag
-                      (Dl.length t.unacked))
-      end
-  in
   let read_ack = snd Ack.Internal.read in
   let read_reject = snd Reject.Internal.read in
-  read_ack ~once:false (fun m -> handle `Ok m.Ack.delivery_tag m.Ack.multiple) channel;
-  read_reject ~once:false (fun m -> handle `Failed m.Reject.delivery_tag false) channel;
+  read_ack ~once:false (fun m -> confirm m.Ack.multiple `Ok m.Ack.delivery_tag) channel;
+  read_reject ~once:false (fun m -> confirm false `Ok m.Reject.delivery_tag) channel;
   Confirm.Select.request channel { Confirm.Select.nowait = false }
 
 let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
@@ -128,7 +143,7 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
   Channel.Open.request (framing, channel_no) () >>= fun () ->
   let publish_confirm : a pcp = match confirm_type with
     | With_confirm ->
-        Pcp_with_confirm { message_count = 0; unacked = Core.Doubly_linked.create () }
+        Pcp_with_confirm { message_count = 0; unacked = Q.create () }
     | No_confirm -> Pcp_no_confirm
   in
   (match publish_confirm with Pcp_with_confirm t -> handle_confirms (framing, channel_no) t | Pcp_no_confirm -> return ()) >>= fun () ->

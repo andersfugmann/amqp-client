@@ -2,7 +2,6 @@
 
 let log fmt = Printf.eprintf (fmt ^^ "\n%!")
 
-
 module Deferred = struct
   type 'a t = 'a Lwt.t
   let all_unit = Lwt.join
@@ -117,8 +116,7 @@ module Pipe = struct
 
 
   let transfer_in (t: 'a Writer.t) ~from:queue : unit Deferred.t =
-    (* Just copy all elements *)
-    Core_kernel.Std.Queue.iter queue ~f:(write_without_pushback t);
+    Queue.iter (write_without_pushback t) queue;
     return ()
 
   (* Close should include flush *)

@@ -1,10 +1,8 @@
 (** Internal *)
-
 open Amqp_thread
-open Core.Std
 open Amqp_protocol
-open Amqp_protocol.Spec
 open Amqp_io
+module S = Amqp_protocol.Spec
 
 type channel_no = int
 
@@ -22,23 +20,23 @@ type content_handler = data * string -> unit
 type method_handler = data -> unit
 
 type channel = { mutable state: channel_state;
-                 method_handlers: (Amqp_types.message_id * method_handler) Doubly_linked.t;
-                 content_handlers: (Amqp_types.class_id * content_handler) Doubly_linked.t;
+                 mutable method_handlers: (Amqp_types.message_id * method_handler) list;
+                 mutable content_handlers: (Amqp_types.class_id * content_handler) list;
                  writer: String.t Pipe.Writer.t;
                  mutable ready: unit Ivar.t;
                }
 
 type t = { input: Reader.t; output: Writer.t;
            multiplex: String.t Pipe.Reader.t Pipe.Writer.t;
-           mutable channels: channel option Array.t;
+           mutable channels: channel option array;
            mutable max_length: int;
            id: string;
            mutable flow: bool;
          }
 
 let protocol_header = "AMQP\x00\x00\x09\x01"
-let read_method_frame = read (Short :: Short :: Nil)
-let read_content_header = read (Short :: Short :: Longlong :: Nil)
+let read_method_frame = S.read S.(Short :: Short :: Nil)
+let read_content_header = S.read S.(Short :: Short :: Longlong :: Nil)
 
 
 let read_frame_header, write_frame_header =
@@ -89,8 +87,8 @@ let add_content_frames queue max_length channel_no class_id writer data =
     create_content_header output class_id 0 (String.length data)
     |> writer
   in
-  create_frame channel_no Amqp_constants.frame_header writer
-  |> Queue.enqueue queue;
+  let msg = create_frame channel_no Amqp_constants.frame_header writer in
+  Queue.add msg queue;
 
   let length = String.length data in
 
@@ -98,9 +96,11 @@ let add_content_frames queue max_length channel_no class_id writer data =
   let rec send offset =
     if offset < length then
       let size = min max_length (length - offset) in
-      create_frame channel_no Amqp_constants.frame_body
-        (fun output -> Output.string output ~src_pos:offset ~len:size data; output)
-      |> Queue.enqueue queue;
+      let msg =
+        create_frame channel_no Amqp_constants.frame_body
+          (fun output -> Output.string output ~src_pos:offset ~len:size data; output)
+      in
+      Queue.add msg queue;
       send (offset + max_length)
     else
       ()
@@ -114,8 +114,8 @@ let write_message (t, channel_no) (message_id, writer) content =
   | Some (class_id, c_writer, data) ->
     Ivar.read channel.ready >>= fun () ->
     let frames = Queue.create () in
-    create_method_frame channel_no message_id writer
-    |> Queue.enqueue frames;
+    let msg = create_method_frame channel_no message_id writer in
+    Queue.add msg frames;
     add_content_frames frames t.max_length channel_no class_id c_writer data;
     Pipe.transfer_in channel.writer ~from:frames
   | None ->
@@ -127,12 +127,23 @@ let send_heartbeat t =
   create_frame 0 Amqp_constants.frame_heartbeat (fun i -> i)
   |> Pipe.write channel.writer
 
-
-let get_handler lst id =
-  match Doubly_linked.find_elt ~f:(fun (id', _) -> id = id') lst with
-  | Some elt -> Doubly_linked.move_to_front lst elt;
-    snd (Doubly_linked.Elt.value elt)
-  | None -> raise Amqp_types.No_handler_found
+let get_handler id = function
+  | ((id', h) :: _) as lst when id = id' -> (h, lst)
+  | lst ->
+      begin
+        let elt = ref None in
+        let rec inner = function
+          | [] -> []
+          | ((id', _) as e) :: xs when id = id' ->
+              elt := Some e;
+              xs
+          | x :: xs -> x :: inner xs
+        in
+        let tail = inner lst in
+        match !elt with
+        | None -> raise Amqp_types.No_handler_found
+        | Some e -> snd e, e :: tail
+      end
 
 (** read_frame reads a frame from the input, and sends the data to
     the channel writer *)
@@ -143,7 +154,8 @@ let decode_message t tpe channel_no size input =
     (* Standard method message *)
     let message_id = read_method_frame (fun a b -> a, b) input in
     log "Received method on channel: %d (%d, %d)" channel_no (fst message_id) (snd message_id);
-    let handler = get_handler channel.method_handlers message_id in
+    let (handler, handlers) = get_handler message_id channel.method_handlers in
+    channel.method_handlers <- handlers; (* Move front *)
     handler input;
   | Ready, n when n = Amqp_constants.frame_header ->
     let class_id, _weight, size =
@@ -153,18 +165,20 @@ let decode_message t tpe channel_no size input =
 
     if size = 0 then begin
       log "Received body on channel: %d (%d)" channel_no class_id;
-      let handler = get_handler channel.content_handlers class_id in
+      let handler, handlers = get_handler class_id channel.content_handlers in
+      channel.content_handlers <- handlers; (* Move front *)
       handler (input, "")
     end
     else
-      channel.state <- Waiting (class_id, input, 0, String.create size)
+      channel.state <- Waiting (class_id, input, 0, Bytes.create size)
   | Waiting (class_id, content, offset, buffer), n when n = Amqp_constants.frame_body ->
     log "Received body data on channel: %d (%d) " channel_no class_id;
     Input.copy input ~dst_pos:offset ~len:size buffer;
     if (String.length buffer = offset + size) then begin
       channel.state <- Ready;
       log "Received body on channel: %d (%d)" channel_no class_id;
-      let handler = get_handler channel.content_handlers class_id in
+      let handler, handlers = get_handler class_id channel.content_handlers in
+      channel.content_handlers <- handlers; (* Move front *)
       handler (content, buffer);
     end
     else
@@ -175,16 +189,16 @@ let decode_message t tpe channel_no size input =
 (** Cannot just keep running. It should terminate on close... However unexpected close should
     raise an error. What about a listener, that can be disabled? *)
 let rec read_frame t =
-  let buf = String.create (1+2+4) in
+  let buf = Bytes.create (1+2+4) in
   Reader.really_read t.input buf >>= function
   | `Eof _ -> return ()
   | `Ok ->
     let input = Input.init buf in
     let tpe, channel_no, length = read_frame_header (fun a b c -> a, b, c) input in
-    let buf = String.create (length+1) in
+    let buf = Bytes.create (length+1) in
     Reader.really_read t.input buf >>= function
     | `Eof _ -> return ()
-    | `Ok -> match buf.[length] |> Char.to_int with
+    | `Ok -> match buf.[length] |> Char.code with
       | n when n = Amqp_constants.frame_end ->
         let input = Input.init buf in
         decode_message t tpe channel_no length input;
@@ -193,32 +207,31 @@ let rec read_frame t =
 
 let register_method_handler (t, channel_no) message_id handler =
   let c = channel t channel_no in
-  if Doubly_linked.exists c.method_handlers
-      ~f:(fun x -> fst x = message_id) then
+  if List.exists (fun x -> fst x = message_id) c.method_handlers then
     raise Amqp_types.Busy;
-
-  let (_: 'a Doubly_linked.Elt.t) = Doubly_linked.insert_first c.method_handlers (message_id, handler) in
-  ()
+  c.method_handlers <- (message_id, handler) :: c.method_handlers
 
 let register_content_handler (t, channel_no) class_id handler =
   let c = channel t channel_no in
-  if Doubly_linked.exists c.content_handlers
-      ~f:(fun x -> fst x = class_id) then
+  if List.exists (fun x -> fst x = class_id) c.content_handlers then
     raise Amqp_types.Busy;
-  let (_: 'a Doubly_linked.Elt.t) = Doubly_linked.insert_first c.content_handlers (class_id, handler) in
-  ()
+  c.content_handlers <- (class_id, handler) :: c.content_handlers
+
+let rec remove_handler id = function
+  | (id', _) :: xs when id = id' -> xs
+  | x :: xs -> x :: remove_handler id xs
+  | [] -> (* No handler removed *)
+      raise Amqp_types.Busy
 
 let deregister_method_handler (t, channel_no) message_id =
   let c = channel t channel_no in
-  match Doubly_linked.find_elt c.method_handlers ~f:(fun (id, _ ) -> id = message_id) with
-  | None -> raise Amqp_types.Busy
-  | Some elt -> Doubly_linked.remove c.method_handlers elt
+  let handlers = remove_handler message_id c.method_handlers in
+  c.method_handlers <- handlers
 
 let deregister_content_handler (t, channel_no) class_id =
   let c = channel t channel_no in
-  match Doubly_linked.find_elt c.content_handlers ~f:(fun (id, _ ) -> id = class_id) with
-  | None -> raise Amqp_types.Busy
-  | Some elt -> Doubly_linked.remove c.content_handlers elt
+  let handlers = remove_handler class_id c.content_handlers in
+  c.content_handlers <- handlers
 
 let set_flow t channel_no active =
   let c = channel t channel_no in
@@ -231,15 +244,13 @@ let set_flow t channel_no active =
 
 let set_flow_all t active =
   t.flow <- active;
-  Array.iteri t.channels
-    ~f:(fun i -> function None -> ()
-                        | Some _ -> set_flow t i active)
+  Array.iteri (fun i _ -> set_flow t i active) t.channels
 
 let open_channel t channel_no =
   (* Grow the array if needed *)
   let len = Array.length t.channels in
   if (len <= channel_no) then
-    t.channels <- Array.append t.channels (Array.create ~len None);
+    t.channels <- Array.append t.channels (Array.make len None);
 
   let reader, writer = Pipe.create () in
   Pipe.set_size_budget writer 4;
@@ -249,8 +260,8 @@ let open_channel t channel_no =
   in
   t.channels.(channel_no) <-
     Some { state = Ready;
-           method_handlers = Doubly_linked.create ();
-           content_handlers = Doubly_linked.create ();
+           method_handlers = [];
+           content_handlers = [];
            writer;
            ready;
          };
@@ -259,8 +270,7 @@ let open_channel t channel_no =
 
 let flush t =
   Array.to_list t.channels
-  |> List.filter_opt
-  |> List.map ~f:(fun channel -> Pipe.flush channel.writer >>= fun _ -> return ())
+  |> List.map (function None -> return () | Some channel -> Pipe.flush channel.writer >>= fun _ -> return ())
   |> Deferred.all_unit >>= fun () ->
   Writer.flush t.output
 
@@ -270,12 +280,10 @@ let flush_channel t channel_no =
   Writer.flush t.output
 
 let close t =
-  Array.to_list t.channels
-  |> List.filter_opt
-  |> fun l -> Deferred.List.iter ~f:(fun ch -> Pipe.close ch.writer) l >>= fun () ->
+  let l = Array.to_list t.channels in
+  Deferred.List.iter ~f:(function None -> return () | Some ch -> Pipe.close ch.writer) l >>= fun () ->
   Reader.close t.input >>= fun () ->
   Writer.close t.output >>= fun () ->
-
   return ()
 
 let close_channel t channel_no =
@@ -295,13 +303,13 @@ let id {id; _} = id
 
 (** [writer] is channel 0 writer. It must be attached *)
 let init ~id input output  =
-  let id = Printf.sprintf "%s.%s.%s.%s" id (Unix.gethostname ()) (Unix.getpid () |> Pid.to_string) (Sys.executable_name |> Filename.basename) in
+  let id = Printf.sprintf "%s.%s.%s.%s" id (Unix.gethostname ()) (Unix.getpid () |> string_of_int) (Sys.executable_name |> Filename.basename) in
   let reader, writer = Pipe.create () in
   spawn (start_writer output (Pipe.interleave_pipe reader));
   let t =
     { input; output;
       max_length = 1024;
-      channels = Array.create ~len:256 None;
+      channels = Array.make 256 None;
       multiplex = writer;
       id;
       flow = false;

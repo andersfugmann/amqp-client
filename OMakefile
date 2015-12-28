@@ -8,11 +8,11 @@ OCAMLFLAGS = -thread -g -w @A-4-29-41-44-45 -bin-annot
 OCAMLPACKS[] = ocplib-endian
 
 if $(equal $(getenv thread, async), lwt)
-   OCAMLPACKS[] += lwt lwt.unix core
+   OCAMLPACKS[] += lwt lwt.unix
    THREAD_FILE = amqp_thread_lwt.ml
    export
 else
-   OCAMLPACKS[] += async async_unix core
+   OCAMLPACKS[] += async async_unix
    THREAD_FILE = amqp_thread_async.ml
    export
 

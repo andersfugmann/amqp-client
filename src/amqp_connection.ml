@@ -1,9 +1,15 @@
-open Core.Std
 open Amqp_thread
 open Amqp_spec.Connection
 
-let version = "0.1.1"
+let version = "0.3.0"
 let log = Amqp_io.log
+
+let string_until c str =
+  try
+    let index = String.index str c in
+    String.sub str 0 index
+  with
+  | Not_found -> str
 
 type t = { framing: Amqp_framing.t;
            virtual_host: string;
@@ -14,9 +20,10 @@ type t = { framing: Amqp_framing.t;
 let reply_start framing (username, password) =
   let print_item table s =
     let open Amqp_types in
-    match List.Assoc.find table s with
-    | Some (VLongstr v) -> printf "%s: %s\n" s v
+    match List.assoc s table with
+    | VLongstr v -> Printf.printf "%s: %s\n%!" s v
     | _ -> ()
+    | exception _ -> ()
   in
 
   let reply { Start.version_major;
@@ -26,13 +33,13 @@ let reply_start framing (username, password) =
               locales } =
 
     let open Amqp_types in
-    ["product"; "version" ] |> List.iter ~f:(print_item server_properties);
-    printf "Amqp: %d.%d\n" version_major version_minor;
+    ["product"; "version" ] |> List.iter (print_item server_properties);
+    Printf.printf "Amqp: %d.%d\n%!" version_major version_minor;
 
     return {
       Start_ok.mechanism = "PLAIN";
       response = "\x00" ^ username ^ "\x00" ^ password;
-      locale = String.split ~on:';' locales |> List.hd_exn;
+      locale = string_until ';' locales;
       Start_ok.client_properties = [
         "platform", VLongstr (Sys.os_type);
         "library", VLongstr "ocaml-amqp";

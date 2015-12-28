@@ -1,7 +1,6 @@
-0.3.0: (Not released)
+0.3.0: (Not released yet)
 * Added support for Lwt in addition to Async
-* Do away with bigstrings (bigarrays)
-* Use ocplib-endian for endian conversions
+* Dont depend on Core
 
 0.2.0:
 * Library renamed to amqp-client
