@@ -1,6 +1,9 @@
-0.3.0: (Not released yet)
+0.9.0:
 * Added support for Lwt in addition to Async
-* Dont depend on Core
+* Remove dependency on Core
+* Split into amqp-client.async and amqp-client.lwt findlib packages
+  and autodetect which libraries are installed and install appropriate versions
+  of the library
 
 0.2.0:
 * Library renamed to amqp-client
