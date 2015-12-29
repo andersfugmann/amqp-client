@@ -8,7 +8,7 @@
 0.2.0:
 * Library renamed to amqp-client
 * Fix bug when heartbeats are disabled serverside.
-* Use polymorphic variants whening binding to exchanges
+* Use polymorphic variants when binding to exchanges
 
 0.1.1:
 * Flush on channel / connection close

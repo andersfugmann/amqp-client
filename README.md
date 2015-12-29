@@ -1,8 +1,8 @@
-OCaml client library for amqp
+OCaml client library for AMQP
 =============================
 
 Amqp-client is a AMQP client library written in pure OCaml. The
-library implements AMQP spec 0-9-1 as well as as RabbitMQ specific
+library implements AMQP protocol version 0.9.1 as well as RabbitMQ specific
 extensions. It supports both Core Async and Lwt threading models.
 
 Amqp-client is tested extensively against RabbitMQ, but should work
@@ -22,11 +22,13 @@ The high level interface exposes usage patterns such as
  * Rpc-client
  * Rpc-server
 
-The goal is to avoid clients crashing because they rely on other
-service to create resources (queues / exchanges) on the amqp server,
-and in all make use of AMQP simple.
+The library requires all resources to be explicitly allocated to avoid
+crashes because a service is replying on other services to allocate AMQP resources
+(exchanges, queues etc.).
+Channels and consumers are tagged with an id, host name, pid etc. to ease tracing on AMQP level.
 
-Documentation for the API can be found here: http://andersfugmann.github.io/amqp-client/
+Documentation for the API can be found here:
+http://andersfugmann.github.io/amqp-client/ (async version)
 
 ### Build instructions
 The system is not functorized over an abstraction to the threading model. Instead the
@@ -39,6 +41,7 @@ To build the library using Async:
 ```make thread=async```
 
 To build the Lwt version the the library:
+
 ```make thread=lwt```
 
 ```make install``` will install both Lwt and Async depending on availability of Async / Lwt though ocamlfind:
