@@ -59,7 +59,7 @@ To compile using the Lwt version of the library do:
 
 ### Example
 
-```
+```ocaml
 open Async.Std
 
 let host = "localhost"
