@@ -108,7 +108,6 @@ module Pipe = struct
     let run = function
       | Data t -> copy t
       | Flush _ ->
-        log "Got flush";
         failwith "Cannot flush this one"
     in
     spawn (Lwt_stream.iter_p run t);
@@ -119,7 +118,6 @@ module Pipe = struct
     Queue.iter (write_without_pushback t) queue;
     return ()
 
-  (* Close should include flush *)
   let close (t: 'a Writer.t) =
     let cond = Lwt_condition.create () in
     t (Some (Flush cond));
@@ -129,9 +127,7 @@ module Pipe = struct
   let iter ~f (t: 'a Reader.t) =
     let rec inner () =
       read t >>= function
-      | `Eof ->
-        log "Iter: eof";
-        return ()
+      | `Eof -> return ()
       | `Ok d -> f d >>= fun () ->
         inner ()
     in
@@ -140,22 +136,16 @@ module Pipe = struct
   let iter_without_pushback ~f t =
     let rec inner () =
       read t >>= function
-      | `Eof ->
-        log "Iter_without_pushback: eof";
-        return ()
+      | `Eof -> return ()
       | `Ok d -> f d; inner ()
     in
     inner ()
 
 end
 
-(** Byte readers *)
 module Reader = struct
   type t = Lwt_io.input_channel
-  let close t =
-    log "Try close lwt";
-    Lwt_io.close t >>|
-    fun () -> log "Close done lwt "
+  let close = Lwt_io.close
 
   let read input buf : [ `Eof of int | `Ok ] Deferred.t =
     let len = Bytes.length buf in
@@ -171,14 +161,13 @@ module Reader = struct
     inner 0
 end
 
-(** Byte writers *)
 module Writer = struct
   type t = string Pipe.Writer.t
-  let close t = Pipe.close t (* TODO: Need to close input  *)
+  let close t = Pipe.close t
   let flush t = Pipe.flush t
   let write t data = Pipe.write_without_pushback t data
 end
-(* Just need to convert to lwt_io. *)
+
 module Tcp = struct
 
   let connect host port =
