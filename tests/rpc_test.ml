@@ -30,8 +30,10 @@ let test =
   spawn (start_server channel);
   Rpc.Client.init ~id:"rpc.client.test" connection >>= fun client ->
   run_tests client 0 >>= fun () ->
-  Channel.close channel >>| fun () ->
+  Channel.close channel >>= fun () ->
   log "Channel closed";
+  Connection.close connection >>| fun () ->
+  log "Connection closed";
   Scheduler.shutdown 0
 
 let _ =

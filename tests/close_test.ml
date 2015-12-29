@@ -31,7 +31,10 @@ let test () =
   log "Message received";
   Queue.delete channel queue >>= fun () ->
   log "Queue deleted";
+  Channel.close channel >>= fun () ->
+  log "Channel closed";
   Connection.close connection >>| fun () ->
+  log "Connection closed";
   Scheduler.shutdown 0
 
 let _ =

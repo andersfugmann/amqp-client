@@ -41,8 +41,10 @@ let test =
   log "Client initialized";
   list_init 1000 ~f:(call client) |> Deferred.all_unit >>= fun () ->
   log "All clients returned";
-  Channel.close channel >>| fun () ->
+  Channel.close channel >>= fun () ->
   log "Channel closed";
+  Connection.close connection >>| fun () ->
+  log "Connection closed";
   Scheduler.shutdown 0
 
 let _ =

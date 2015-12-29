@@ -20,8 +20,10 @@ let test =
   log "Exchange deleted";
   Exchange.delete channel exchange2 >>= fun () ->
   log "Exchange deleted";
-  Channel.close channel >>| fun () ->
+  Channel.close channel >>= fun () ->
   log "Channel closed";
+  Connection.close connection >>| fun () ->
+  log "Connection closed";
   Scheduler.shutdown 0
 
 let _ =

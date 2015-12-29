@@ -50,8 +50,11 @@ let test =
   Message.ack channel m >>= fun () ->
   Queue.delete channel queue >>= fun () ->
   log "Queue deleted";
-  Connection.close connection >>= fun () ->
-  Scheduler.shutdown 0 |> return
+  Channel.close channel >>= fun () ->
+  log "Channel closed";
+  Connection.close connection >>| fun () ->
+  log "Connection closed";
+  Scheduler.shutdown 0
 
 let _ =
   Scheduler.go ()
