@@ -1,6 +1,6 @@
 (** Lwt compatability layer *)
 
-let log fmt = Printf.eprintf (fmt ^^ "\n%!")
+let log fmt = Printf.ifprintf stderr (fmt ^^ "\n%!")
 
 module Deferred = struct
   type 'a t = 'a Lwt.t
