@@ -1,3 +1,7 @@
+0.9.9:
+* Improve error handling when connection closes unexpectedly
+
+
 0.9.0:
 * Added support for Lwt in addition to Async
 * Remove dependency on Core

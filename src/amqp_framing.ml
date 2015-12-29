@@ -188,14 +188,14 @@ let decode_message t tpe channel_no size input =
 
 let rec read_frame t close_handler =
   let header = Bytes.create (1+2+4) in
-  Reader.really_read t.input header >>= function
+  Reader.read t.input header >>= function
   | `Eof n ->
       close_handler (Bytes.sub_string header 0 n)
   | `Ok ->
     let input = Input.init header in
     let tpe, channel_no, length = read_frame_header (fun a b c -> a, b, c) input in
     let buf = Bytes.create (length+1) in
-    Reader.really_read t.input buf >>= function
+    Reader.read t.input buf >>= function
     | `Eof n ->
         let s = Bytes.extend header 0 n in
         Bytes.blit buf 0 s (1+2+4) n;

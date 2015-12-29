@@ -39,7 +39,7 @@ end
 module Reader = struct
   type t = Reader.t
   let close = Reader.close
-  let really_read = Reader.really_read
+  let read = Reader.really_read
 end
 
 module Writer = struct

@@ -157,13 +157,13 @@ module Reader = struct
     Lwt_io.close t >>|
     fun () -> log "Close done lwt "
 
-  let really_read input buf : [ `Eof of int | `Ok ] Deferred.t =
+  let read input buf : [ `Eof of int | `Ok ] Deferred.t =
     let len = Bytes.length buf in
     let rec inner = function
       | n when n = len ->
           return `Ok
       | n -> begin
-          Lwt_io.read_into input buf n (len - n) >>= function
+          Lwt.catch (fun () -> Lwt_io.read_into input buf n (len - n)) (fun _exn -> return 0) >>= function
           | 0 -> return (`Eof n)
           | read -> inner (n + read)
         end
