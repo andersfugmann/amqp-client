@@ -62,7 +62,7 @@ To compile using the Lwt version of the library do:
 ```
 open Async.Std
 
-let host = "localhost" in
+let host = "localhost"
 
 let run () =
   Amqp.Connection.connect ~id:"MyConnection" host >>= fun connection ->
