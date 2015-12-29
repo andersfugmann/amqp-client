@@ -26,6 +26,7 @@ type channel = { mutable state: channel_state;
                  mutable ready: unit Ivar.t;
                }
 
+type close_handler = string -> unit Deferred.t
 type t = { input: Reader.t; output: Writer.t;
            multiplex: String.t Pipe.Reader.t Pipe.Writer.t;
            mutable channels: channel option array;
@@ -43,7 +44,6 @@ let read_frame_header, write_frame_header =
   let open Amqp_protocol.Spec in
   let spec = Octet :: Short :: Long :: Nil in
   read spec, write spec
-
 
 let channel t channel_no =
   match t.channels.(channel_no) with
@@ -186,23 +186,25 @@ let decode_message t tpe channel_no size input =
   | _, n when n = Amqp_constants.frame_heartbeat -> ()
   | _, n -> raise (Amqp_types.Unknown_frame_type n)
 
-(** Cannot just keep running. It should terminate on close... However unexpected close should
-    raise an error. What about a listener, that can be disabled? *)
-let rec read_frame t =
-  let buf = Bytes.create (1+2+4) in
-  Reader.really_read t.input buf >>= function
-  | `Eof _ -> return ()
+let rec read_frame t close_handler =
+  let header = Bytes.create (1+2+4) in
+  Reader.really_read t.input header >>= function
+  | `Eof n ->
+      close_handler (Bytes.sub_string header 0 n)
   | `Ok ->
-    let input = Input.init buf in
+    let input = Input.init header in
     let tpe, channel_no, length = read_frame_header (fun a b c -> a, b, c) input in
     let buf = Bytes.create (length+1) in
     Reader.really_read t.input buf >>= function
-    | `Eof _ -> return ()
+    | `Eof n ->
+        let s = Bytes.extend header 0 n in
+        Bytes.blit buf 0 s (1+2+4) n;
+        close_handler (Bytes.to_string s)
     | `Ok -> match buf.[length] |> Char.code with
       | n when n = Amqp_constants.frame_end ->
         let input = Input.init buf in
         decode_message t tpe channel_no length input;
-        read_frame t
+        read_frame t close_handler
       | n -> failwith (Printf.sprintf "Unexpected frame end: %x" n)
 
 let register_method_handler (t, channel_no) message_id handler =
@@ -302,23 +304,23 @@ let rec start_writer output channels =
 let id {id; _} = id
 
 (** [writer] is channel 0 writer. It must be attached *)
-let init ~id input output  =
+let init ~id input output =
   let id = Printf.sprintf "%s.%s.%s.%s" id (Unix.gethostname ()) (Unix.getpid () |> string_of_int) (Sys.executable_name |> Filename.basename) in
   let reader, writer = Pipe.create () in
   spawn (start_writer output (Pipe.interleave_pipe reader));
-  let t =
-    { input; output;
-      max_length = 1024;
-      channels = Array.make 256 None;
-      multiplex = writer;
-      id;
-      flow = false;
-    }
-  in
-  Writer.write output protocol_header;
-  spawn (read_frame t);
-  open_channel t 0 >>= fun () ->
-  return t
+  { input;
+    output;
+    max_length = 1024;
+    channels = Array.make 256 None;
+    multiplex = writer;
+    id;
+    flow = false;
+  }
+
+let start t close_handler =
+  Writer.write t.output protocol_header;
+  spawn (read_frame t close_handler);
+  open_channel t 0
 
 let set_max_length t max_length =
   t.max_length <- max_length;

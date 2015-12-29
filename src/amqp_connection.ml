@@ -4,6 +4,8 @@ open Amqp_spec.Connection
 let version = "0.3.0"
 let log = Amqp_io.log
 
+exception ConnectionClosed of string
+
 let string_until c str =
   try
     let index = String.index str c in
@@ -120,14 +122,19 @@ let open_connection { framing; virtual_host; _ } =
   Open.request (framing, 0) { Open.virtual_host } >>= fun x ->
   return x
 
+let connection_closed t s =
+  match t.closing with
+  | true -> return ()
+  | false -> raise (ConnectionClosed s)
+
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 
   Tcp.connect host port >>= fun (socket, input, output) ->
   Tcp.nodelay socket true;
 
-  Amqp_framing.init ~id input output >>= fun framing ->
+  let framing = Amqp_framing.init ~id input output in
   let t = { framing; virtual_host; channel = 0; closing = false } in
-
+  Amqp_framing.start framing (connection_closed t) >>= fun () ->
   reply_start framing credentials >>= fun () ->
   reply_tune framing >>= fun server_heartbeat ->
   begin

@@ -11,6 +11,7 @@ type data = Amqp_io.Input.t
 type content_handler = data * string -> unit
 type method_handler = data -> unit
 
+type close_handler = string -> unit Deferred.t
 type t
 
 val write_message : t * channel_no ->
@@ -37,7 +38,8 @@ val flush : t -> unit Deferred.t
 
 val id : t -> string
 
-val init : id:string -> Reader.t -> Writer.t -> t Deferred.t
+val init : id:string -> Reader.t -> Writer.t -> t
+val start: t -> close_handler -> unit Deferred.t
 val close : t -> unit Deferred.t
 
 val set_max_length : t -> int -> unit
