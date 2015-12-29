@@ -44,7 +44,7 @@ To build the Lwt version the the library:
 
 ```make thread=lwt```
 
-```make install``` will install both Lwt and Async depending on availability of Async / Lwt though ocamlfind:
+```make install``` will install both Lwt and Async depending on availability of Async / Lwt through ocamlfind:
 
 
 ### Using the library
