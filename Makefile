@@ -18,18 +18,16 @@ install-lwt: DESTDIR=$(OCAMLFINDDIR)/amqp-client/$(thread)
 install-lwt:
 	mkdir -p $(DESTDIR)
 	omake clean
-	omake -j4 _build/amqp-client.cma _build/amqp-client.cmxa
-	# Install the the lwt specifics
-	cp _build/amqp-client.cma _build/amqp-client.cmxa _build/*.cmt _build/*.cmi _build/*.mli $(DESTDIR)
+	omake -j4 _build/amqp-client.cma _build/amqp-client.cmxa _build/amqp-client.a
+	cp _build/amqp-client.cma _build/amqp-client.cmxa  _build/amqp-client.a _build/*.cmt _build/*.cmi _build/*.mli $(DESTDIR)
 
 install-async: export thread=async
 install-async: DESTDIR=$(OCAMLFINDDIR)/amqp-client/$(thread)
 install-async:
 	mkdir -p $(DESTDIR)
 	omake clean
-	omake -j4 _build/amqp-client.cma _build/amqp-client.cmxa
-	# Install the the lwt specifics
-	cp _build/amqp-client.cma _build/amqp-client.cmxa _build/*.cmt _build/*.cmi _build/*.mli $(DESTDIR)
+	omake -j4 _build/amqp-client.cma _build/amqp-client.cmxa _build/amqp-client.a
+	cp _build/amqp-client.cma _build/amqp-client.cmxa  _build/amqp-client.a _build/*.cmt _build/*.cmi _build/*.mli $(DESTDIR)
 
 # Determine targets to install
 LIBS := $(addprefix install-, $(shell ocamlfind list | grep -E '^(async |lwt )' | cut -d' ' -f1))
