@@ -5,10 +5,15 @@ open Async.Std
 module Deferred = struct
   type 'a t = 'a Deferred.t
   let all_unit = Deferred.all_unit
+  let try_with f = Monitor.try_with ~extract_exn:true f >>= function
+    | Core.Std.Result.Ok v -> return (`Ok v)
+    | Core.Std.Result.Error exn -> return (`Error exn)
+
   module List = struct
     let init ~f n = Deferred.List.init ~f n
     let iter ~f l = Deferred.List.iter ~f l
   end
+
 end
 
 let (>>=) = (>>=)

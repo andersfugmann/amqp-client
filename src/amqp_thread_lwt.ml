@@ -1,10 +1,46 @@
 (** Lwt compatability layer *)
 
-let log fmt = Printf.ifprintf stderr (fmt ^^ "\n%!")
+
+let log fmt = Printf.fprintf stderr (fmt ^^ "\n%!")
+
+let return = Lwt.return
+
+let key = Lwt.new_key ()
+
+(* Ok.. Iff we register a global function, then we wont have the handler.... So... *)
+(* When we catch exceptions, we must cancel the existing thread.. And is that possible??? *)
+let (>>=) a f =
+  let f x =
+    try f x with exn -> Lwt.fail exn in
+  Lwt.(>>=) a f
+
+let (>>|) a f =
+  let f x = try return (f x) with exn -> Lwt.fail exn in
+  Lwt.(>>=) a f
+
+let after ms = Lwt_unix.sleep (ms /. 1000.0)
+let spawn (t : unit Lwt.t) = Lwt.async (fun () ->
+    Lwt.catch
+      (fun () -> t)
+      (fun exn -> match Lwt.get key with Some var -> Lwt_mvar.put var exn | None -> raise exn)
+  )
 
 module Deferred = struct
   type 'a t = 'a Lwt.t
   let all_unit = Lwt.join
+  let try_with f =
+    let open Lwt in
+    let var = Lwt_mvar.create_empty () in
+    try
+      catch
+        (fun () ->
+           (with_value key (Some var) f >>= fun t ->
+           return (`Ok t)) <?> (Lwt_mvar.take var >>= fun exn -> return (`Error exn)))
+        (fun exn ->
+           return (`Error exn))
+    with
+    | exn -> return (`Error exn)
+
   module List = struct
     let init ~f n =
       let rec inner = function
@@ -15,12 +51,6 @@ module Deferred = struct
     let iter ~f l = Lwt_list.iter_p f l
   end
 end
-
-let (>>=) = Lwt.(>>=)
-let (>>|) = Lwt.(>|=)
-let return = Lwt.return
-let after ms = Lwt_unix.sleep (ms /. 1000.0)
-let spawn (t : unit Lwt.t) = Lwt.async (fun () -> t)
 
 module Ivar = struct
   type 'a state = Empty of 'a Lwt_condition.t
