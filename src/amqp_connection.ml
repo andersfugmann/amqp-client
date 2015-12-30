@@ -4,7 +4,6 @@ open Amqp_spec.Connection
 let version = "0.9.9"
 let log = Amqp_io.log
 
-exception ConnectionClosed of string
 
 let string_until c str =
   try
@@ -122,12 +121,12 @@ let open_connection { framing; virtual_host; _ } =
   Open.request (framing, 0) { Open.virtual_host } >>= fun x ->
   return x
 
-let connection_closed t s =
+let connection_closed t _s =
   match t.closing with
   | true ->
       log ~force:true "Close Received ok";
       return ()
-  | false -> raise (ConnectionClosed s)
+  | false -> raise Amqp_types.Connection_closed
 
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 
