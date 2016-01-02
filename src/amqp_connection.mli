@@ -2,9 +2,6 @@
 open Amqp_thread
 type t
 
-(** Exception raised if the connection closes unexpectedly *)
-exception ConnectionClosed of string
-
 (** Connect to an Amqp server.
 
     [connect ~id:"test" localhost] connects to localhost using default guest credentials, with identity "test"

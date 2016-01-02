@@ -1,56 +1,14 @@
 (** Lwt compatability layer *)
-
-
 let log fmt = Printf.fprintf stderr (fmt ^^ "\n%!")
 
 let return = Lwt.return
 
-let key = Lwt.new_key ()
+let (>>=) = Lwt.(>>=)
 
-(* Ok.. Iff we register a global function, then we wont have the handler.... So... *)
-(* When we catch exceptions, we must cancel the existing thread.. And is that possible??? *)
-let (>>=) a f =
-  let f x =
-    try f x with exn -> Lwt.fail exn in
-  Lwt.(>>=) a f
-
-let (>>|) a f =
-  let f x = try return (f x) with exn -> Lwt.fail exn in
-  Lwt.(>>=) a f
+let (>>|) = Lwt.(>|=)
 
 let after ms = Lwt_unix.sleep (ms /. 1000.0)
-let spawn (t : unit Lwt.t) = Lwt.async (fun () ->
-    Lwt.catch
-      (fun () -> t)
-      (fun exn -> match Lwt.get key with Some var -> Lwt_mvar.put var exn | None -> raise exn)
-  )
-
-module Deferred = struct
-  type 'a t = 'a Lwt.t
-  let all_unit = Lwt.join
-  let try_with f =
-    let open Lwt in
-    let var = Lwt_mvar.create_empty () in
-    try
-      catch
-        (fun () ->
-           (with_value key (Some var) f >>= fun t ->
-           return (`Ok t)) <?> (Lwt_mvar.take var >>= fun exn -> return (`Error exn)))
-        (fun exn ->
-           return (`Error exn))
-    with
-    | exn -> return (`Error exn)
-
-  module List = struct
-    let init ~f n =
-      let rec inner = function
-        | i when i = n -> []
-        | i -> i :: inner (i + 1)
-      in
-      inner 0 |> Lwt_list.map_p f
-    let iter ~f l = Lwt_list.iter_p f l
-  end
-end
+let spawn (t : unit Lwt.t) = Lwt.async (fun () -> t)
 
 module Ivar = struct
   type 'a state = Empty of 'a Lwt_condition.t
@@ -84,6 +42,33 @@ module Ivar = struct
     if (not (is_full t)) then
       fill t v
 end
+
+
+module Deferred = struct
+  type 'a t = 'a Lwt.t
+  let all_unit = Lwt.join
+  let try_with f =
+    let open Lwt in
+    let var = Ivar.create () in
+    let hook = !async_exception_hook in
+    async_exception_hook := (Ivar.fill var);
+    catch (fun () -> (f () >>= fun r -> return (`Ok r)) <?>
+           (Ivar.read var >>= fun e -> return (`Error e)))
+      (fun exn -> return (`Error exn)) >>= fun x ->
+    async_exception_hook := hook;
+    return x
+
+  module List = struct
+    let init ~f n =
+      let rec inner = function
+        | i when i = n -> []
+        | i -> i :: inner (i + 1)
+      in
+      inner 0 |> Lwt_list.map_p f
+    let iter ~f l = Lwt_list.iter_p f l
+  end
+end
+
 
 (* Pipes. Bound are not implemented yet .*)
 module Pipe = struct
