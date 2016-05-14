@@ -193,8 +193,8 @@ let elem_to_string: type a. a elem -> string = function
 
 module Spec = struct
   type (_, _) spec =
-    | Nil : ('a, 'a) spec
-    | ::  : 'a elem * ('b, 'c) spec -> (('a -> 'b), 'c) spec
+    | [] : ('a, 'a) spec
+    | (::)  : 'a elem * ('b, 'c) spec -> (('a -> 'b), 'c) spec
 
   let rec read: type b c. (b, c) spec -> b -> Input.t -> c = function
     | (Bit :: _) as spec ->
@@ -205,7 +205,7 @@ module Spec = struct
       let reader = read tail
       and decoder = decode head in
       fun b t -> reader (b (decoder t)) t
-    | Nil ->
+    | [] ->
       fun b _t -> b
   and read_bits: type b c. int -> (b, c) spec -> b -> int -> Input.t -> c = fun c -> function
     | Bit :: tail when c > 0 ->
@@ -222,7 +222,7 @@ module Spec = struct
       let encoder = encode spec
       and writer = write tail in
       fun t x -> encoder t x; writer t
-    | Nil -> fun a -> a
+    | [] -> fun a -> a
   and write_bits: type b. int -> (b, Output.t) spec -> int -> Output.t -> b = fun c -> function
     | Bit :: tail when c > 0 ->
       let writer = write_bits (c-1) tail in
@@ -239,17 +239,17 @@ module Spec = struct
 
   let rec to_string: type a b. (a, b) spec -> string = function
     | x :: xs -> elem_to_string x ^ " :: " ^ to_string xs
-    | Nil -> "Nil"
+    | [] -> "[]"
 end
 
 module Content = struct
   type (_, _) spec =
-    | Nil : ('a, 'a) spec
-    | ::  : 'a elem * ('b, 'c) spec -> (('a option -> 'b), 'c) spec
+    | [] : ('a, 'a) spec
+    | (::)  : 'a elem * ('b, 'c) spec -> (('a option -> 'b), 'c) spec
 
   let rec length: type a b. (a, b) spec -> int = function
     | _ :: tail -> 1 + length tail
-    | Nil -> 0
+    | [] -> 0
 
   let rec read: type b c. (b, c) spec -> b -> int -> Input.t -> c = function
   | Bit :: tail ->
@@ -268,7 +268,7 @@ module Content = struct
           None
       in
       reader (b value) (flags lsr 1) t
-  | Nil ->
+  | [] ->
     fun _b _flags _t -> _b
 
   let rec write: type b. (b, Output.t) spec -> int ref -> Output.t -> b = function
@@ -291,5 +291,5 @@ module Content = struct
         | None -> ()
       end;
       writer flags t
-  | Nil -> fun _flags _x -> _x
+  | [] -> fun _flags _x -> _x
 end

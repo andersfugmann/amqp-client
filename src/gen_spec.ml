@@ -136,11 +136,11 @@ let parse_amqp = function
   | _ -> failwith "Error parsing"
 
 let bind_name str =
-  String.map (function '-' -> '_' | c -> Char.lowercase c) str
+  String.map (function '-' -> '_' | c -> Char.lowercase_ascii c) str
 
 let variant_name str =
   bind_name str
-  |> String.capitalize
+  |> String.capitalize_ascii
 
 let pvariant_name str =
   "`" ^ (variant_name str)
@@ -248,7 +248,7 @@ let emit_method_index tree =
 let spec_str arguments =
   arguments
   |> List.map (fun t -> t.Field.tpe)
-  |> fun a -> List.append a ["Nil"]
+  |> fun a -> List.append a ["[]"]
   |> String.concat " :: "
 
 let emit_method ?(is_content=false) class_index

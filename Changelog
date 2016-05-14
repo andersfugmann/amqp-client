@@ -1,3 +1,7 @@
+1.0.0:
+* Compatible with 4.03.0
+* Allow extra arguments to exchange declare
+
 0.9.9:
 * Improve error handling when connection closes unexpectedly
 
@@ -29,7 +33,7 @@
 * Exchange.t is now a gadt to indicate type of bind arguments
 * Handle channel flow messages.
   Publishing messages will now wait until the channel is open
-* Handle RabbitMQ's Connectio block / unblock messages
+* Handle RabbitMQ's Connection block / unblock messages
 * Some refactoring of protocol helpers
 
 

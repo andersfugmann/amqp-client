@@ -36,13 +36,13 @@ type t = { input: Reader.t; output: Writer.t;
          }
 
 let protocol_header = "AMQP\x00\x00\x09\x01"
-let read_method_frame = S.read S.(Short :: Short :: Nil)
-let read_content_header = S.read S.(Short :: Short :: Longlong :: Nil)
+let read_method_frame = S.read S.(Short :: Short :: [])
+let read_content_header = S.read S.(Short :: Short :: Longlong :: [])
 
 
 let read_frame_header, write_frame_header =
   let open Amqp_protocol.Spec in
-  let spec = Octet :: Short :: Long :: Nil in
+  let spec = Octet :: Short :: Long :: [] in
   read spec, write spec
 
 let channel t channel_no =
@@ -66,7 +66,7 @@ let create_frame channel_no tpe writer =
 
 let write_method_id =
   let open Amqp_protocol.Spec in
-  write (Short :: Short :: Nil)
+  write (Short :: Short :: [])
 
 let create_method_frame channel_no (cid, mid) writer =
   log "Send method on channel: %d (%d, %d)" channel_no cid mid;
@@ -78,7 +78,7 @@ let create_method_frame channel_no (cid, mid) writer =
 
 let create_content_header =
   let open Amqp_protocol.Spec in
-  write (Short :: Short :: Longlong :: Nil)
+  write (Short :: Short :: Longlong :: [])
 
 let add_content_frames queue max_length channel_no class_id writer data =
   log "Send content on channel: %d (%d)" channel_no class_id;

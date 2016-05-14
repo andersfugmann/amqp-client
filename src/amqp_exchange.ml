@@ -81,8 +81,8 @@ module Internal = struct
 end
 
 
-let declare: type a. ?passive:bool -> ?durable:bool -> ?auto_delete:bool -> _ Channel.t -> a exchange_type -> string -> a t Deferred.t =
-  fun ?(passive=false) ?(durable=false) ?(auto_delete=false) channel exchange_type name ->
+let declare: type a. ?passive:bool -> ?durable:bool -> ?auto_delete:bool -> _ Channel.t -> a exchange_type -> ?arguments:Amqp_types.table -> string -> a t Deferred.t =
+  fun ?(passive=false) ?(durable=false) ?(auto_delete=false) channel exchange_type ?(arguments=[]) name ->
     Declare.request (Channel.channel channel)
       { Declare.exchange = name;
         amqp_type = (string_of_exchange_type exchange_type);
@@ -91,7 +91,7 @@ let declare: type a. ?passive:bool -> ?durable:bool -> ?auto_delete:bool -> _ Ch
         auto_delete;
         internal = false;
         no_wait = false;
-        arguments = [] } >>= fun () ->
+        arguments; } >>= fun () ->
     return { name; exchange_type }
 
 let delete ?(if_unused=false) channel t =
