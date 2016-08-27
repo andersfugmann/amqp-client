@@ -1,5 +1,4 @@
 open Amqp_thread
-module Connection = Amqp_connection
 module Channel = Amqp_channel
 
 open Amqp_spec.Exchange
@@ -145,10 +144,10 @@ let publish channel t
   let open Amqp_spec.Basic in
   let header = match header.Content.app_id with
     | Some _ -> header
-    | None -> { header with Content.app_id = Some (Amqp_channel.id channel) }
+    | None -> { header with Content.app_id = Some (Channel.id channel) }
   in
   let wait_for_confirm = Channel.Internal.wait_for_confirm channel in
-  Publish.request (Amqp_channel.channel channel)
+  Publish.request (Channel.channel channel)
     ({Publish.exchange = t.name;
       routing_key=routing_key;
       mandatory;

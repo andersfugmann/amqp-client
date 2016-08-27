@@ -1,6 +1,4 @@
 open Amqp_spec.Basic
-
-module Channel = Amqp_channel
 type message = (Content.t * string)
 
 let string_header key value = key, Amqp_types.VLongstr value

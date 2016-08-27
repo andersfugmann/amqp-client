@@ -1,5 +1,4 @@
 open Amqp_thread
-module Connection = Amqp_connection
 module Channel = Amqp_channel
 module Exchange = Amqp_exchange
 module Message = Amqp_message
@@ -16,7 +15,7 @@ let dead_letter_routing_key v = "x-dead-letter-routing-key", Amqp_types.VLongstr
 let maximum_priority v = "x-max-priotity", Amqp_types.VLonglong v
 
 let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(arguments=[]) name =
-  let channel = Amqp_channel.channel channel in
+  let channel = Channel.channel channel in
   let req = { Declare.queue=name; passive=false; durable; exclusive;
               auto_delete; no_wait=false; arguments }
   in
@@ -45,7 +44,7 @@ let publish channel t ?mandatory message =
 
 type 'a consumer = { channel: 'a Channel.t;
                      tag: string;
-                     writer: Amqp_message.t Pipe.Writer.t }
+                     writer: Message.t Pipe.Writer.t }
 
 (** Consume message from a queue. *)
 let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =

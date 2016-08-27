@@ -1,7 +1,5 @@
 (** Amqp message type and functions *)
-
 open Amqp_thread
-module Channel = Amqp_channel
 
 type message = Amqp_spec.Basic.Content.t * string
 
@@ -34,16 +32,16 @@ val make :
 (** Acknowledge a message.
     Messages {e must} be acknowledged on the same channel as they are received
 *)
-val ack: _ Channel.t -> t -> unit Deferred.t
+val ack: _ Amqp_channel.t -> t -> unit Deferred.t
 
 (** Reject (Nack) a message.
     Messages {e must} be rejected on the same channel as they are received
     @param requeue If true, the message will be requeued (default)
 *)
-val reject: requeue:bool -> _ Channel.t -> t -> unit Deferred.t
+val reject: requeue:bool -> _ Amqp_channel.t -> t -> unit Deferred.t
 
 (** Ask the server to resend or discard all outstanding messages on the channel
     This is essentially the same as calling nack on all outstanding messages.
     @param requeue if true messages are redelivered
 *)
-val recover: requeue:bool -> _ Channel.t -> unit Deferred.t
+val recover: requeue:bool -> _ Amqp_channel.t -> unit Deferred.t
