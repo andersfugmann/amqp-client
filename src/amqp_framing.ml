@@ -235,18 +235,21 @@ let deregister_content_handler (t, channel_no) class_id =
   let handlers = remove_handler class_id c.content_handlers in
   c.content_handlers <- handlers
 
+let set_flow_on_channel c = function
+  | true ->
+      if Ivar.is_full c.ready then
+        c.ready <- Ivar.create ()
+  | false ->
+      Ivar.fill_if_empty c.ready ()
+
+
 let set_flow t channel_no active =
   let c = channel t channel_no in
-  match active with
-  | true ->
-    if Ivar.is_full c.ready then
-      c.ready <- Ivar.create ()
-  | false ->
-    Ivar.fill_if_empty c.ready ()
+  set_flow_on_channel c active
 
 let set_flow_all t active =
   t.flow <- active;
-  Array.iteri (fun i _ -> set_flow t i active) t.channels
+  Array.iter (function Some c -> set_flow_on_channel c active | None -> ()) t.channels
 
 let open_channel t channel_no =
   (* Grow the array if needed *)

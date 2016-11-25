@@ -35,7 +35,7 @@ end
 module Tcp = struct
   let connect host port =
     let addr = Tcp.to_host_and_port host port in
-    Tcp.connect addr
+    Tcp.connect ~buffer_age_limit:`Unlimited addr
 
   let nodelay socket value =
     Socket.setopt socket Socket.Opt.nodelay value
