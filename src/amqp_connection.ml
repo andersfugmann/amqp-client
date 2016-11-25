@@ -131,6 +131,7 @@ let connection_closed t _s =
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 
   Tcp.connect host port >>= fun (socket, input, output) ->
+  Async_unix.Writer.set_buffer_age_limit output `Unlimited;
   Tcp.nodelay socket true;
 
   let framing = Amqp_framing.init ~id input output in
