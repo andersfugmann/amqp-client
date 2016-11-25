@@ -1,10 +1,13 @@
+1.0.2:
+* Allow buffers to be in the output chain forever.
+* Fix crash when all channels are requested blocked / unblocked by the server
+
 1.0.0:
 * Compatible with 4.03.0
 * Allow extra arguments to exchange declare
 
 0.9.9:
 * Improve error handling when connection closes unexpectedly
-
 
 0.9.0:
 * Added support for Lwt in addition to Async

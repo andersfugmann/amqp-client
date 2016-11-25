@@ -18,7 +18,7 @@ depends: [
   "async_unix" | "lwt"
 ]
 depopts: [
-  "async_unix" | "lwt"
+  "async_unix" "lwt"
 ]
 conflicts: [
   "lwt" {< "2.4.6"}
