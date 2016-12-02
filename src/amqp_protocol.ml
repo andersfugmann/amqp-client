@@ -73,7 +73,9 @@ let rec decode: type a. a elem -> Input.t -> a = fun elem t ->
     let offset = Input.offset t in
     let rec read_array t =
       match Input.offset t < (offset + size) with
-      | true -> decode_field t :: read_array t
+      | true ->
+          let v = decode_field t in
+          v :: read_array t
       | false -> []
     in
     read_array t
