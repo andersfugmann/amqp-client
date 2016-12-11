@@ -1,3 +1,6 @@
+1.0.4:
+* Fix lwt compilation
+
 1.0.3:
 * Fix parsing of array in message headers.
 * Log through thread library (Async.Std.Log / Lwt_log_core)
