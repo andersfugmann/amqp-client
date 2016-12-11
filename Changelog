@@ -1,3 +1,8 @@
+1.0.3:
+* Fix parsing of array in message headers.
+* Log through thread library (Async.Std.Log / Lwt_log_core)
+* Copy .cmx files to avoid warning 58 - patch by Satoshi Ogasawara
+
 1.0.2:
 * Allow buffers to be in the output chain forever.
 * Fix crash when all channels are requested blocked / unblocked by the server
