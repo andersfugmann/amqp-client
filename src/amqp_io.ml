@@ -1,9 +1,5 @@
 (** Internal *)
 
-let log ?(force=false) fmt =
-  let f = if force then Printf.fprintf else Printf.ifprintf in
-  f stderr (fmt ^^ "\n%!")
-
 module Input = struct
   open EndianString.BigEndian
   type t = { buf: String.t; mutable offset: int }

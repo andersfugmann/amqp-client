@@ -69,7 +69,6 @@ let write_method_id =
   write (Short :: Short :: [])
 
 let create_method_frame channel_no (cid, mid) writer =
-  log "Send method on channel: %d (%d, %d)" channel_no cid mid;
   let writer output =
     write_method_id output cid mid
     |> writer
@@ -81,8 +80,6 @@ let create_content_header =
   write (Short :: Short :: Longlong :: [])
 
 let add_content_frames queue max_length channel_no class_id writer data =
-  log "Send content on channel: %d (%d)" channel_no class_id;
-
   let writer output =
     create_content_header output class_id 0 (String.length data)
     |> writer
@@ -153,7 +150,6 @@ let decode_message t tpe channel_no size input =
   | Ready, n when n = Amqp_constants.frame_method ->
     (* Standard method message *)
     let message_id = read_method_frame (fun a b -> a, b) input in
-    log "Received method on channel: %d (%d, %d)" channel_no (fst message_id) (snd message_id);
     let (handler, handlers) = get_handler message_id channel.method_handlers in
     channel.method_handlers <- handlers; (* Move front *)
     handler input;
@@ -161,10 +157,8 @@ let decode_message t tpe channel_no size input =
     let class_id, _weight, size =
       read_content_header (fun a b c -> a, b, c) input
     in
-    log "Received header on channel: %d (%d). Size: %d" channel_no class_id size;
 
     if size = 0 then begin
-      log "Received body on channel: %d (%d)" channel_no class_id;
       let handler, handlers = get_handler class_id channel.content_handlers in
       channel.content_handlers <- handlers; (* Move front *)
       handler (input, "")
@@ -172,11 +166,9 @@ let decode_message t tpe channel_no size input =
     else
       channel.state <- Waiting (class_id, input, 0, Bytes.create size)
   | Waiting (class_id, content, offset, buffer), n when n = Amqp_constants.frame_body ->
-    log "Received body data on channel: %d (%d) " channel_no class_id;
     Input.copy input ~dst_pos:offset ~len:size buffer;
     if (String.length buffer = offset + size) then begin
       channel.state <- Ready;
-      log "Received body on channel: %d (%d)" channel_no class_id;
       let handler, handlers = get_handler class_id channel.content_handlers in
       channel.content_handlers <- handlers; (* Move front *)
       handler (content, buffer);

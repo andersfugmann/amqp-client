@@ -54,6 +54,13 @@ module Writer = struct
   let flush = Writer.flushed
 end
 
+module Log = struct
+  (* Use of a predefiend tag allows the caller to disable logging if needed *)
+  let tags = ["library", "amqp_client"]
+  let debug fmt = Async.Std.Log.Global.debug ~tags fmt
+  let info fmt = Async.Std.Log.Global.info ~tags fmt
+  let error fmt = Async.Std.Log.Global.error ~tags fmt
+end
 
 (* Pipes *)
 module Pipe = struct

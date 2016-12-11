@@ -2,8 +2,6 @@ open Amqp_thread
 open Amqp_spec.Connection
 
 let version = "0.9.9"
-let log = Amqp_io.log
-
 
 let string_until c str =
   try
@@ -66,9 +64,9 @@ let reply_tune framing =
   let var = Ivar.create () in
   let reply { Tune.channel_max;
               frame_max; heartbeat; } =
-    log "Channel max: %d" channel_max;
-    log "Frame_max: %d" frame_max;
-    log "Heartbeat: %d" heartbeat;
+    Log.debug "Channel max: %d" channel_max;
+    Log.debug "Frame_max: %d" frame_max;
+    Log.debug "Heartbeat: %d" heartbeat;
     Ivar.fill var (if heartbeat = 0 then `Disabled else `Heartbeat heartbeat);
     Amqp_framing.set_max_length framing frame_max;
     return {
@@ -87,9 +85,9 @@ let reply_close framing =
               class_id;
               method_id;
             } =
-    log "Reply code: %d" reply_code;
-    log "Reply test: %s" reply_text;
-    log "message_id: (%d, %d)" class_id method_id;
+    Log.info "Reply code: %d" reply_code;
+    Log.info "Reply test: %s" reply_text;
+    Log.info "message_id: (%d, %d)" class_id method_id;
     return ()
   in
   Close.reply (framing, 0) reply
@@ -108,7 +106,7 @@ let register_blocked_handler framing =
   let (_, read_blocked) = Blocked.Internal.read in
   let (_, read_unblocked) = Unblocked.Internal.read in
   let blocked_handler { Blocked.reason } =
-    log "Connection blocked: %s" reason;
+    Log.info "Connection blocked: %s" reason;
     Amqp_framing.set_flow_all framing true
   in
   let unblocked_handler () =
@@ -124,7 +122,7 @@ let open_connection { framing; virtual_host; _ } =
 let connection_closed t _s =
   match t.closing with
   | true ->
-      log ~force:true "Close Received ok";
+      Log.info "Close Received ok";
       return ()
   | false -> raise Amqp_types.Connection_closed
 
