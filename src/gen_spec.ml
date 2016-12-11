@@ -1,10 +1,10 @@
-let str fmt = Printf.sprintf fmt
-
+open Printf
 let indent = ref 0
+
 let emit fmt =
   assert (!indent >= 0);
   let indent = String.make (!indent * 2) ' ' in
-  Printf.printf ("%s" ^^ fmt ^^ "\n") indent
+  printf ("%s" ^^ fmt ^^ "\n") indent
 
 let emit_doc = function
   | Some doc ->
@@ -12,9 +12,6 @@ let emit_doc = function
     emit "(** %s *)" doc
   | None -> ()
 
-let log fmt =
-  let indent = String.make (!indent * 2) ' ' in
-  Printf.ifprintf "" ("%s" ^^ fmt ^^ "\n") indent
 
 module Field = struct
   type t = { name: string; tpe: string; reserved: bool; doc: string option }
@@ -59,7 +56,6 @@ let parse_field attrs nodes =
     List.assoc "name" attrs
     |> (function "type" -> "amqp_type" | s -> s)
   in
-  log "Parsing field %s" name;
   let tpe =
     match List.assoc "domain" attrs with
     | d -> d
@@ -71,22 +67,17 @@ let parse_field attrs nodes =
 
 let parse_constant attrs nodes =
   let name = List.assoc "name" attrs in
-  log "Parsing constant %s" name;
-
   let value = List.assoc "value" attrs |> int_of_string in
   Constant { Constant.name; value; doc = doc nodes }
 
 let parse_domain attrs nodes =
   ignore nodes;
   let name = List.assoc "name" attrs in
-  log "Parsing domain %s" name;
-
   let amqp_type = List.assoc "type" attrs in
   Domain { Domain.name; amqp_type; doc = doc nodes}
 
 let parse_method attrs nodes =
   let name = List.assoc "name" attrs in
-  log "Parsing method %s" name;
   incr indent;
   let index = List.assoc "index" attrs |> int_of_string in
   let response =
@@ -114,7 +105,6 @@ let parse_method attrs nodes =
 let parse_class attrs nodes =
   (* All field nodes goes into content *)
   let name = List.assoc "name" attrs in
-  log "Parsing class %s" name;
   incr indent;
 
   let index = List.assoc "index" attrs |> int_of_string in
@@ -147,10 +137,6 @@ let pvariant_name str =
 
 let rec print = function
   | Xml.Element (n, attrs, nodes) ->
-      let attrs = List.map (fun (a,b) -> a ^ " = " ^ b) attrs
-                  |> String.concat ", "
-      in
-      log "%s: %s" n attrs;
       incr indent;
       List.iter print nodes;
       decr indent;
@@ -279,7 +265,7 @@ let emit_method ?(is_content=false) class_index
 
   let t_args = match types with
     | [] -> "()"
-    | t -> List.map (fun (a, _, _) -> a) t |> String.concat "; " |> str "{ %s }"
+    | t -> List.map (fun (a, _, _) -> a) t |> String.concat "; " |> sprintf "{ %s }"
   in
   let names =
     arguments
