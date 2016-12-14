@@ -1,5 +1,7 @@
+module type T = sig
 module Deferred : sig
-  type 'a t = 'a Async.Std.Deferred.t
+  type +'a t (* = 'a Async.Std.Deferred.t *)
+
   val all_unit : unit t list -> unit t
   val try_with : (unit -> 'a t) -> [> `Error of exn | `Ok of 'a ] t
   module List : sig
@@ -70,4 +72,5 @@ end
 module Scheduler : sig
   val go : unit -> unit
   val shutdown : int -> unit
+end
 end

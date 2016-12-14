@@ -1,4 +1,5 @@
-open Amqp_thread
+module Amqp = Amqp.Make(Amqp_thread_async)
+open Amqp.Thread
 open Amqp
 
 let log fmt = Printf.printf (fmt ^^ "\n%!")

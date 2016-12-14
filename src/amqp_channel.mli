@@ -1,17 +1,25 @@
 (** Operations on channels *)
+module Make : functor (Amqp_thread : Amqp_thread.T) -> sig
 
 open Amqp_thread
-open Amqp_spec
+
+      (*
+module type Amqp_message = Amqp_message.Make(Amqp_thread)
+module type Amqp_connection = Amqp_connection.Make(Amqp_thread)
+module type Amqp_queue = Amqp_queue.Make(Amqp_thread)
+module type Amqp_exchange = Amqp_exchange.Make(Amqp_thread)
+module type Amqp_rpc = Amqp_rpc.Make(Amqp_thread)
+*)
 
 (**/**)
-type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
+type consumer = Amqp_spec.Make(Amqp_thread).Basic.Deliver.t * Amqp_spec.Make(Amqp_thread).Basic.Content.t * string -> unit
 type consumers = (string, consumer) Hashtbl.t
 (**/**)
 
 type _ t
 
 (**/**)
-val channel : _ t -> Amqp_framing.t * int
+val channel : _ t -> Amqp_framing.Make(Amqp_thread).t * int
 
 module Internal : sig
   val register_consumer_handler : _ t -> string -> consumer -> unit
@@ -32,7 +40,7 @@ val with_confirm: with_confirm confirms
 (** Create a new channel.
     Use Connection.open_channel rather than this method directly *)
 val create : id:string -> 'a confirms ->
-  Amqp_framing.t -> Amqp_framing.channel_no -> 'a t Deferred.t
+  Amqp_framing.Make(Amqp_thread).t -> Amqp_framing.Make(Amqp_thread).channel_no -> 'a t Deferred.t
 
 (** Close the channel *)
 val close : _ t -> unit Deferred.t
@@ -41,7 +49,7 @@ val close : _ t -> unit Deferred.t
     This function may only be called once (per channel)
 *)
 val on_return : _ t ->
-  (Basic.Return.t * (Basic.Content.t * string)) Pipe.Reader.t
+  (Amqp_spec.Make(Amqp_thread).Basic.Return.t * (Amqp_spec.Make(Amqp_thread).Basic.Content.t * string)) Pipe.Reader.t
 
 (** Get the id of the channel *)
 val id : _ t -> string
@@ -79,11 +87,12 @@ module Transaction : sig
   type tx
 
   (** Start a transacction *)
-  val start : _ t -> tx Amqp_thread.Deferred.t
+  val start : _ t -> tx Deferred.t
 
   (** Commit an transaction *)
-  val commit : tx -> unit Amqp_thread.Deferred.t
+  val commit : tx -> unit Deferred.t
 
   (** Rollback a transaction, discarding all changes and messages *)
-  val rollback : tx -> unit Amqp_thread.Deferred.t
+  val rollback : tx -> unit Deferred.t
+end
 end

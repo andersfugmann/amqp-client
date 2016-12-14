@@ -420,6 +420,7 @@ let emit_printer tree =
 let emit_specification tree =
   emit "open Amqp_types";
   emit "open Amqp_protocol";
+  emit "module Amqp_protocol_helpers = Amqp_protocol_helpers.Make(Amqp_thread)";
   emit "open Amqp_protocol_helpers";
   emit_domains tree
   |> List.iter (function Class x -> emit_class x | _ -> ());
@@ -451,6 +452,8 @@ let () =
   emit "(***********************************)";
   emit "";
   emit "";
+  emit "module Make(Amqp_thread : Amqp_thread.T) = struct";
+  incr indent;
 
   begin
     match !output_type with
@@ -463,5 +466,7 @@ let () =
       ()
     | Specification -> emit_specification tree
   end;
+  decr indent;
+  emit "end";
   assert (!indent = 0);
   ()

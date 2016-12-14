@@ -1,11 +1,13 @@
-open Amqp_thread
-module Connection = Amqp_connection
-module Channel = Amqp_channel
-module Queue = Amqp_queue
-module Exchange = Amqp_exchange
-module Message = Amqp_message
+module Make(Amqp_thread : Amqp_thread.T) = struct
+module Amqp_spec = Amqp_spec.Make(Amqp_thread)
+module Connection = Amqp_connection.Make(Amqp_thread)
+module Channel = Amqp_channel.Make(Amqp_thread)
+module Queue = Amqp_queue.Make(Amqp_thread)
+module Exchange = Amqp_exchange.Make(Amqp_thread)
+module Message = Amqp_message.Make(Amqp_thread)
 open Amqp_types
 open Amqp_spec.Basic
+open Amqp_thread
 
 module Client = struct
 
@@ -69,8 +71,8 @@ module Client = struct
   (** Release resources *)
   let close t =
     Hashtbl.iter (fun _ var -> Ivar.fill var None) t.outstanding;
-    Amqp_queue.cancel t.consumer >>= fun () ->
-    Amqp_queue.delete t.channel t.queue >>= fun () ->
+    Queue.cancel t.consumer >>= fun () ->
+    Queue.delete t.channel t.queue >>= fun () ->
     Channel.close t.channel >>= fun () ->
     return ()
 end
@@ -111,4 +113,5 @@ module Server = struct
 
   let stop t =
     Queue.cancel t.consumer
+end
 end

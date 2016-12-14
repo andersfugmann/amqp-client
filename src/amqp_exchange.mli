@@ -1,4 +1,5 @@
 (** Operations on exchanges *)
+module Make : functor (Amqp_thread : Amqp_thread.T) -> sig
 open Amqp_thread
 
 type _ t
@@ -18,8 +19,8 @@ val amq_match  : [`Headers of Amqp_types.header list] t
 
 (**/**)
 module Internal : sig
-  val bind_queue : _ Amqp_channel.t -> 'a t -> string -> 'a -> unit Deferred.t
-  val unbind_queue : _ Amqp_channel.t -> 'a t -> string -> 'a -> unit Deferred.t
+  val bind_queue : _ Amqp_channel.Make(Amqp_thread).t -> 'a t -> string -> 'a -> unit Deferred.t
+  val unbind_queue : _ Amqp_channel.Make(Amqp_thread).t -> 'a t -> string -> 'a -> unit Deferred.t
 end
 (**/**)
 
@@ -28,7 +29,7 @@ val declare :
   ?passive:bool ->
   ?durable:bool ->
   ?auto_delete:bool ->
-  _ Amqp_channel.t ->
+  _ Amqp_channel.Make(Amqp_thread).t ->
   'a exchange_type ->
   ?arguments:Amqp_types.table ->
   string -> 'a t Deferred.t
@@ -36,21 +37,22 @@ val declare :
 (** Delete exhange *)
 val delete :
   ?if_unused:bool ->
-  _ Amqp_channel.t -> _ t -> unit Deferred.t
+  _ Amqp_channel.Make(Amqp_thread).t -> _ t -> unit Deferred.t
 
 (** Bind exchange t to exchange using [routing_key] so messages are routed from exhange to [t] *)
-val bind : _ Amqp_channel.t -> destination:_ t -> source:'a t -> 'a -> unit Deferred.t
+val bind : _ Amqp_channel.Make(Amqp_thread).t -> destination:_ t -> source:'a t -> 'a -> unit Deferred.t
 
 (** Remove exchange to exchange binding *)
-val unbind : _ Amqp_channel.t -> destination:_ t -> source:'a t -> 'a -> unit Deferred.t
+val unbind : _ Amqp_channel.Make(Amqp_thread).t -> destination:_ t -> source:'a t -> 'a -> unit Deferred.t
 
 (** Publish a message directly to an exchange. *)
 val publish :
-  'a Amqp_channel.t ->
+  'a Amqp_channel.Make(Amqp_thread).t ->
   _ t ->
   ?mandatory:bool ->
   routing_key:string ->
-  Amqp_message.message -> 'a Deferred.t
+  Amqp_message.Make(Amqp_thread).message -> 'a Deferred.t
 
 (** Name of the exchange *)
 val name : _ t -> string
+end

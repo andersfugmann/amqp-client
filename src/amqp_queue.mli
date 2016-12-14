@@ -1,4 +1,5 @@
 (** Operations on Queues *)
+module Make : functor (Amqp_thread : Amqp_thread.T) -> sig
 open Amqp_thread
 
 type t
@@ -14,7 +15,7 @@ val maximum_priority : int -> string * Amqp_types.value
 
 (** Declare a queue *)
 val declare :
-  _ Amqp_channel.t ->
+  _ Amqp_channel.Make(Amqp_thread).t ->
   ?durable:Amqp_types.bit ->
   ?exclusive:Amqp_types.bit ->
   ?auto_delete:Amqp_types.bit ->
@@ -29,14 +30,14 @@ val declare :
 *)
 val get :
   no_ack:bool ->
-  _ Amqp_channel.t ->
-  t -> Amqp_message.t option Deferred.t
+  _ Amqp_channel.Make(Amqp_thread).t ->
+  t -> Amqp_message.Make(Amqp_thread).t option Deferred.t
 
 (** Publish a message directly to a queue *)
 val publish :
-  'a Amqp_channel.t -> t ->
+  'a Amqp_channel.Make(Amqp_thread).t -> t ->
   ?mandatory:bool ->
-  Amqp_message.message -> 'a Deferred.t
+  Amqp_message.Make(Amqp_thread).message -> 'a Deferred.t
 
 (** Setup consumption of a queue.
     Remember to ack messages.
@@ -49,9 +50,9 @@ val consume :
   ?no_local:bool ->
   ?no_ack:bool ->
   ?exclusive:bool ->
-  'a Amqp_channel.t ->
+  'a Amqp_channel.Make(Amqp_thread).t ->
   t ->
-  ('a consumer * Amqp_message.t Pipe.Reader.t) Deferred.t
+  ('a consumer * Amqp_message.Make(Amqp_thread).t Pipe.Reader.t) Deferred.t
 
 
 (** Cancel consumption. *)
@@ -62,18 +63,18 @@ val cancel : _ consumer -> unit Deferred.t
     (and optionally match the headers)
     will be routed to the queue
 *)
-val bind : _ Amqp_channel.t -> t -> 'b Amqp_exchange.t -> 'b -> unit Deferred.t
+val bind : _ Amqp_channel.Make(Amqp_thread).t -> t -> 'b Amqp_exchange.Make(Amqp_thread).t -> 'b -> unit Deferred.t
 
 (** Remove a binding from an exhange to a queue *)
-val unbind : _ Amqp_channel.t -> t -> 'b Amqp_exchange.t -> 'b -> unit Deferred.t
+val unbind : _ Amqp_channel.Make(Amqp_thread).t -> t -> 'b Amqp_exchange.Make(Amqp_thread).t -> 'b -> unit Deferred.t
 
 (** Purge all messages on a queue *)
-val purge : _ Amqp_channel.t -> t -> unit Deferred.t
+val purge : _ Amqp_channel.Make(Amqp_thread).t -> t -> unit Deferred.t
 
 (** Delete a queue *)
 val delete :
   ?if_unused:bool ->
-  ?if_empty:bool -> _ Amqp_channel.t -> t -> unit Deferred.t
+  ?if_empty:bool -> _ Amqp_channel.Make(Amqp_thread).t -> t -> unit Deferred.t
 
 (** Name of the queue *)
 val name : t -> string
@@ -81,3 +82,4 @@ val name : t -> string
 (**/**)
 val fake : 'a -> string -> t Deferred.t
 (**/**)
+end

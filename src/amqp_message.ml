@@ -1,3 +1,6 @@
+module Make(Amqp_thread : Amqp_thread.T) = struct
+module Amqp_spec = Amqp_spec.Make(Amqp_thread)
+module Amqp_channel = Amqp_channel.Make(Amqp_thread)
 open Amqp_spec.Basic
 type message = (Content.t * string)
 
@@ -61,3 +64,4 @@ let reject ~requeue channel t =
 
 let recover ~requeue channel =
   Amqp_spec.Basic.Recover.request  (Amqp_channel.channel channel) { Amqp_spec.Basic.Recover.requeue }
+end

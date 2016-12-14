@@ -1,6 +1,9 @@
 module Q = Queue
+module Make(Amqp_thread : Amqp_thread.T) = struct
 open Amqp_thread
+module Amqp_spec = Amqp_spec.Make(Amqp_thread)
 open Amqp_spec
+module Amqp_framing = Amqp_framing.Make(Amqp_thread)
 
 type no_confirm = [ `Ok ]
 type with_confirm = [ `Ok | `Failed ]
@@ -199,4 +202,6 @@ module Transaction = struct
 
   let rollback (EChannel t) =
     Rollback.request (channel t) ()
+end
+
 end

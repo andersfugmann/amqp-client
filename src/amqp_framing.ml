@@ -1,4 +1,6 @@
 (** Internal *)
+module Make(Amqp_thread : Amqp_thread.T) = struct
+module Amqp_constants = Amqp_constants.Make(Amqp_thread)
 open Amqp_thread
 open Amqp_protocol
 open Amqp_io
@@ -319,3 +321,5 @@ let start t close_handler =
 
 let set_max_length t max_length =
   t.max_length <- max_length;
+
+end

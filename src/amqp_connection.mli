@@ -1,4 +1,5 @@
 (** Connection *)
+module Make : functor (Amqp_thread : Amqp_thread.T) -> sig
 open Amqp_thread
 type t
 
@@ -35,5 +36,6 @@ val connect :
 (** Open a new channel.
     @param id identifies the channel for tracing and debugging
 *)
-val open_channel : id:string -> 'a Amqp_channel.confirms -> t -> 'a Amqp_channel.t Deferred.t
+val open_channel : id:string -> 'a Amqp_channel.Make(Amqp_thread).confirms -> t -> 'a Amqp_channel.Make(Amqp_thread).t Deferred.t
 val close : t -> unit Deferred.t
+end

@@ -1,4 +1,6 @@
 (** Internal *)
+module Make(Amqp_thread : Amqp_thread.T) = struct
+module Amqp_framing = Amqp_framing.Make(Amqp_thread)
 open Amqp_thread
 open Amqp_protocol
 open Amqp_io
@@ -36,19 +38,6 @@ let write_method (message_id, spec, _make, apply) =
   fun channel msg ->
     Amqp_framing.write_message channel (message_id, (writer msg)) None
 
-let read_method (message_id, spec, make, _apply) =
-  let read = Spec.read spec in
-  let read ~once (handler: 'a -> unit) channel : unit =
-    let handler data =
-      let req = read make data in
-      handler req;
-      if (once) then
-        Amqp_framing.deregister_method_handler channel message_id;
-    in
-    Amqp_framing.register_method_handler channel message_id handler;
-  in
-  (message_id, read)
-
 let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec, _c_make, c_apply) =
   let write = Spec.write spec in
   let c_write = Content.write c_spec in
@@ -68,6 +57,21 @@ let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec
   fun channel (meth, content, data) ->
     Amqp_framing.write_message channel (message_id, (write_method meth))
       (Some (c_method, (write_content content), data))
+
+(* Merge these two *)
+let read_method (message_id, spec, make, _apply) =
+  let read = Spec.read spec in
+  let read ~once (handler: 'a -> unit) channel : unit =
+    let handler data =
+      let req = read make data in
+      handler req;
+      if (once) then
+        Amqp_framing.deregister_method_handler channel message_id;
+    in
+    Amqp_framing.register_method_handler channel message_id handler;
+  in
+  (message_id, read)
+
 
 let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec, c_make, _c_apply) =
   let read = Spec.read spec in
@@ -123,3 +127,4 @@ let request2 req (mid1, rep1) id1 (mid2, rep2) id2 channel message =
   rep2 ~once:true (handler id2 mid1) channel;
   req channel message >>= fun () ->
   Ivar.read var
+end

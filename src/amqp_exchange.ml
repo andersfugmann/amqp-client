@@ -1,6 +1,7 @@
+module Make(Amqp_thread : Amqp_thread.T) = struct
+module Amqp_spec = Amqp_spec.Make(Amqp_thread)
 open Amqp_thread
-module Channel = Amqp_channel
-
+module Channel = Amqp_channel.Make(Amqp_thread)
 open Amqp_spec.Exchange
 
 (* type match_type = Any | All *)
@@ -156,3 +157,4 @@ let publish channel t
   wait_for_confirm
 
 let name t = t.name
+end

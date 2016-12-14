@@ -1,8 +1,10 @@
-open Amqp_thread
-module Channel = Amqp_channel
-module Exchange = Amqp_exchange
-module Message = Amqp_message
+module Make(Amqp_thread : Amqp_thread.T) = struct
+module Amqp_spec = Amqp_spec.Make(Amqp_thread)
+module Channel = Amqp_channel.Make(Amqp_thread)
+module Exchange = Amqp_exchange.Make(Amqp_thread)
+module Message = Amqp_message.Make(Amqp_thread)
 open Amqp_spec.Queue
+open Amqp_thread
 
 type t = { name: string }
 
@@ -114,3 +116,4 @@ let name t = t.name
 
 (** Construct a queue without any validation *)
 let fake _channel name = return { name }
+end

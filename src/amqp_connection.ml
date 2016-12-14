@@ -1,5 +1,9 @@
-open Amqp_thread
+module Make(Amqp_thread : Amqp_thread.T) = struct
+module Amqp_spec = Amqp_spec.Make(Amqp_thread)
+module Amqp_framing = Amqp_framing.Make(Amqp_thread)
+module Amqp_channel = Amqp_channel.Make(Amqp_thread)
 open Amqp_spec.Connection
+open Amqp_thread
 
 let version = "0.9.9"
 
@@ -163,3 +167,5 @@ let close t =
                                  method_id = 0;
                                } >>= fun () ->
   Amqp_framing.close t.framing
+
+end

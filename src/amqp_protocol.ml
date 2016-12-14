@@ -18,7 +18,7 @@ type _ elem =
   | Array: array elem
   | Unit: unit elem
 
-let tap a b = a b; b
+let tap f x = f x; x
 
 let reserved_value: type a. a elem -> a = function
   | Bit -> false

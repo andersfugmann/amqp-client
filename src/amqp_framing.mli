@@ -1,4 +1,13 @@
 (** Internal *)
+module Make : functor (Amqp_thread : Amqp_thread.T) -> sig
+(*
+module type Amqp_message = Amqp_message.Make(Amqp_thread)
+module type Amqp_connection = Amqp_connection.Make(Amqp_thread)
+module type Amqp_queue = Amqp_queue.Make(Amqp_thread)
+module type Amqp_channel = Amqp_channel.Make(Amqp_thread)
+module type Amqp_exchange = Amqp_exchange.Make(Amqp_thread)
+module type Amqp_rpc = Amqp_rpc.Make(Amqp_thread)
+*)
 open Amqp_thread
 open Amqp_types
 
@@ -43,3 +52,5 @@ val start: t -> close_handler -> unit Deferred.t
 val close : t -> unit Deferred.t
 
 val set_max_length : t -> int -> unit
+
+end

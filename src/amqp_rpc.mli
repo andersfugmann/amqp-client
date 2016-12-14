@@ -1,4 +1,5 @@
 (** Rpc client and server patterns *)
+module Make : functor (Amqp_thread : Amqp_thread.T) -> sig
 open Amqp_thread
 
 (** Rpc Client pattern *)
@@ -7,7 +8,7 @@ module Client :
     type t
 
     (** Initialize a client with the [id] for tracing *)
-    val init : id:string -> Amqp_connection.t -> t Deferred.t
+    val init : id:string -> Amqp_connection.Make(Amqp_thread).t -> t Deferred.t
 
     (** Make an rpc call to the exchange using the routing key and headers.
         @param ttl is the message timeout.
@@ -25,9 +26,9 @@ module Client :
       ttl:int ->
       routing_key:string ->
       headers:Amqp_types.header list ->
-      _ Amqp_exchange.t ->
-      Amqp_spec.Basic.Content.t * string ->
-      Amqp_message.message option Amqp_thread.Deferred.t
+      _ Amqp_exchange.Make(Amqp_thread).t ->
+      Amqp_spec.Make(Amqp_thread).Basic.Content.t * string ->
+      Amqp_message.Make(Amqp_thread).message option Deferred.t
 
     (** Release resources *)
     val close : t -> unit Deferred.t
@@ -35,31 +36,32 @@ module Client :
 
 (** Rpc Server pattern *)
 module Server :
-  sig
-    type 'a t
+sig
+  type 'a t
 
-    (** Recommended arguement to add when declaring the rpc server queue.
-        This will set the dead letter exhange to the header exchange to help
-        clients to be notified if a request has timed out
-    *)
-    val queue_argument : Amqp_types.header
+  (** Recommended arguement to add when declaring the rpc server queue.
+      This will set the dead letter exhange to the header exchange to help
+      clients to be notified if a request has timed out
+  *)
+  val queue_argument : Amqp_types.header
 
-    (** Start an rpc server procucing replies for requests comming in
-        on the given queue.
-        @param async If true muliple request can be handled concurrently.
-                     If false message are handled synchroniously (default)
+  (** Start an rpc server procucing replies for requests comming in
+      on the given queue.
+      @param async If true muliple request can be handled concurrently.
+                   If false message are handled synchroniously (default)
 
-        It is recommended to create the queue with the header_exchange
-        as dead letter exhange.  This will allow messages to be routed
-        back the the sender at timeout. E.g:
-        [ Queue.declare ~arguments:[Rpc.queue_argument] "rpcservice" ]
-    *)
-    val start :
-      ?async:bool ->
-      ([< `Failed | `Ok ] as 'a) Amqp_channel.t ->
-      Amqp_queue.t ->
-      (Amqp_message.message -> Amqp_message.message Deferred.t) -> 'a t Deferred.t
+      It is recommended to create the queue with the header_exchange
+      as dead letter exhange.  This will allow messages to be routed
+      back the the sender at timeout. E.g:
+      [ Queue.declare ~arguments:[Rpc.queue_argument] "rpcservice" ]
+  *)
+  val start :
+    ?async:bool ->
+    ([< `Failed | `Ok ] as 'a) Amqp_channel.Make(Amqp_thread).t ->
+    Amqp_queue.Make(Amqp_thread).t ->
+    (Amqp_message.Make(Amqp_thread).message -> Amqp_message.Make(Amqp_thread).message Deferred.t) -> 'a t Deferred.t
 
-    (** Stop the server *)
-    val stop : _ t -> unit Deferred.t
-  end
+  (** Stop the server *)
+  val stop : _ t -> unit Deferred.t
+end
+end
