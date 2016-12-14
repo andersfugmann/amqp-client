@@ -1,10 +1,9 @@
 open Amqp_thread
 open Amqp
 
-let log fmt = Printf.printf (fmt ^^ "\n%!")
 
 let rec repeat channel queue =
-  log "rep";
+  Log.info "rep";
   Queue.publish channel queue (Message.make "Test") >>= function
   | `Ok ->
       begin
@@ -18,7 +17,7 @@ let rec repeat channel queue =
 
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
-  log "Connection started";
+  Log.info "Connection started";
   Connection.open_channel ~id:"test.repeat" Channel.no_confirm connection >>= fun channel ->
   Queue.declare channel ~auto_delete:true "test.repeat" >>= fun queue ->
   repeat channel queue >>= fun () ->

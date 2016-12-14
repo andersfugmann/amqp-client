@@ -1,7 +1,7 @@
 open Amqp_thread
 open Amqp_spec.Connection
 
-let version = "0.9.9"
+let version = "1.0.5"
 
 let string_until c str =
   try
@@ -20,7 +20,7 @@ let reply_start framing (username, password) =
   let print_item table s =
     let open Amqp_types in
     match List.assoc s table with
-    | VLongstr v -> Printf.printf "%s: %s\n%!" s v
+    | VLongstr v -> Log.info "%s: %s" s v
     | _ -> ()
     | exception _ -> ()
   in
@@ -33,7 +33,7 @@ let reply_start framing (username, password) =
 
     let open Amqp_types in
     ["product"; "version" ] |> List.iter (print_item server_properties);
-    Printf.printf "Amqp: %d.%d\n%!" version_major version_minor;
+    Log.info "Amqp: %d.%d" version_major version_minor;
 
     return {
       Start_ok.mechanism = "PLAIN";

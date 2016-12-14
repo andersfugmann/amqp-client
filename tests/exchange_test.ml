@@ -1,29 +1,27 @@
 open Amqp_thread
 open Amqp
 
-let log fmt = Printf.printf (fmt ^^ "\n%!")
-
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
-  log "Connection started";
+  Log.info "Connection started";
   Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
-  log "Channel opened";
+  Log.info "Channel opened";
   Exchange.declare channel ~auto_delete:true Exchange.direct_t "test1" >>= fun exchange1 ->
-  log "Exchange declared";
+  Log.info "Exchange declared";
   Exchange.declare channel ~auto_delete:true Exchange.direct_t "test2" >>= fun exchange2 ->
-  log "Exchange declared";
+  Log.info "Exchange declared";
   Exchange.bind channel ~source:exchange1 ~destination:exchange2 (`Queue "test") >>= fun () ->
-  log "Exchange Bind";
+  Log.info "Exchange Bind";
   Exchange.unbind channel ~source:exchange1 ~destination:exchange2 (`Queue "test") >>= fun () ->
-  log "Exchange Unbind";
+  Log.info "Exchange Unbind";
   Exchange.delete channel exchange1 >>= fun () ->
-  log "Exchange deleted";
+  Log.info "Exchange deleted";
   Exchange.delete channel exchange2 >>= fun () ->
-  log "Exchange deleted";
+  Log.info "Exchange deleted";
   Channel.close channel >>= fun () ->
-  log "Channel closed";
+  Log.info "Channel closed";
   Connection.close connection >>| fun () ->
-  log "Connection closed";
+  Log.info "Connection closed";
   Scheduler.shutdown 0
 
 let _ =

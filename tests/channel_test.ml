@@ -1,21 +1,20 @@
 open Amqp_thread
 open Amqp
 
-let log fmt = Printf.printf (fmt ^^ "\n%!")
 
 let test =
   Connection.connect ~id:"ocaml-amqp-tests" "localhost" >>= fun connection ->
-  log "Connection started";
+  Log.info "Connection started";
   Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
-  log "Channel opened";
+  Log.info "Channel opened";
   Channel.close channel >>= fun () ->
-  log "Channel closed";
+  Log.info "Channel closed";
   Deferred.List.init 600 ~f:(fun _ -> Connection.open_channel ~id:"test" Channel.no_confirm connection) >>= fun channels ->
-  log "Channels opened";
+  Log.info "Channels opened";
   Deferred.List.iter channels ~f:Channel.close >>= fun () ->
-  log "Channels closed";
+  Log.info "Channels closed";
   Connection.close connection >>| fun () ->
-  log "Connection closed";
+  Log.info "Connection closed";
   Scheduler.shutdown 0
 
 let _ =

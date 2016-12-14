@@ -1,59 +1,57 @@
 open Amqp_thread
 open Amqp
 
-let log fmt = Printf.printf (fmt ^^ "\n%!")
-
 let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return ()
 
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
-  log "Connection started";
+  Log.info "Connection started";
   Connection.open_channel ~id:"queue.test" Channel.no_confirm connection >>= fun channel ->
-  log "Channel opened";
+  Log.info "Channel opened";
   Queue.declare channel ~auto_delete:true "queue.test" >>= fun queue ->
-  log "Queue declared";
+  Log.info "Queue declared";
   Channel.set_prefetch channel ~count:100 >>= fun () ->
-  log "Prefetch set";
+  Log.info "Prefetch set";
   Queue.purge channel queue >>= fun () ->
-  log "Queue purged";
+  Log.info "Queue purged";
   Queue.get ~no_ack:false channel queue >>= fun m ->
   assert (m = None);
-  log "Queue empty";
+  Log.info "Queue empty";
   Queue.publish channel queue (Message.make "Test") >>= fun res ->
   assert (res = `Ok);
-  log "Message published";
+  Log.info "Message published";
   Channel.flush channel >>= fun () ->
-  log "Channel flushed";
+  Log.info "Channel flushed";
 
   Queue.get ~no_ack:false channel queue >>= fun m ->
   let m = match m with
     | None -> failwith "No message"
     | Some m -> m
   in
-  log "Message received";
+  Log.info "Message received";
   Message.ack channel m >>= fun () ->
 
   Exchange.declare channel Exchange.topic_t "test_exchange" >>= fun exchange ->
-  log "Exchange declared";
+  Log.info "Exchange declared";
   Queue.bind channel queue exchange (`Topic "test.#.key") >>= fun () ->
-  log "Queue bind declared";
+  Log.info "Queue bind declared";
 
   Exchange.publish channel exchange ~routing_key:"test.a.b.c.key" (Message.make "Test") >>= fun res ->
   assert (res = `Ok);
-  log "Message published";
+  Log.info "Message published";
   Queue.get ~no_ack:false channel queue >>= fun m ->
   let m = match m with
     | None -> failwith "No message"
     | Some m -> m
   in
-  log "Message recieved";
+  Log.info "Message recieved";
   Message.ack channel m >>= fun () ->
   Queue.delete channel queue >>= fun () ->
-  log "Queue deleted";
+  Log.info "Queue deleted";
   Channel.close channel >>= fun () ->
-  log "Channel closed";
+  Log.info "Channel closed";
   Connection.close connection >>| fun () ->
-  log "Connection closed";
+  Log.info "Connection closed";
   Scheduler.shutdown 0
 
 let _ =

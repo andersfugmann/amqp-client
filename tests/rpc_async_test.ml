@@ -1,8 +1,6 @@
 open Amqp_thread
 open Amqp
 
-let log fmt = Printf.printf (fmt ^^ "\n%!")
-
 let req_queue = "test.rpc"
 
 let list_init ~f n =
@@ -32,19 +30,19 @@ let call rpc_client i =
 
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
-  log "Connection started";
+  Log.info "Connection started";
   Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
-  log "Channel opened";
+  Log.info "Channel opened";
   spawn (start_server channel);
-  log "Server started";
+  Log.info "Server started";
   Rpc.Client.init ~id:"rpc.client.test" connection >>= fun client ->
-  log "Client initialized";
+  Log.info "Client initialized";
   list_init 1000 ~f:(call client) |> Deferred.all_unit >>= fun () ->
-  log "All clients returned";
+  Log.info "All clients returned";
   Channel.close channel >>= fun () ->
-  log "Channel closed";
+  Log.info "Channel closed";
   Connection.close connection >>| fun () ->
-  log "Connection closed";
+  Log.info "Connection closed";
   Scheduler.shutdown 0
 
 let _ =
