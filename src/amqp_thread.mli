@@ -27,23 +27,18 @@ end
 module Reader : sig
   type t
   val close : t -> unit Deferred.t
-  val read : t -> ?pos:int -> ?len:int ->
-    string -> [ `Eof of int | `Ok ] Deferred.t
+  val read : t -> string -> [ `Eof of int | `Ok ] Deferred.t
 end
 module Writer : sig
   type t
-  val write : ?pos:int -> ?len:int -> t -> string -> unit
-  val close : ?force_close:unit Deferred.t -> t -> unit Deferred.t
+  val write : t -> string -> unit
+  val close : t -> unit Deferred.t
   val flush : t -> unit Deferred.t
 end
 
 module Tcp : sig
-  type socket
-  val connect : string -> int ->
-    (socket * Reader.t * Writer.t) Deferred.t
-
-  val nodelay :
-    socket -> bool -> unit
+  val connect : ?nodelay:unit -> string -> int ->
+    (Reader.t * Writer.t) Deferred.t
 end
 
 module Log : sig

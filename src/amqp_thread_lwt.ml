@@ -1,11 +1,8 @@
-let return = Lwt.return
-
 let (>>=) = Lwt.(>>=)
-
 let (>>|) = Lwt.(>|=)
-
+let return = Lwt.return
 let after ms = Lwt_unix.sleep (ms /. 1000.0)
-let spawn (t : unit Lwt.t) = Lwt.async (fun () -> t)
+let spawn t = Lwt.ignore_result t
 
 module Ivar = struct
   type 'a state = Empty of 'a Lwt_condition.t
@@ -39,7 +36,6 @@ module Ivar = struct
     if (not (is_full t)) then
       fill t v
 end
-
 
 module Deferred = struct
   type 'a t = 'a Lwt.t
@@ -82,7 +78,7 @@ module Pipe = struct
     type 'a t = 'a elem Lwt_stream.t
   end
   module Writer = struct
-    type 'a t =  'a elem option -> unit
+    type 'a t = 'a elem option -> unit
   end
 
   let create () =
@@ -93,12 +89,12 @@ module Pipe = struct
   let set_size_budget _t _budget = ()
 
   (* Can be readers and writers. *)
-  let flush (t : 'a Writer.t) =
+  let flush t =
     let cond = Lwt_condition.create () in
     t (Some (Flush cond));
     Lwt_condition.wait cond
 
-  let rec read (t : 'a Reader.t) =
+  let rec read t =
     Lwt_stream.get t >>= function
     | None -> return `Eof
     | Some Data d -> return (`Ok d)
@@ -106,15 +102,15 @@ module Pipe = struct
       Lwt_condition.signal cond ();
       read t
 
-  let write_without_pushback (t : 'a Writer.t) data =
+  let write_without_pushback t data =
     t (Some (Data data))
 
-  let write (t : 'a Writer.t) (data : 'a) =
+  let write t  data =
     write_without_pushback t data;
     return ()
 
   (* Pipe of pipes. Must spawn more *)
-  let interleave_pipe (t: 'a Reader.t Reader.t) : 'a Reader.t =
+  let interleave_pipe t =
     let (reader, writer) = create () in
     let rec copy t =
       Lwt_stream.get t >>= function
@@ -132,17 +128,17 @@ module Pipe = struct
     reader
 
 
-  let transfer_in (t: 'a Writer.t) ~from:queue : unit Deferred.t =
+  let transfer_in ~from:queue t =
     Queue.iter (write_without_pushback t) queue;
     return ()
 
-  let close (t: 'a Writer.t) =
+  let close t =
     let cond = Lwt_condition.create () in
     t (Some (Flush cond));
     t None;
     Lwt_condition.wait cond
 
-  let iter ~f (t: 'a Reader.t) =
+  let iter t ~f =
     let rec inner () =
       read t >>= function
       | `Eof -> return ()
@@ -151,7 +147,7 @@ module Pipe = struct
     in
     inner ()
 
-  let iter_without_pushback ~f t =
+  let iter_without_pushback t ~f =
     let rec inner () =
       read t >>= function
       | `Eof -> return ()
@@ -163,7 +159,7 @@ end
 
 module Reader = struct
   type t = Lwt_io.input_channel
-  let close = Lwt_io.close
+  let close t = Lwt_io.close t
 
   let read input buf : [ `Eof of int | `Ok ] Deferred.t =
     let len = Bytes.length buf in
@@ -188,7 +184,7 @@ end
 
 module Tcp = struct
 
-  let connect host port =
+  let connect ?nodelay host port =
     let fd = Lwt_unix.(socket PF_INET SOCK_STREAM 0) in
     Lwt_unix.gethostbyname host >>= fun entry ->
     let sock_addr = (Lwt_unix.ADDR_INET (entry.Lwt_unix.h_addr_list.(0), port)) in
@@ -197,14 +193,16 @@ module Tcp = struct
     let (reader, writer) = Pipe.create () in
     spawn (Pipe.iter ~f:(fun str ->
         Lwt_io.write oc str) reader);
-    return (fd, ic, writer)
 
-  let nodelay (fd: Lwt_unix.file_descr) (value : bool) =
-    Lwt_unix.(setsockopt fd TCP_NODELAY value)
+    (match nodelay with
+     | Some () -> Lwt_unix.(setsockopt fd TCP_NODELAY true)
+     | None -> ());
+    return (ic, writer)
+
 end
 
 module Scheduler = struct
   let cond = Lwt_condition.create ()
-  let go () = Lwt_main.run (Lwt_condition.wait cond)
+  let go () = Lwt_main.run (Lwt_condition.wait cond) |> ignore
   let shutdown (n : int) = Lwt_condition.signal cond n
 end

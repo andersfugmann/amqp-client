@@ -128,8 +128,7 @@ let connection_closed t _s =
 
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 
-  Tcp.connect host port >>= fun (socket, input, output) ->
-  Tcp.nodelay socket true;
+  Tcp.connect ~nodelay:() host port >>= fun (input, output) ->
 
   let framing = Amqp_framing.init ~id input output in
   let t = { framing; virtual_host; channel = 0; closing = false } in
