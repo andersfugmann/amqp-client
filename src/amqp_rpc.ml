@@ -84,8 +84,8 @@ module Server = struct
 
   let queue_argument = Queue.dead_letter_exchange (Exchange.name Exchange.amq_match)
 
-  let start ?(async=false) channel queue handler =
-    let handler ({ Message.message = (content, body); _ } as message) =
+  let start ?(async=false) ?(discard_redelivered=false) channel queue handler =
+    let handler ({ Message.message = (content, body); redelivered; _} as message) =
 
       let routing_key = match content.Content.reply_to with
         | Some r -> r
@@ -93,12 +93,16 @@ module Server = struct
       in
 
       let correlation_id = content.Content.correlation_id in
-
-      handler (content, body) >>= fun (content, body) ->
-      let content = { content with Content.correlation_id } in
-      Exchange.publish channel Exchange.default ~routing_key (content, body) >>= function
-      | `Ok -> Message.ack channel message
-      | `Failed -> Message.reject ~requeue:true channel message
+      match redelivered && discard_redelivered with
+       | false -> begin
+          handler (content, body) >>= fun (content, body) ->
+          let content = { content with Content.correlation_id } in
+          Exchange.publish channel Exchange.default ~routing_key (content, body) >>= function
+          | `Ok -> Message.ack channel message
+          | `Failed -> Message.reject ~requeue:true channel message
+         end
+       | true ->
+           Message.reject ~requeue:false channel message
     in
     (* Start consuming. *)
     Queue.consume ~id:"rpc_server" channel queue >>= fun (consumer, reader) ->

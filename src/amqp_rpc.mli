@@ -55,7 +55,7 @@ module Server :
         [ Queue.declare ~arguments:[Rpc.queue_argument] "rpcservice" ]
     *)
     val start :
-      ?async:bool ->
+      ?async:bool -> ?discard_redelivered:bool ->
       ([< `Failed | `Ok ] as 'a) Amqp_channel.t ->
       Amqp_queue.t ->
       (Amqp_message.message -> Amqp_message.message Deferred.t) -> 'a t Deferred.t
