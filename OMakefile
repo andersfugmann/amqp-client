@@ -21,8 +21,6 @@ vmount(-l, src, _build)
 vmount(-l, tests, _build)
 
 .SUBDIRS: _build
-    #amqp_thread.ml: $(THREAD_FILE)
-    #    ln -fs $< $@
 
     section
 	gen_spec: gen_spec.ml
@@ -56,9 +54,9 @@ vmount(-l, tests, _build)
             amqp_exchange
             amqp_message
 	    amqp_thread
-	    amqp_thread_async
             amqp
 
+	# Create amqp_async and amqp_lwt
         OCamlLibrary(amqp-client, $(FILES))
 
 	.doc.made: amqp-client.a
