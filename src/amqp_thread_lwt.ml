@@ -63,10 +63,11 @@ module Deferred = struct
 end
 
 module Log = struct
-  let section = Lwt_log_core.Section.make "amqp_client"
-  let debug fmt = Printf.ksprintf (fun s -> Lwt_log_core.debug ~section s |> Lwt.ignore_result) fmt
-  let info fmt = Printf.ksprintf (fun s -> Lwt_log_core.info ~section s |> Lwt.ignore_result) fmt
-  let error fmt = Printf.ksprintf (fun s -> Lwt_log_core.error ~section s |> Lwt.ignore_result) fmt
+  let section = Lwt_log.Section.make "amqp_client"
+
+  let debug fmt = Lwt_log.ign_debug_f ~section fmt
+  let info fmt = Lwt_log.ign_info_f ~section fmt
+  let error fmt = Lwt_log.ign_error_f ~section fmt
 end
 
 (* Pipes. Bound are not implemented yet .*)
