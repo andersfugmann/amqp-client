@@ -39,7 +39,7 @@ module Server :
     type 'a t
 
     (** Recommended argement to add when declaring the rpc server queue.
-        This will set the dead letter exhange to the header exchange to help
+        This will set the dead letter exchange to the header exchange to help
         clients to be notified if a request has timed out
     *)
     val queue_argument : Amqp_types.header
