@@ -33,12 +33,12 @@ val declare :
   ?arguments:Amqp_types.table ->
   string -> 'a t Deferred.t
 
-(** Delete exhange *)
+(** Delete exchange *)
 val delete :
   ?if_unused:bool ->
   _ Amqp_channel.t -> _ t -> unit Deferred.t
 
-(** Bind exchange t to exchange using [routing_key] so messages are routed from exhange to [t] *)
+(** Bind exchange [t] to exchange using [routing_key], so messages are routed from exchange to [t] *)
 val bind : _ Amqp_channel.t -> destination:_ t -> source:'a t -> 'a -> unit Deferred.t
 
 (** Remove exchange to exchange binding *)

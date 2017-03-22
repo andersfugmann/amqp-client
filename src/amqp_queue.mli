@@ -57,14 +57,14 @@ val consume :
 (** Cancel consumption. *)
 val cancel : _ consumer -> unit Deferred.t
 
-(** Bind a queue to an exhange.
+(** Bind a queue to an exchange.
     Messages posted on the exchange which match the routing key
     (and optionally match the headers)
     will be routed to the queue
 *)
 val bind : _ Amqp_channel.t -> t -> 'b Amqp_exchange.t -> 'b -> unit Deferred.t
 
-(** Remove a binding from an exhange to a queue *)
+(** Remove a binding from an exchange to a queue *)
 val unbind : _ Amqp_channel.t -> t -> 'b Amqp_exchange.t -> 'b -> unit Deferred.t
 
 (** Purge all messages on a queue *)

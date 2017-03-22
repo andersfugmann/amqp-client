@@ -12,16 +12,16 @@ type t
            Virtual must be defined on the amqp-server prior to connecting them.
            Default "/"
     @param port The port to connect to
-    @param heartbeat delay between hearbeats in seconds. Lower the number to detect copnnection loss faster.
+    @param heartbeat Delay between heartbeats in seconds. Lower the number to detect connection loss faster.
 
 
-    If an error occurs an excaption is raised. To capture and handle
-    exceptions it is adviced to detatch a monitor [Core.Async.Monitor]
+    If an error occurs an exception is raised. To capture and handle
+    exceptions it is advised to detach a monitor [Core.Async.Monitor]
     and handle raised exceptions.
 
     The most important exception is [Connection_closed]. As the
-    connection is statefull (channels are tied to connections e.g),
-    the connection cannot be restablished without redoing all
+    connection is stateful (channels are tied to connections e.g),
+    the connection cannot be re-established without redoing all
     initalization.
 *)
 val connect :

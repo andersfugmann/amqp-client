@@ -1,4 +1,4 @@
-(** Async compatability layer *)
+(** Async compatibility layer *)
 
 open Async.Std
 
