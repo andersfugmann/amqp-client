@@ -42,7 +42,7 @@ val publish :
     Remember to ack messages.
 
     All messages are processed concurrently.
-    To limit number of concurrent processes, set the prefetch threashold.
+    To limit number of concurrent processes, set the prefetch threshold.
 *)
 val consume :
   id:string ->
