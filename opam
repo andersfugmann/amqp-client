@@ -7,7 +7,7 @@ homepage: "https://github.com/andersfugmann/amqp-client"
 bug-reports: "https://github.com/andersfugmann/amqp-client/issues"
 license: "BSD3"
 dev-repo: "https://github.com/andersfugmann/amqp-client.git"
-build: [ ]
+build: [make "RELEASE=true"]
 install: [make "install"]
 remove: [make "uninstall"]
 depends: [

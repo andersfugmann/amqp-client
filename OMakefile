@@ -4,7 +4,18 @@ USE_OCAMLFIND = true
 NATIVE_ENABLED = true
 BYTE_ENABLED = true
 
-OCAMLFLAGS = -thread -g -w @A-4-29-41-44-45 -bin-annot
+if $(not $(defined RELEASE))
+   RELEASE=false
+   export
+
+if $(RELEASE)
+   WARNING_ERROR=
+   export
+else
+   WARNING_ERROR=@
+   export
+
+OCAMLFLAGS = -thread -g -w $(WARNING_ERROR)A-4-29-41-44-45 -bin-annot
 OCAMLPACKS[] = ocplib-endian
 
 if $(equal $(getenv thread, async), lwt)

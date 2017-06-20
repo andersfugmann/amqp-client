@@ -1,7 +1,9 @@
+RELEASE = false
+
 .DEFAULT: all
 .PHONY: $(MAKECMDGOALS)
 all:
-	omake -w -j 4
+	omake -w -j 4 RELEASE=$(RELEASE)
 
 
 
