@@ -1,13 +1,13 @@
 (** Async compatibility layer *)
 
-open Async.Std
+open Async
 
 module Deferred = struct
   type 'a t = 'a Deferred.t
   let all_unit = Deferred.all_unit
   let try_with f = Monitor.try_with ~extract_exn:true f >>= function
-    | Core.Std.Result.Ok v -> return (`Ok v)
-    | Core.Std.Result.Error exn -> return (`Error exn)
+    | Core.Result.Ok v -> return (`Ok v)
+    | Core.Result.Error exn -> return (`Error exn)
 
   module List = struct
     let init ~f n = Deferred.List.init ~f n
@@ -19,7 +19,7 @@ end
 let (>>=) = (>>=)
 let (>>|) = (>>|)
 let return a = return a
-let after ms = after (Core.Std.Time.Span.of_ms ms)
+let after ms = after (Core.Time.Span.of_ms ms)
 let spawn t = don't_wait_for t
 
 module Ivar = struct
@@ -58,9 +58,9 @@ end
 module Log = struct
   (* Use of a predefiend tag allows the caller to disable logging if needed *)
   let tags = ["library", "amqp_client"]
-  let debug fmt = Async.Std.Log.Global.debug ~tags fmt
-  let info fmt = Async.Std.Log.Global.info ~tags fmt
-  let error fmt = Async.Std.Log.Global.error ~tags fmt
+  let debug fmt = Log.Global.debug ~tags fmt
+  let info fmt = Log.Global.info ~tags fmt
+  let error fmt = Log.Global.error ~tags fmt
 end
 
 (* Pipes *)
