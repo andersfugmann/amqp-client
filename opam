@@ -8,7 +8,7 @@ bug-reports: "https://github.com/andersfugmann/amqp-client/issues"
 license: "BSD3"
 dev-repo: "https://github.com/andersfugmann/amqp-client.git"
 build: [make "RELEASE=true"]
-install: [make "install"]
+install: [make "RELEASE=true" "install"]
 remove: [make "uninstall"]
 depends: [
   "ocamlfind" {build}
