@@ -1,3 +1,8 @@
+1.0.6:
+* Delete amqp_thread.mli, as it makes Deferred.t opaque and makes it
+  impossible to use with existing threading system (lwt / async) as
+  intended. Tests has been exteded to make sure this does not happen again.
+
 1.0.5:
 * Compile against async 0.9
 

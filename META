@@ -1,9 +1,9 @@
-version = "1.0.5"
+version = "1.0.6"
 description = "AMQP client - Meta package."
 requires = "amqp-client.async"
 
 package "lwt" (
-  version = "1.0.5"
+  version = "1.0.6"
   description = "AMQP client using the LWT threadming model"
   directory = "lwt"
   archive(byte) = "amqp-client.cma"
@@ -13,7 +13,7 @@ package "lwt" (
 )
 
 package "async" (
-  version = "1.0.5"
+  version = "1.0.6"
   description = "AMQP client using the async threading model"
   directory = "async"
   archive(byte) = "amqp-client.cma"
