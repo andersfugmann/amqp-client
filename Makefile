@@ -1,21 +1,25 @@
 NPROC := $(shell nproc || echo 4)
 OMAKE := omake -j $(NPROC)
+OCAMLFINDDIR = $(shell ocamlfind printconf destdir)
+
 
 .DEFAULT: all
 .PHONY: $(MAKECMDGOALS)
 all:
 	$(OMAKE) -w
 
+$(filter-out install uninstall test, $(MAKECMDGOALS)):
+	$(OMAKE) -w $(MAKECMDGOALS)
 
-
-ifeq ($(MAKECMDGOALS), install)
-OCAMLFINDDIR:=$(shell ocamlfind printconf destdir)
+test:
+	$(OMAKE) test
+	thread=async $(OMAKE) _build/async_link
+	thread=lwt $(OMAKE)   _build/lwt_link
 
 .PHONY: install install-lwt install-amqp
 META.top: META
 	cp $@ $<
 
-# Recursive - one rule
 install-lwt: export thread=lwt
 install-lwt: DESTDIR=$(OCAMLFINDDIR)/amqp-client/$(thread)
 install-lwt:
@@ -34,17 +38,11 @@ install-async:
 
 # Determine targets to install
 LIBS := $(addprefix install-, $(shell ocamlfind list | grep -E '^(async |lwt )' | cut -d' ' -f1))
+install:
 install: DESTDIR=$(OCAMLFINDDIR)/amqp-client
 install: $(LIBS)
 	mkdir -p $(DESTDIR)
 	cp META $(DESTDIR)
 
-else ifeq ($(MAKECMDGOALS), uninstall)
-.PHONY: uninstall
 uninstall:
 	@D=$$(ocamlfind query amqp-client) && rm -fr $${D}
-
-else
-$(MAKECMDGOALS):
-	$(OMAKE) -w $(MAKECMDGOALS)
-endif
