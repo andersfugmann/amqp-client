@@ -4,10 +4,11 @@ USE_OCAMLFIND = true
 NATIVE_ENABLED = true
 BYTE_ENABLED = true
 
-OCAMLFLAGS = -thread -g -w @A-4-29-41-44-45 -bin-annot
+OCAMLFLAGS = -thread -g -w @A-4-29-41-44-45 -bin-annot -short-paths
 OCAMLPACKS[] = ocplib-endian
 
-if $(equal $(getenv thread, async), lwt)
+THREAD = $(getenv thread, async)
+if $(equal $(THREAD), lwt)
    OCAMLPACKS[] += lwt lwt.unix
    THREAD_FILE = amqp_thread_lwt.ml
    export
@@ -85,6 +86,11 @@ vmount(-l, tests, _build)
 	    foreach(test => ..., $(TESTS))
 	        echo "====== $(test) ======"
 		./$(test)
+
+    section
+	OCAML_LIBS += amqp-client
+	OCamlProgram($(THREAD)_link, $(THREAD)_link)
+
 
 .PHONY: clean
 clean:
