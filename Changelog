@@ -1,3 +1,6 @@
+1.0.7 (WIP):
+* Enable travis ci
+
 1.0.6:
 * Delete amqp_thread.mli, as it makes Deferred.t opaque and makes it
   impossible to use with existing threading system (lwt / async) as
