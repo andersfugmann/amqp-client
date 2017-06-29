@@ -8,6 +8,7 @@ bug-reports: "https://github.com/andersfugmann/amqp-client/issues"
 license: "BSD3"
 dev-repo: "https://github.com/andersfugmann/amqp-client.git"
 build: [ ]
+build-test: [make "test-link"]
 install: [make "install"]
 remove: [make "uninstall"]
 depends: [
@@ -15,9 +16,11 @@ depends: [
   "omake" {build}
   "xml-light" {build}
   "ocplib-endian" {>= "0.6"}
+  "lwt" {test}
+  "async" {test}
 ]
 depopts: [
-  "async_unix"
+  "async"
   "lwt"
 ]
 conflicts: [

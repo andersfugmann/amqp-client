@@ -7,7 +7,7 @@ env:
   global:
     - PACKAGE=amqp-client
     - DEPOPTS="*"
-    - TESTS=false
+    - TESTS=true
   matrix:
     - OCAML_VERSION=4.03
     - OCAML_VERSION=4.04
