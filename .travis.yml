@@ -8,7 +8,6 @@ env:
     - PACKAGE=amqp-client
     - DEPOPTS="*"
     - TESTS=true
-    - EXTRA_DEPS="lwt async"
   matrix:
     - OCAML_VERSION=4.03
     - OCAML_VERSION=4.04
