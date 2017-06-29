@@ -4,7 +4,6 @@ OCAMLFINDDIR = $(shell ocamlfind printconf destdir)
 
 LOCAL_TARGETS = all install uninstall test test-link
 
-
 # Nothing is made by this makefile.
 .PHONY: $(MAKECMDGOALS)
 
