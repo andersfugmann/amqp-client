@@ -126,21 +126,20 @@ let send_heartbeat t =
 
 let get_handler id = function
   | ((id', h) :: _) as lst when id = id' -> (h, lst)
-  | lst ->
-      begin
-        let elt = ref None in
-        let rec inner = function
-          | [] -> []
-          | ((id', _) as e) :: xs when id = id' ->
-              elt := Some e;
-              xs
-          | x :: xs -> x :: inner xs
-        in
-        let tail = inner lst in
-        match !elt with
-        | None -> raise Amqp_types.No_handler_found
-        | Some e -> snd e, e :: tail
-      end
+  | lst -> begin
+      let elt = ref None in
+      let rec inner = function
+        | [] -> []
+        | ((id', _) as e) :: xs when id = id' ->
+            elt := Some e;
+            xs
+        | x :: xs -> x :: inner xs
+      in
+      let tail = inner lst in
+      match !elt with
+      | None -> raise Amqp_types.No_handler_found
+      | Some e -> snd e, e :: tail
+    end
 
 (** read_frame reads a frame from the input, and sends the data to
     the channel writer *)

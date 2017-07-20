@@ -98,14 +98,14 @@ let handle_confirms channel t =
             Q.add e tmp;
             inner ()
         | (id, v) when id = tag ->
-            Ivar.fill v s;
+            Ivar.fill_if_empty v s;
         | e ->
             Q.add e tmp;
         | exception Q.Empty ->
+            (* Strange. Tag cannot be found. Could have been taken by someone else *)
             failwith (Printf.sprintf "Unexpected confirm: %d %d"
                         tag
                         (Q.length t.unacked));
-            (* Strange. Tag cannot be found *)
       in
       inner ();
       Q.transfer t.unacked tmp;
@@ -115,7 +115,7 @@ let handle_confirms channel t =
     let rec confirm_multiple s tag =
       match Q.peek t.unacked with
       | (id, v) when id <= tag ->
-          Ivar.fill v s;
+          Ivar.fill_if_empty v s;
           Q.take t.unacked |> ignore;
           confirm_multiple s tag
       | _ -> ()
@@ -126,13 +126,24 @@ let handle_confirms channel t =
     | false -> confirm_single
   in
 
+  let reject_current _m =
+    let (_id, v) = Q.peek t.unacked in
+    Ivar.fill v `Failed
+  in
 
   let open Basic in
 
   let read_ack = snd Ack.Internal.read in
   let read_reject = snd Reject.Internal.read in
+  let read_undeliverable = snd Return.Internal.read in
   read_ack ~once:false (fun m -> confirm m.Ack.multiple `Ok m.Ack.delivery_tag) channel;
-  read_reject ~once:false (fun m -> confirm false `Ok m.Reject.delivery_tag) channel;
+  read_reject ~once:false (fun m -> confirm false `Failed m.Reject.delivery_tag) channel;
+  read_undeliverable ~once:false (fun m -> reject_current m) channel;
+
+  (* We should always listen for these. If we are not in ack mode, we
+     should raise an exception, else we should reject the message. We
+     should also figure out how to relay the message contained. Or
+     maybe not.*)
   Confirm.Select.request channel { Confirm.Select.nowait = false }
 
 let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
