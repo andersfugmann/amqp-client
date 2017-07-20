@@ -16,8 +16,15 @@ let with_confirm = With_confirm
 type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
 type consumers = (string, consumer) Hashtbl.t
 
+type result = Delivered | Rejected | Undeliverable
+type message_info = { delivery_tag: int;
+                      routing_key: string;
+                      exchange_name: string;
+                      result_handler: result -> unit;
+                    }
+
 type publish_confirm = { mutable message_count: int;
-                         unacked: (int * [ `Ok | `Failed ] Ivar.t) Q.t }
+                         unacked: message_info Q.t }
 
 type _ pcp =
   | Pcp_no_confirm: no_confirm pcp
@@ -61,13 +68,20 @@ module Internal = struct
   let deregister_consumer_handler t consumer_tag =
     Hashtbl.remove t.consumers consumer_tag
 
-  let wait_for_confirm: type a. a t -> a Deferred.t = fun t ->
+  let set_result ivar = function
+    | Delivered -> Ivar.fill_if_empty ivar `Ok
+    | Rejected -> Ivar.fill_if_empty ivar `Failed
+    | Undeliverable -> Ivar.fill_if_empty ivar `Failed
+
+  (** Need to add if we should expect returns also *)
+  let wait_for_confirm: type a. a t -> routing_key:string -> exchange_name:string -> a Deferred.t = fun t ~routing_key ~exchange_name ->
     match t.publish_confirm with
     | Pcp_with_confirm t ->
       let var = Ivar.create () in
-      let id = t.message_count + 1 in
-      t.message_count <- id;
-      Q.add (id, var) t.unacked;
+      let result_handler = set_result var in
+      t.message_count <- t.message_count + 1;
+      let delivery_tag = t.message_count in
+      Q.add {delivery_tag; routing_key; exchange_name; result_handler} t.unacked;
       (Ivar.read var : [`Ok | `Failed] Deferred.t)
     | Pcp_no_confirm -> return `Ok
 end
@@ -89,46 +103,33 @@ let register_flow_handler t =
 
 let handle_confirms channel t =
 
-  let confirm multiple =
-    let confirm_single s tag =
-      let tmp = Q.create () in
-      let rec inner () =
-        match Q.take t.unacked with
-        | (id, _) as e when id < tag ->
-            Q.add e tmp;
-            inner ()
-        | (id, v) when id = tag ->
-            Ivar.fill_if_empty v s;
-        | e ->
-            Q.add e tmp;
-        | exception Q.Empty ->
+  let confirm multiple result tag =
+    let tmp = Q.create () in
+    let rec inner () =
+      match Q.take t.unacked with
+      | message when message.delivery_tag < tag -> begin
+          match multiple with
+          | true -> message.result_handler result;
+          | false -> Q.add message tmp;
+        end;
+        inner ();
+      | message when message.delivery_tag = tag ->
+        message.result_handler result
+      | message -> Q.add message tmp;
+      | exception Q.Empty ->
             (* Strange. Tag cannot be found. Could have been taken by someone else *)
             failwith (Printf.sprintf "Unexpected confirm: %d %d"
                         tag
-                        (Q.length t.unacked));
-      in
-      inner ();
-      Q.transfer t.unacked tmp;
-      Q.transfer tmp t.unacked
+                        (Q.length t.unacked))
     in
-
-    let rec confirm_multiple s tag =
-      match Q.peek t.unacked with
-      | (id, v) when id <= tag ->
-          Ivar.fill_if_empty v s;
-          Q.take t.unacked |> ignore;
-          confirm_multiple s tag
-      | _ -> ()
-      | exception Q.Empty -> ()
-    in
-    match multiple with
-    | true -> confirm_multiple
-    | false -> confirm_single
+    inner ();
+    Q.transfer t.unacked tmp;
+    Q.transfer tmp t.unacked
   in
 
   let reject_current _m =
-    let (_id, v) = Q.peek t.unacked in
-    Ivar.fill v `Failed
+    let message = Q.peek t.unacked in
+    message.result_handler Undeliverable
   in
 
   let open Basic in
@@ -136,8 +137,8 @@ let handle_confirms channel t =
   let read_ack = snd Ack.Internal.read in
   let read_reject = snd Reject.Internal.read in
   let read_undeliverable = snd Return.Internal.read in
-  read_ack ~once:false (fun m -> confirm m.Ack.multiple `Ok m.Ack.delivery_tag) channel;
-  read_reject ~once:false (fun m -> confirm false `Failed m.Reject.delivery_tag) channel;
+  read_ack ~once:false (fun m -> confirm m.Ack.multiple Delivered m.Ack.delivery_tag) channel;
+  read_reject ~once:false (fun m -> confirm false Rejected m.Reject.delivery_tag) channel;
   read_undeliverable ~once:false (fun m -> reject_current m) channel;
 
   (* We should always listen for these. If we are not in ack mode, we
@@ -153,8 +154,7 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
   spawn (Channel.Close.reply (framing, channel_no) (close_handler channel_no));
   Channel.Open.request (framing, channel_no) () >>= fun () ->
   let publish_confirm : a pcp = match confirm_type with
-    | With_confirm ->
-        Pcp_with_confirm { message_count = 0; unacked = Q.create () }
+    | With_confirm -> Pcp_with_confirm { message_count = 0; unacked = Q.create () }
     | No_confirm -> Pcp_no_confirm
   in
   (match publish_confirm with Pcp_with_confirm t -> handle_confirms (framing, channel_no) t | Pcp_no_confirm -> return ()) >>= fun () ->

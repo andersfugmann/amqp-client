@@ -72,7 +72,7 @@ vmount(-l, tests, _build)
     section
 	OCAML_LIBS += amqp-client
 
-	TESTS=$(rootname $(basename $(find ../tests/ -name *.ml)))
+	TESTS=$(rootname $(basename $(find ../tests/ -name *test.ml)))
 
 	foreach(x => ..., $(TESTS))
 		OCamlProgram($(x), $(x))

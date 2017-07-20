@@ -2,13 +2,12 @@ NPROC := $(shell nproc || echo 4)
 OMAKE := omake -j $(NPROC)
 OCAMLFINDDIR = $(shell ocamlfind printconf destdir)
 
-
 .DEFAULT: all
 .PHONY: $(MAKECMDGOALS)
 all:
 	$(OMAKE) -w
 
-$(filter-out install uninstall test, $(MAKECMDGOALS)):
+$(filter-out install uninstall test all, $(MAKECMDGOALS)):
 	$(OMAKE) -w $(MAKECMDGOALS)
 
 test:

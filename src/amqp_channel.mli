@@ -16,7 +16,7 @@ val channel : _ t -> Amqp_framing.t * int
 module Internal : sig
   val register_consumer_handler : _ t -> string -> consumer -> unit
   val deregister_consumer_handler : _ t -> string -> unit
-  val wait_for_confirm : 'a t -> 'a Deferred.t
+  val wait_for_confirm : 'a t -> routing_key:string -> exchange_name:string -> 'a Deferred.t
   val unique_id : _ t -> string
 end
 (**/**)
@@ -72,7 +72,11 @@ val flush : _ t -> unit Deferred.t
 
 (** Transactions.
     Transactions can be made per channel.
-    After a transaction is started, all published messages and all changes (queue/exchange bindings, creations or deletions) and message acknowledgements are not visible outside the transaction.
+
+    After a transaction is started, all published messages and all changes
+    (queue/exchange bindings, creations or deletions) and message
+    acknowledgements are not visible outside the transaction.
+
     The changes becomes visible after a [commit] or canceled by call to [rollback].
 *)
 module Transaction : sig
