@@ -9,8 +9,10 @@ let test =
   Connection.open_channel ~id:"queue.test" Channel.with_confirm connection >>= fun channel ->
   Log.info "Channel opened";
 
-  Exchange.publish channel Exchange.amq_direct ~mandatory:false ~routing_key:"non_existant_queue" (Message.make "") >>= fun _ ->
-  Exchange.publish channel Exchange.amq_direct ~mandatory:true ~routing_key:"non_existant_queue" (Message.make "") >>= fun _ ->
+  Exchange.publish channel Exchange.amq_direct ~mandatory:false ~routing_key:"non_existant_queue" (Message.make "") >>= fun r ->
+  assert (r = `Ok);
+  Exchange.publish channel Exchange.amq_direct ~mandatory:true ~routing_key:"non_existant_queue" (Message.make "") >>= fun r ->
+  assert (r = `Failed);
 
   Channel.close channel >>= fun () ->
   Log.info "Channel closed";

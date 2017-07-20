@@ -73,7 +73,7 @@ module Internal = struct
     | Rejected -> Ivar.fill_if_empty ivar `Failed
     | Undeliverable -> Ivar.fill_if_empty ivar `Failed
 
-  (** Need to add if we should expect returns also *)
+  (** Need to add if we should expect returns also. *)
   let wait_for_confirm: type a. a t -> routing_key:string -> exchange_name:string -> a Deferred.t = fun t ~routing_key ~exchange_name ->
     match t.publish_confirm with
     | Pcp_with_confirm t ->
@@ -102,7 +102,6 @@ let register_flow_handler t =
   read ~once:false handler (channel t)
 
 let handle_confirms channel t =
-
   let confirm multiple result tag =
     let tmp = Q.create () in
     let rec inner () =
@@ -115,31 +114,37 @@ let handle_confirms channel t =
         inner ();
       | message when message.delivery_tag = tag ->
         message.result_handler result
-      | message -> Q.add message tmp;
-      | exception Q.Empty ->
-            (* Strange. Tag cannot be found. Could have been taken by someone else *)
-            failwith (Printf.sprintf "Unexpected confirm: %d %d"
-                        tag
-                        (Q.length t.unacked))
+      | message -> Q.add message tmp
+      | exception Q.Empty -> ()
     in
     inner ();
     Q.transfer t.unacked tmp;
     Q.transfer tmp t.unacked
   in
 
-  let reject_current _m =
-    let message = Q.peek t.unacked in
-    message.result_handler Undeliverable
+  let handle_return r =
+    let tmp = Q.create () in
+    let rec inner () =
+      match Q.take t.unacked with
+      | message when message.routing_key = r.Basic.Return.routing_key && message.exchange_name = r.Basic.Return.exchange ->
+        message.result_handler Undeliverable
+      | message ->
+            Q.add message tmp;
+            inner ();
+      | exception Q.Empty -> failwith "Return error"
+    in
+    inner ();
+    Q.transfer t.unacked tmp;
+    Q.transfer tmp t.unacked
   in
-
   let open Basic in
 
   let read_ack = snd Ack.Internal.read in
   let read_reject = snd Reject.Internal.read in
-  let read_undeliverable = snd Return.Internal.read in
+  let read_return = snd Return.Internal.read in
   read_ack ~once:false (fun m -> confirm m.Ack.multiple Delivered m.Ack.delivery_tag) channel;
   read_reject ~once:false (fun m -> confirm false Rejected m.Reject.delivery_tag) channel;
-  read_undeliverable ~once:false (fun m -> reject_current m) channel;
+  read_return ~once:false (fun (m, _) -> handle_return m) channel;
 
   (* We should always listen for these. If we are not in ack mode, we
      should raise an exception, else we should reject the message. We
@@ -176,6 +181,8 @@ let close { framing; channel_no; _ } =
 let flush t =
   Amqp_framing.flush_channel t.framing t.channel_no
 
+(* TODO: This must die. Its not to be used. It should be possible to
+   register async handlers instead. *)
 let on_return t =
   let reader, writer = Pipe.create () in
   let (_, read) = Basic.Return.Internal.read in

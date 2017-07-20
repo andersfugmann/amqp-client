@@ -39,9 +39,8 @@ and value =
 
 type header = string * value
 
-(*
 let rec print_type indent t =
-  let open Amqp_types in
+  let open Printf in
   match t with
   | VTable t ->
     let indent' = indent ^ "  " in
@@ -65,5 +64,3 @@ let rec print_type indent t =
     List.iter (fun v -> printf "%s" indent'; print_type (indent')  v; printf "\n") a;
     printf "%s]" indent;
   | VUnit _ -> printf "\n"
-
-*)
