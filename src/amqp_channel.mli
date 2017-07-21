@@ -38,7 +38,8 @@ val create : id:string -> 'a confirms ->
 val close : _ t -> unit Deferred.t
 
 (** Receive all returned messages.
-    This function may only be called once (per channel)
+    This function should only be called once.
+may only be called once (per channel)
 *)
 val on_return : _ t ->
   (Basic.Return.t * (Basic.Content.t * string)) Pipe.Reader.t

@@ -56,7 +56,8 @@ vmount(-l, tests, _build)
             amqp_rpc
             amqp_exchange
             amqp_message
-	    amqp_thread
+            amqp_thread
+            amqp_lib
             amqp
 
         OCamlLibrary(amqp-client, $(FILES))
@@ -90,6 +91,8 @@ vmount(-l, tests, _build)
     section
 	OCAML_LIBS += amqp-client
 	OCamlProgram($(THREAD)_link, $(THREAD)_link)
+	OCamlProgram(main, main)
+	.DEFAULT: main $(THREAD)_link
 
 
 .PHONY: clean
