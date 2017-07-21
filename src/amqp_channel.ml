@@ -164,14 +164,16 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
   register_return_handler t;
   return t
 
-let close { framing; channel_no; _ } =
+let close { framing; channel_no; return_writers; _ } =
   let open Channel.Close in
   request (framing, channel_no)
     { reply_code=200;
       reply_text="Closed on user request";
       class_id=0;
       method_id=0; } >>= fun () ->
-  Amqp_framing.close_channel framing channel_no
+  Amqp_framing.close_channel framing channel_no >>= fun () ->
+  List.map Pipe.close return_writers |> Deferred.all_unit
+
 
 let on_return t =
   let reader, writer = Pipe.create () in
