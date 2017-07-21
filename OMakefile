@@ -108,3 +108,10 @@ html: _build/.doc.made
 	git -C html add '*' && echo ok
 	git -C html commit --amend -m "Update documentation"
 #git -C html push --force
+
+.PHONY: update-version
+version = $(shell head -n 1 Changelog | tr -d ':')
+update-version:
+	echo "Updating version to: $(version)"
+	sed -i "s/version = \".*\"/version = \"$(version)\"/" META
+	sed -i "s/version = \".*\"/version = \"$(version)\"/" src/amqp_connection.ml
