@@ -37,9 +37,13 @@ val create : id:string -> 'a confirms ->
 (** Close the channel *)
 val close : _ t -> unit Deferred.t
 
-(** Receive all returned messages.
-    This function should only be called once.
-may only be called once (per channel)
+(** Receive all returned messages. Reutnred message will be send to
+    all readers returned from call to this function.  Listening for
+    returned messages are useful in e.g. rpc to know that message
+    delivery failed and then stop waiting for a response.
+
+    Note that channels in ack mode there is no need to listen for
+    returned messages, as message delivery will fail synchoniously.
 *)
 val on_return : _ t ->
   (Basic.Return.t * (Basic.Content.t * string)) Pipe.Reader.t

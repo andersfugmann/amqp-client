@@ -1,6 +1,6 @@
-(** Functions and datastructure used internally for amqp *)
+(** Internal functions *)
+(**/**)
 
-(** Mutable list. List datastructure that allows constant time append and single element removal *)
 module MList = struct
   type 'a elem = { content: 'a; mutable next: 'a cell }
   and 'a cell = Nil
@@ -91,3 +91,4 @@ module Option = struct
     | None -> ()
     | Some v -> f v
 end
+(**/**)

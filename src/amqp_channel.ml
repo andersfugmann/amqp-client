@@ -30,8 +30,7 @@ type _ pcp =
   | Pcp_no_confirm: no_confirm pcp
   | Pcp_with_confirm: publish_confirm -> with_confirm pcp
 
-type return_handler = Basic.Return.t * (Basic.Content.t * string) -> unit Deferred.t
-(* How do we deregister? *)
+type return_writer = (Basic.Return.t * (Basic.Content.t * string)) Pipe.Writer.t
 
 type 'a t = { framing: Amqp_framing.t;
               channel_no: int;
@@ -39,7 +38,7 @@ type 'a t = { framing: Amqp_framing.t;
               id: string;
               mutable counter: int;
               publish_confirm: 'a pcp;
-              return_handlers: return_handler list;
+              mutable return_writers: return_writer list;
             }
 
 let channel { framing; channel_no; _ } = (framing, channel_no)
@@ -127,12 +126,21 @@ let handle_confirms channel t =
   let open Basic in
   let read_ack = snd Ack.Internal.read in
   let read_reject = snd Reject.Internal.read in
-  let read_return = snd Return.Internal.read in
   read_ack ~once:false (fun m -> confirm m.Ack.multiple Delivered m.Ack.delivery_tag) channel;
   read_reject ~once:false (fun m -> confirm false Rejected m.Reject.delivery_tag) channel;
-  read_return ~once:false (fun (m, _) -> handle_return m) channel;
 
-  Confirm.Select.request channel { Confirm.Select.nowait = false }
+  let reader, writer = Pipe.create () in
+  Pipe.iter_without_pushback reader ~f:(fun (m, _) -> handle_return m) |> spawn;
+
+  Confirm.Select.request channel { Confirm.Select.nowait = false } >>= fun () ->
+  return writer
+
+let register_return_handler t =
+  let handler message =
+    List.iter ( fun writer -> Pipe.write_without_pushback writer message ) t.return_writers
+  in
+  let (_, read) = Basic.Return.Internal.read in
+  read ~once:false handler (channel t)
 
 let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
   let consumers = Hashtbl.create 0 in
@@ -140,15 +148,20 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
   Amqp_framing.open_channel framing channel_no >>= fun () ->
   spawn (Channel.Close.reply (framing, channel_no) (close_handler channel_no));
   Channel.Open.request (framing, channel_no) () >>= fun () ->
+
   let publish_confirm : a pcp = match confirm_type with
     | With_confirm -> Pcp_with_confirm { message_count = 0; unacked = MList.create () }
     | No_confirm -> Pcp_no_confirm
   in
-  (match publish_confirm with Pcp_with_confirm t -> handle_confirms (framing, channel_no) t | Pcp_no_confirm -> return ()) >>= fun () ->
-  let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm; return_handlers = [] } in
+  begin match publish_confirm with
+   | Pcp_with_confirm t -> handle_confirms (framing, channel_no) t >>= fun writer -> return [writer]
+   | Pcp_no_confirm -> return []
+  end >>= fun return_writers ->
+  let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm; return_writers } in
   Internal.register_deliver_handler t;
 
   register_flow_handler t;
+  register_return_handler t;
   return t
 
 let close { framing; channel_no; _ } =
@@ -160,15 +173,13 @@ let close { framing; channel_no; _ } =
       method_id=0; } >>= fun () ->
   Amqp_framing.close_channel framing channel_no
 
-let flush t =
-  Amqp_framing.flush_channel t.framing t.channel_no
-
-(* Allow registration of more handlers, and allow close on these *)
 let on_return t =
   let reader, writer = Pipe.create () in
-  let (_, read) = Basic.Return.Internal.read in
-  read ~once:false (Pipe.write_without_pushback writer) (channel t);
+  t.return_writers <- writer :: t.return_writers;
   reader
+
+let flush t =
+  Amqp_framing.flush_channel t.framing t.channel_no
 
 let id t = t.id
 
@@ -185,7 +196,6 @@ let set_global_prefetch ?(count=0) ?(size=0) t =
                                   global=true }
 
 module Transaction = struct
-  (** Hmm. Create an exsistential type? *)
   type tx = EChannel: _ t -> tx
 
   open Amqp_spec.Tx
