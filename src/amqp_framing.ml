@@ -2,6 +2,7 @@
 open Amqp_thread
 open Amqp_protocol
 open Amqp_io
+open Amqp_lib
 module S = Amqp_protocol.Spec
 
 type channel_no = int
@@ -20,8 +21,8 @@ type content_handler = data * string -> unit
 type method_handler = data -> unit
 
 type channel = { mutable state: channel_state;
-                 mutable method_handlers: (Amqp_types.message_id * method_handler) list;
-                 mutable content_handlers: (Amqp_types.class_id * content_handler) list;
+                 method_handlers: (Amqp_types.message_id * method_handler) MList.t;
+                 content_handlers: (Amqp_types.class_id * content_handler) MList.t;
                  writer: String.t Pipe.Writer.t;
                  mutable ready: unit Ivar.t;
                }
@@ -124,24 +125,6 @@ let send_heartbeat t =
   create_frame 0 Amqp_constants.frame_heartbeat (fun i -> i)
   |> Pipe.write channel.writer
 
-let get_handler id = function
-  | ((id', h) :: _) as lst when id = id' -> (h, lst)
-  | lst ->
-      begin
-        let elt = ref None in
-        let rec inner = function
-          | [] -> []
-          | ((id', _) as e) :: xs when id = id' ->
-              elt := Some e;
-              xs
-          | x :: xs -> x :: inner xs
-        in
-        let tail = inner lst in
-        match !elt with
-        | None -> raise Amqp_types.No_handler_found
-        | Some e -> snd e, e :: tail
-      end
-
 (** read_frame reads a frame from the input, and sends the data to
     the channel writer *)
 let decode_message t tpe channel_no size input =
@@ -150,8 +133,12 @@ let decode_message t tpe channel_no size input =
   | Ready, n when n = Amqp_constants.frame_method ->
     (* Standard method message *)
     let message_id = read_method_frame (fun a b -> a, b) input in
-    let (handler, handlers) = get_handler message_id channel.method_handlers in
-    channel.method_handlers <- handlers; (* Move front *)
+    let handler =
+      MList.take ~pred:(fun elt -> fst elt = message_id) channel.method_handlers
+      |> Option.get_exn ~exn:Amqp_types.No_handler_found
+      |> snd
+    in
+    MList.prepend channel.method_handlers (message_id, handler);
     handler input;
   | Ready, n when n = Amqp_constants.frame_header ->
     let class_id, _weight, size =
@@ -159,8 +146,12 @@ let decode_message t tpe channel_no size input =
     in
 
     if size = 0 then begin
-      let handler, handlers = get_handler class_id channel.content_handlers in
-      channel.content_handlers <- handlers; (* Move front *)
+      let handler =
+        MList.take ~pred:(fun elt -> fst elt = class_id) channel.content_handlers
+        |> Option.get_exn ~exn:Amqp_types.No_handler_found
+        |> snd
+      in
+      MList.prepend channel.content_handlers (class_id, handler);
       handler (input, "")
     end
     else
@@ -169,8 +160,12 @@ let decode_message t tpe channel_no size input =
     Input.copy input ~dst_pos:offset ~len:size buffer;
     if (String.length buffer = offset + size) then begin
       channel.state <- Ready;
-      let handler, handlers = get_handler class_id channel.content_handlers in
-      channel.content_handlers <- handlers; (* Move front *)
+      let handler =
+        MList.take ~pred:(fun elt -> fst elt = class_id) channel.content_handlers
+        |> Option.get_exn ~exn:Amqp_types.No_handler_found
+        |> snd
+      in
+      MList.prepend channel.content_handlers (class_id, handler);
       handler (content, buffer);
     end
     else
@@ -201,31 +196,21 @@ let rec read_frame t close_handler =
 
 let register_method_handler (t, channel_no) message_id handler =
   let c = channel t channel_no in
-  if List.exists (fun x -> fst x = message_id) c.method_handlers then
-    raise Amqp_types.Busy;
-  c.method_handlers <- (message_id, handler) :: c.method_handlers
+  MList.prepend c.method_handlers (message_id, handler)
 
 let register_content_handler (t, channel_no) class_id handler =
   let c = channel t channel_no in
-  if List.exists (fun x -> fst x = class_id) c.content_handlers then
-    raise Amqp_types.Busy;
-  c.content_handlers <- (class_id, handler) :: c.content_handlers
-
-let rec remove_handler id = function
-  | (id', _) :: xs when id = id' -> xs
-  | x :: xs -> x :: remove_handler id xs
-  | [] -> (* No handler removed *)
-      raise Amqp_types.Busy
+  MList.prepend c.content_handlers (class_id, handler)
 
 let deregister_method_handler (t, channel_no) message_id =
   let c = channel t channel_no in
-  let handlers = remove_handler message_id c.method_handlers in
-  c.method_handlers <- handlers
+  let (_ : 'a option) = MList.take ~pred:(fun (id, _) -> id = message_id) c.method_handlers in
+  ()
 
 let deregister_content_handler (t, channel_no) class_id =
   let c = channel t channel_no in
-  let handlers = remove_handler class_id c.content_handlers in
-  c.content_handlers <- handlers
+  let (_ : 'a option) = MList.take ~pred:(fun (id, _) -> id = class_id) c.content_handlers in
+  ()
 
 let set_flow_on_channel c = function
   | true ->
@@ -257,8 +242,8 @@ let open_channel t channel_no =
   in
   t.channels.(channel_no) <-
     Some { state = Ready;
-           method_handlers = [];
-           content_handlers = [];
+           method_handlers = MList.create ();
+           content_handlers = MList.create ();
            writer;
            ready;
          };

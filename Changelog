@@ -1,3 +1,10 @@
+1.1.0:
+* Handle mandatory flag on channels with confirm set
+* Fix bug where message would always be signalled as delivered
+  successfully even if delivery failed.
+* Allow multiple listeners for returned messages
+* Minor optimizations
+
 1.0.7 (WIP):
 * Enable travis ci
 

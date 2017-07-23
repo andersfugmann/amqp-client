@@ -2,22 +2,16 @@ NPROC := $(shell nproc || echo 4)
 OMAKE := omake -j $(NPROC)
 OCAMLFINDDIR = $(shell ocamlfind printconf destdir)
 
-LOCAL_TARGETS = all install uninstall test test-link
+LOCAL_TARGETS = install uninstall test all
 
-# Nothing is made by this makefile.
 .PHONY: $(MAKECMDGOALS)
-
-$(filter-out $(LOCAL_TARGETS), $(MAKECMDGOALS)):
-	$(OMAKE) -w $(MAKECMDGOALS)
 
 .DEFAULT: all
 all:
 	$(OMAKE) -w
 
-.PHONY: install install-lwt install-amqp test test-link
-test-link:
-	thread=lwt $(OMAKE)   _build/lwt_link
-	thread=async $(OMAKE) _build/async_link
+$(filter-out $(LOCAL_TARGETS), $(MAKECMDGOALS)):
+	$(OMAKE) -w $(MAKECMDGOALS)
 
 test: test-link
 	$(OMAKE) test

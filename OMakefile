@@ -56,7 +56,8 @@ vmount(-l, tests, _build)
             amqp_rpc
             amqp_exchange
             amqp_message
-	    amqp_thread
+            amqp_thread
+            amqp_lib
             amqp
 
         OCamlLibrary(amqp-client, $(FILES))
@@ -72,7 +73,7 @@ vmount(-l, tests, _build)
     section
 	OCAML_LIBS += amqp-client
 
-	TESTS=$(rootname $(basename $(find ../tests/ -name *.ml)))
+	TESTS=$(rootname $(basename $(find ../tests/ -name *test.ml)))
 
 	foreach(x => ..., $(TESTS))
 		OCamlProgram($(x), $(x))
@@ -90,6 +91,8 @@ vmount(-l, tests, _build)
     section
 	OCAML_LIBS += amqp-client
 	OCamlProgram($(THREAD)_link, $(THREAD)_link)
+	OCamlProgram(main, main)
+	.DEFAULT: main $(THREAD)_link
 
 
 .PHONY: clean
@@ -105,3 +108,10 @@ html: _build/.doc.made
 	git -C html add '*' && echo ok
 	git -C html commit --amend -m "Update documentation"
 #git -C html push --force
+
+.PHONY: update-version
+version = $(shell head -n 1 Changelog | tr -d ':')
+update-version:
+	echo "Updating version to: $(version)"
+	sed -i "s/version = \".*\"/version = \"$(version)\"/" META
+	sed -i "s/version = \".*\"/version = \"$(version)\"/" src/amqp_connection.ml
