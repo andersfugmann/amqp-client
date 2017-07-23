@@ -1,0 +1,48 @@
+(jbuild_version 1)
+
+(executable
+ ((name gen_spec)
+  (modules (Gen_spec))
+  (libraries (xml-light str))
+ )
+)
+
+(rule
+ ((targets (amqp0-9-1.extended.xml))
+ (action (with-stdout-to ${@} (run curl http://www.rabbitmq.com/resources/specs/amqp0-9-1.extended.xml)))
+ )
+)
+
+(rule
+ ((targets (amqp_spec.ml))
+  (deps    (amqp0-9-1.extended.xml gen_spec.exe))
+  (action  (with-stdout-to ${@} (run ./gen_spec.exe -type specification ${<})))
+ )
+)
+
+(rule
+ ((targets (amqp_constants.ml))
+  (deps    (amqp0-9-1.extended.xml gen_spec.exe))
+  (action  (with-stdout-to ${@} (run ./gen_spec.exe -type constants ${<})))
+ )
+)
+
+(library
+ ((name amqp_thread_lwt)
+  (modules (Amqp_thread_lwt))
+  (libraries (lwt))
+  (optional)
+ )
+)
+
+(library
+ ((name        amqp_client.lwt)
+  (public_name amqp_client.lwt)
+  (synopsis "lwt version of amqp_client")
+  (modules (:standard \ (Amqp_thread_lwt Amqp_thread_async Gen_spec)))
+  (libraries (ocplib-endian amqp_thread_lwt))
+  (wrapped false)
+  (flags (-open Amqp_thread_lwt))
+  (optional)
+ )
+)

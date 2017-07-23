@@ -1,0 +1,18 @@
+(jbuild_version 1)
+
+(executables (
+  (names (channel_test
+         close_test
+         connection_test
+         exchange_test
+         main
+         mandatory_test
+         queue_test
+         repeat
+         rpc_async_test
+         rpc_client
+         rpc_server
+         rpc_test
+         vhost_test))
+  (libraries (amqp_client.async))
+))
