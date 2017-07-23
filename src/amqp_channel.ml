@@ -1,6 +1,6 @@
-module Q = Queue
 open Amqp_thread
 open Amqp_spec
+open Amqp_lib
 
 type no_confirm = [ `Ok ]
 type with_confirm = [ `Ok | `Failed ]
@@ -16,12 +16,21 @@ let with_confirm = With_confirm
 type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
 type consumers = (string, consumer) Hashtbl.t
 
+type result = Delivered | Rejected | Undeliverable
+type message_info = { delivery_tag: int;
+                      routing_key: string;
+                      exchange_name: string;
+                      result_handler: result -> unit;
+                    }
+
 type publish_confirm = { mutable message_count: int;
-                         unacked: (int * [ `Ok | `Failed ] Ivar.t) Q.t }
+                         unacked: message_info MList.t }
 
 type _ pcp =
   | Pcp_no_confirm: no_confirm pcp
   | Pcp_with_confirm: publish_confirm -> with_confirm pcp
+
+type return_writer = (Basic.Return.t * (Basic.Content.t * string)) Pipe.Writer.t
 
 type 'a t = { framing: Amqp_framing.t;
               channel_no: int;
@@ -29,6 +38,7 @@ type 'a t = { framing: Amqp_framing.t;
               id: string;
               mutable counter: int;
               publish_confirm: 'a pcp;
+              mutable return_writers: return_writer list;
             }
 
 let channel { framing; channel_no; _ } = (framing, channel_no)
@@ -47,7 +57,7 @@ module Internal = struct
       try
         let handler = Hashtbl.find t.consumers deliver.Deliver.consumer_tag in
         handler (deliver, content, data);
-      (* Keep the current handler *)
+        (* Keep the current handler *)
       with
       | Not_found -> failwith ("No consumers for: " ^ deliver.Deliver.consumer_tag)
     in
@@ -61,22 +71,29 @@ module Internal = struct
   let deregister_consumer_handler t consumer_tag =
     Hashtbl.remove t.consumers consumer_tag
 
-  let wait_for_confirm: type a. a t -> a Deferred.t = fun t ->
+  let set_result ivar = function
+    | Delivered -> Ivar.fill ivar `Ok
+    | Rejected -> Ivar.fill ivar `Failed
+    | Undeliverable -> Ivar.fill ivar `Failed
+
+  (** Need to add if we should expect returns also. *)
+  let wait_for_confirm: type a. a t -> routing_key:string -> exchange_name:string -> a Deferred.t = fun t ~routing_key ~exchange_name ->
     match t.publish_confirm with
     | Pcp_with_confirm t ->
       let var = Ivar.create () in
-      let id = t.message_count + 1 in
-      t.message_count <- id;
-      Q.add (id, var) t.unacked;
+      let result_handler = set_result var in
+      t.message_count <- t.message_count + 1;
+      let delivery_tag = t.message_count in
+      MList.append t.unacked {delivery_tag; routing_key; exchange_name; result_handler};
       (Ivar.read var : [`Ok | `Failed] Deferred.t)
     | Pcp_no_confirm -> return `Ok
 end
 
 let close_handler channel_no close =
-  Printf.eprintf "Channel closed: %d\n" channel_no;
-  Printf.eprintf "Reply code: %d\n" close.Channel.Close.reply_code;
-  Printf.eprintf "Reply text: %s\n" close.Channel.Close.reply_text;
-  Printf.eprintf "Message: (%d, %d)\n" close.Channel.Close.class_id close.Channel.Close.method_id;
+  Log.info "Channel closed: %d" channel_no;
+  Log.info "Reply code: %d\n" close.Channel.Close.reply_code;
+  Log.info "Reply text: %s\n" close.Channel.Close.reply_text;
+  Log.info "Message: (%d, %d)\n" close.Channel.Close.class_id close.Channel.Close.method_id;
   raise (Amqp_types.Channel_closed channel_no)
 
 let register_flow_handler t =
@@ -88,52 +105,42 @@ let register_flow_handler t =
   read ~once:false handler (channel t)
 
 let handle_confirms channel t =
-
-  let confirm multiple =
-    let confirm_single s tag =
-      let tmp = Q.create () in
-      let rec inner () =
-        match Q.take t.unacked with
-        | (id, _) as e when id < tag ->
-            Q.add e tmp;
-            inner ()
-        | (id, v) when id = tag ->
-            Ivar.fill v s;
-        | e ->
-            Q.add e tmp;
-        | exception Q.Empty ->
-            failwith (Printf.sprintf "Unexpected confirm: %d %d"
-                        tag
-                        (Q.length t.unacked));
-            (* Strange. Tag cannot be found *)
-      in
-      inner ();
-      Q.transfer t.unacked tmp;
-      Q.transfer tmp t.unacked
+  let confirm multiple result tag =
+    let results = match multiple with
+      | true -> MList.take_while ~pred:(fun m -> m.delivery_tag <= tag) t.unacked
+      | false -> MList.take ~pred:(fun m -> m.delivery_tag = tag) t.unacked
+                 |> Option.map_default ~f:(fun v -> [v]) ~default:[]
     in
-
-    let rec confirm_multiple s tag =
-      match Q.peek t.unacked with
-      | (id, v) when id <= tag ->
-          Ivar.fill v s;
-          Q.take t.unacked |> ignore;
-          confirm_multiple s tag
-      | _ -> ()
-      | exception Q.Empty -> ()
-    in
-    match multiple with
-    | true -> confirm_multiple
-    | false -> confirm_single
+    List.iter (fun m -> m.result_handler result) results
   in
 
+  let handle_return r =
+    let pred message =
+      message.routing_key = r.Basic.Return.routing_key && message.exchange_name = r.Basic.Return.exchange
+    in
+
+    MList.take ~pred t.unacked
+    |> Option.iter ~f:(fun m -> m.result_handler Undeliverable)
+  in
 
   let open Basic in
-
   let read_ack = snd Ack.Internal.read in
   let read_reject = snd Reject.Internal.read in
-  read_ack ~once:false (fun m -> confirm m.Ack.multiple `Ok m.Ack.delivery_tag) channel;
-  read_reject ~once:false (fun m -> confirm false `Ok m.Reject.delivery_tag) channel;
-  Confirm.Select.request channel { Confirm.Select.nowait = false }
+  read_ack ~once:false (fun m -> confirm m.Ack.multiple Delivered m.Ack.delivery_tag) channel;
+  read_reject ~once:false (fun m -> confirm false Rejected m.Reject.delivery_tag) channel;
+
+  let reader, writer = Pipe.create () in
+  Pipe.iter_without_pushback reader ~f:(fun (m, _) -> handle_return m) |> spawn;
+
+  Confirm.Select.request channel { Confirm.Select.nowait = false } >>= fun () ->
+  return writer
+
+let register_return_handler t =
+  let handler message =
+    List.iter ( fun writer -> Pipe.write_without_pushback writer message ) t.return_writers
+  in
+  let (_, read) = Basic.Return.Internal.read in
+  read ~once:false handler (channel t)
 
 let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
   let consumers = Hashtbl.create 0 in
@@ -141,35 +148,40 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
   Amqp_framing.open_channel framing channel_no >>= fun () ->
   spawn (Channel.Close.reply (framing, channel_no) (close_handler channel_no));
   Channel.Open.request (framing, channel_no) () >>= fun () ->
+
   let publish_confirm : a pcp = match confirm_type with
-    | With_confirm ->
-        Pcp_with_confirm { message_count = 0; unacked = Q.create () }
+    | With_confirm -> Pcp_with_confirm { message_count = 0; unacked = MList.create () }
     | No_confirm -> Pcp_no_confirm
   in
-  (match publish_confirm with Pcp_with_confirm t -> handle_confirms (framing, channel_no) t | Pcp_no_confirm -> return ()) >>= fun () ->
-  let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm } in
+  begin match publish_confirm with
+   | Pcp_with_confirm t -> handle_confirms (framing, channel_no) t >>= fun writer -> return [writer]
+   | Pcp_no_confirm -> return []
+  end >>= fun return_writers ->
+  let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm; return_writers } in
   Internal.register_deliver_handler t;
 
   register_flow_handler t;
+  register_return_handler t;
   return t
 
-let close { framing; channel_no; _ } =
+let close { framing; channel_no; return_writers; _ } =
   let open Channel.Close in
   request (framing, channel_no)
     { reply_code=200;
       reply_text="Closed on user request";
       class_id=0;
       method_id=0; } >>= fun () ->
-  Amqp_framing.close_channel framing channel_no
+  Amqp_framing.close_channel framing channel_no >>= fun () ->
+  List.map Pipe.close return_writers |> Deferred.all_unit
 
-let flush t =
-  Amqp_framing.flush_channel t.framing t.channel_no
 
 let on_return t =
   let reader, writer = Pipe.create () in
-  let (_, read) = Basic.Return.Internal.read in
-  read ~once:false (Pipe.write_without_pushback writer) (channel t);
+  t.return_writers <- writer :: t.return_writers;
   reader
+
+let flush t =
+  Amqp_framing.flush_channel t.framing t.channel_no
 
 let id t = t.id
 
@@ -186,7 +198,6 @@ let set_global_prefetch ?(count=0) ?(size=0) t =
                                   global=true }
 
 module Transaction = struct
-  (** Hmm. Create an exsistential type? *)
   type tx = EChannel: _ t -> tx
 
   open Amqp_spec.Tx

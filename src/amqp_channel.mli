@@ -16,7 +16,7 @@ val channel : _ t -> Amqp_framing.t * int
 module Internal : sig
   val register_consumer_handler : _ t -> string -> consumer -> unit
   val deregister_consumer_handler : _ t -> string -> unit
-  val wait_for_confirm : 'a t -> 'a Deferred.t
+  val wait_for_confirm : 'a t -> routing_key:string -> exchange_name:string -> 'a Deferred.t
   val unique_id : _ t -> string
 end
 (**/**)
@@ -37,8 +37,13 @@ val create : id:string -> 'a confirms ->
 (** Close the channel *)
 val close : _ t -> unit Deferred.t
 
-(** Receive all returned messages.
-    This function may only be called once (per channel)
+(** Receive all returned messages. Reutnred message will be send to
+    all readers returned from call to this function.  Listening for
+    returned messages are useful in e.g. rpc to know that message
+    delivery failed and then stop waiting for a response.
+
+    Note that channels in ack mode there is no need to listen for
+    returned messages, as message delivery will fail synchoniously.
 *)
 val on_return : _ t ->
   (Basic.Return.t * (Basic.Content.t * string)) Pipe.Reader.t
@@ -72,7 +77,11 @@ val flush : _ t -> unit Deferred.t
 
 (** Transactions.
     Transactions can be made per channel.
-    After a transaction is started, all published messages and all changes (queue/exchange bindings, creations or deletions) and message acknowledgements are not visible outside the transaction.
+
+    After a transaction is started, all published messages and all changes
+    (queue/exchange bindings, creations or deletions) and message
+    acknowledgements are not visible outside the transaction.
+
     The changes becomes visible after a [commit] or canceled by call to [rollback].
 *)
 module Transaction : sig

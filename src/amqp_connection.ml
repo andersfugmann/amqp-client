@@ -1,7 +1,7 @@
 open Amqp_thread
 open Amqp_spec.Connection
 
-let version = "1.0.6"
+let version = "1.1.0"
 
 let string_until c str =
   try

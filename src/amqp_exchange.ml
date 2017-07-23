@@ -149,10 +149,10 @@ let publish channel t
   let wait_for_confirm = Channel.Internal.wait_for_confirm channel in
   Publish.request (Channel.channel channel)
     ({Publish.exchange = t.name;
-      routing_key=routing_key;
+      routing_key;
       mandatory;
       immediate=false},
      header, body) >>= fun () ->
-  wait_for_confirm
+  wait_for_confirm ~routing_key ~exchange_name:t.name
 
 let name t = t.name
