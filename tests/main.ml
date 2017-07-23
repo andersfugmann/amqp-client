@@ -1,4 +1,3 @@
-open Amqp_thread
 open Amqp
 
 let log fmt = Printf.printf (fmt ^^ "\n%!")

@@ -1,18 +1,34 @@
 (jbuild_version 1)
 
 (executables (
-  (names (channel_test
-         close_test
-         connection_test
-         exchange_test
-         main
-         mandatory_test
-         queue_test
-         repeat
-         rpc_async_test
-         rpc_client
-         rpc_server
-         rpc_test
-         vhost_test))
+  (names
+    (channel_test
+     close_test
+     connection_test
+     exchange_test
+     mandatory_test
+     queue_test
+     rpc_async_test
+     rpc_client
+     rpc_server
+     rpc_test
+     main
+     vhost_test))
   (libraries (amqp_client.async))
+  (flags (-open Amqp_thread_async))
+))
+
+(alias (
+  (name runtest)
+  (deps
+    (channel_test.exe
+     close_test.exe
+     connection_test.exe
+     exchange_test.exe
+     mandatory_test.exe
+     queue_test.exe
+     rpc_async_test.exe
+     rpc_test.exe
+     vhost_test.exe))
+  (action (bash "for f in $(^); do echo ==== $f ====; ./$f; done"))
 ))
