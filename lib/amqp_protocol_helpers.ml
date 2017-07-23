@@ -1,5 +1,4 @@
 (** Internal *)
-open Amqp_thread
 open Amqp_protocol
 open Amqp_io
 

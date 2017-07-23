@@ -1,9 +1,7 @@
-.omake*
-OMake*.omc
 *~
 _build
 \#*#
 .#*
 html
-*.cm*
-*.o
+.merlin
+amqp_client.install

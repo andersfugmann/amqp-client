@@ -1,5 +1,4 @@
 (** Rpc client and server patterns *)
-open Amqp_thread
 
 (** Rpc Client pattern *)
 module Client :
@@ -27,7 +26,7 @@ module Client :
       headers:Amqp_types.header list ->
       _ Amqp_exchange.t ->
       Amqp_spec.Basic.Content.t * string ->
-      Amqp_message.message option Amqp_thread.Deferred.t
+      Amqp_message.message option Deferred.t
 
     (** Release resources *)
     val close : t -> unit Deferred.t

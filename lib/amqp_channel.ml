@@ -1,4 +1,3 @@
-open Amqp_thread
 open Amqp_spec
 open Amqp_lib
 

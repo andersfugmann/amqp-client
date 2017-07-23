@@ -1,4 +1,3 @@
-open Amqp_thread
 module Channel = Amqp_channel
 
 open Amqp_spec.Exchange

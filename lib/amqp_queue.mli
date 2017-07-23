@@ -1,6 +1,4 @@
 (** Operations on Queues *)
-open Amqp_thread
-
 type t
 type 'a consumer
 

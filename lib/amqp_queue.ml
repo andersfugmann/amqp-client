@@ -1,4 +1,3 @@
-open Amqp_thread
 module Channel = Amqp_channel
 module Exchange = Amqp_exchange
 module Message = Amqp_message

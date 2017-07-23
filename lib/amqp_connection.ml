@@ -1,4 +1,3 @@
-open Amqp_thread
 open Amqp_spec.Connection
 
 let version = "1.1.0"

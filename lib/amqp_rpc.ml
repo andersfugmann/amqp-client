@@ -1,4 +1,3 @@
-open Amqp_thread
 module Connection = Amqp_connection
 module Channel = Amqp_channel
 module Queue = Amqp_queue

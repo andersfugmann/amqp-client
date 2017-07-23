@@ -1,5 +1,4 @@
 (** Async compatibility layer *)
-
 open Async
 
 module Deferred = struct

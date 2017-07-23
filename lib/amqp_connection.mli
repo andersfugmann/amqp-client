@@ -1,5 +1,4 @@
 (** Connection *)
-open Amqp_thread
 type t
 
 (** Connect to an Amqp server.

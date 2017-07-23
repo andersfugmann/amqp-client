@@ -1,5 +1,4 @@
 (** Amqp message type and functions *)
-open Amqp_thread
 
 type message = Amqp_spec.Basic.Content.t * string
 
