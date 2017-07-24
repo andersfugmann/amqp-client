@@ -2,7 +2,8 @@ language: c
 sudo: required
 install:
   - wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
-  - apt-get install rabitmq-server
+  - sudo apt-get update -qq
+  - sudo apt-get install rabitmq-server
 script: bash -ex .travis-opam.sh
 env:
   global:
