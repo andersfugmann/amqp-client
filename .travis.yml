@@ -1,9 +1,9 @@
 language: c
 sudo: required
+services:
+  - rabbitmq
 install:
   - wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
-  - sudo apt-get update -qq
-  - sudo apt-get install rabbitmq-server
 script: bash -ex .travis-opam.sh
 env:
   global:
