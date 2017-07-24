@@ -4,4 +4,4 @@ _build
 .#*
 html
 .merlin
-amqp_client.install
+amqp-client.install

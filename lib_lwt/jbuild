@@ -29,7 +29,7 @@
 
 (library
  ((name amqp_thread_lwt)
-  (public_name amqp_client.lwt.internal)
+  (public_name amqp-client.lwt.driver)
   (synopsis "internal helper module")
   (modules (Amqp_thread_lwt))
   (libraries (lwt))
@@ -39,7 +39,7 @@
 
 (library
  ((name        amqp_client.lwt)
-  (public_name amqp_client.lwt)
+  (public_name amqp-client.lwt)
   (synopsis "lwt version of amqp_client")
   (modules (:standard \ (Amqp_thread_lwt Amqp_thread_async Gen_spec)))
   (libraries (ocplib-endian amqp_thread_lwt))
