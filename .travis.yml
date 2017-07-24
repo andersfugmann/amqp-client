@@ -7,7 +7,7 @@ install:
 script: bash -ex .travis-opam.sh
 env:
   global:
-    - PACKAGE=amqp_client
+    - PACKAGE=amqp-client
     - DEPOPTS="*"
     - TESTS=true
   matrix:

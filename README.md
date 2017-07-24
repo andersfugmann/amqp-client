@@ -29,41 +29,40 @@ crashes because a service is replying on other services to allocate AMQP resourc
 Channels and consumers are tagged with an id, host name, pid etc. to ease tracing on AMQP level.
 
 [Documentation for the API (async version)](http://andersfugmann.github.io/amqp-client/).
- 
+
 
 ### Build instructions
 
-The system is not functorized over an abstraction to the threading model. Instead the
-build system chooses which threading model abstraction to be used and stacially compiles it in.
-This has the advantage that files do not need to carry functor boilerplate and that the compiler can inline function calls.
+The system is not functorized over an abstraction to the threading
+model. Instead the build system chooses which threading model
+abstraction to be used and stacially compiles it in.  This has the
+advantage that files do not need to carry functor boilerplate and that
+the compiler can inline function calls.
 
-The disadvantage is that it does not allow users to supply their own threading model implementation.
+The disadvantage is that it does not allow users to supply their own
+threading model implementation.
 
-To build the library using Async:
+To build the library
 
-```make thread=async```
+```make build```
 
-To build the Lwt version the the library:
-
-```make thread=lwt```
-
-```make install``` will install both Lwt and Async depending on availability of Async / Lwt through ocamlfind.
+```make install``` will install bLwt and Async depending on availability of Async / Lwt.
 
 ### Using the library
 
 To compile using Async do:
 
-```ocamlfind ocamlopt -package amqp_client.async myprog.ml```
+```ocamlfind ocamlopt -thread -package amqp-client.async myprog.ml```
 
 To compile using the Lwt version of the library do:
 
-```ocamlfind ocamlopt -package amqp_client.lwt myprog.ml```
+```ocamlfind ocamlopt -thread -package amqp-client.lwt myprog.ml```
 
 
 ### Example
 
 ```ocaml
-open Async.Std
+open Async
 
 let host = "localhost"
 

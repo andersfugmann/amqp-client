@@ -63,7 +63,7 @@ module Deferred = struct
 end
 
 module Log = struct
-  let section = Lwt_log.Section.make "amqp_client"
+  let section = Lwt_log.Section.make "amqp-client"
 
   let debug fmt = Lwt_log.ign_debug_f ~section fmt
   let info fmt = Lwt_log.ign_info_f ~section fmt
