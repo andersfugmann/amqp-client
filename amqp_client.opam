@@ -8,12 +8,12 @@ bug-reports: "https://github.com/andersfugmann/amqp-client/issues"
 license: "BSD3"
 dev-repo: "https://github.com/andersfugmann/amqp-client.git"
 version: "1.1.0"
-build: [jbuilder build]
-build-test: [ ]
+build: [["jbuilder" "build" "-p" name "-j" jobs]]
+build-test: [["jbuilder" "runtest" "-p" name "-j" jobs]]
 install: [jbuilder install]
 remove: [jbuilder uninstall]
 depends: [
-  "jbuild" {build}
+  "jbuilder" {build}
   "xml-light" {build}
   "ocplib-endian" {>= "0.6"}
 ]
