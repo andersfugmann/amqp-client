@@ -29,6 +29,8 @@
 
 (library
  ((name amqp_thread_lwt)
+  (public_name amqp_client.lwt.internal)
+  (synopsis "internal helper module")
   (modules (Amqp_thread_lwt))
   (libraries (lwt))
   (optional)

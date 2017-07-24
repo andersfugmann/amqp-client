@@ -5,9 +5,10 @@ install:
 script: bash -ex .travis-opam.sh
 env:
   global:
-    - PACKAGE=amqp-client
+    - PACKAGE=amqp_client
     - DEPOPTS="*"
     - TESTS=true
   matrix:
     - OCAML_VERSION=4.03
     - OCAML_VERSION=4.04
+    - OCAML_VERSION=4.05

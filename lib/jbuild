@@ -29,8 +29,10 @@
 
 (library
  ((name amqp_thread_async)
+  (public_name amqp_client.async.internal)
   (modules (Amqp_thread_async))
-  (libraries (async async_unix))
+  (synopsis "internal helper module")
+  (libraries (async))
   (optional)
  )
 )

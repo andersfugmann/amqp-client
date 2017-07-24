@@ -7,15 +7,15 @@ homepage: "https://github.com/andersfugmann/amqp-client"
 bug-reports: "https://github.com/andersfugmann/amqp-client/issues"
 license: "BSD3"
 dev-repo: "https://github.com/andersfugmann/amqp-client.git"
-build: [ make]
-build-test: [make test]
-install: [make "install"]
-remove: [make "uninstall"]
+version: "1.1.0"
+build: [jbuilder build]
+build-test: [ ]
+install: [jbuilder install]
+remove: [jbuilder uninstall]
 depends: [
   "jbuild" {build}
   "xml-light" {build}
   "ocplib-endian" {>= "0.6"}
-  "async" {test}
 ]
 depopts: [
   "async"
