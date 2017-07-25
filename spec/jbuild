@@ -1,0 +1,28 @@
+(jbuild_version 1)
+
+(executable
+ ((name gen_spec)
+  (modules (Gen_spec))
+  (libraries (xml-light str))
+ )
+)
+
+(rule (
+  (targets (amqp0-9-1.extended.xml))
+  (action (with-stdout-to ${@} (run curl http://www.rabbitmq.com/resources/specs/amqp0-9-1.extended.xml)))
+ )
+)
+
+(rule
+ ((targets (amqp_spec.ml))
+  (deps    (amqp0-9-1.extended.xml gen_spec.exe))
+  (action  (with-stdout-to ${@} (run ./gen_spec.exe -type specification ${<})))
+ )
+)
+
+(rule
+ ((targets (amqp_constants.ml))
+  (deps    (amqp0-9-1.extended.xml gen_spec.exe))
+  (action  (with-stdout-to ${@} (run ./gen_spec.exe -type constants ${<})))
+ )
+)
