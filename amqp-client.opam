@@ -15,6 +15,7 @@ depends: [
   "xml-light" {build}
   "ocplib-endian" {>= "0.6"}
   "async" {test}
+  "lwt" {test}
 ]
 depopts: [
   "async"
