@@ -161,7 +161,6 @@ module Pipe = struct
     spawn (iter_without_pushback t ~f:(fun p -> spawn (copy p)));
     reader
 
-
   let transfer_in ~from:queue t =
     Queue.iter (write_without_pushback t) queue;
     return ()

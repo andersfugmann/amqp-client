@@ -1,1 +1,0 @@
-../lib/amqp_queue.ml
