@@ -10,7 +10,7 @@ env:
     - PACKAGE=amqp-client
     - DEPOPTS="*"
     - TESTS=true
-    - POST_INSTALL_HOOK="make integration"
+    - PRE_INSTALL_HOOK="make integration"
   matrix:
     - OCAML_VERSION=4.03
     - OCAML_VERSION=4.04
