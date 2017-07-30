@@ -1,3 +1,4 @@
+open Amqp_thread
 open Amqp_spec.Basic
 type message = (Content.t * string)
 

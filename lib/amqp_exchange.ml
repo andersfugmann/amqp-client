@@ -1,5 +1,6 @@
 module Channel = Amqp_channel
 
+open Amqp_thread
 open Amqp_spec.Exchange
 
 (* type match_type = Any | All *)

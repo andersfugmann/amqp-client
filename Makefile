@@ -16,3 +16,16 @@ install: build
 
 uninstall:
 	jbuilder uninstall
+
+# Run tests.
+tests/%.exe: tests/%.ml
+	jbuild build $@
+
+integration:
+	#$(MAKE) clean
+	#sed 's/TYPE/async/g' tests/jbuild.in > tests/jbuild
+	#jbuilder runtest
+	#$(MAKE) clean
+	sed 's/TYPE/lwt/g' tests/jbuild.in > tests/jbuild
+	jbuilder runtest
+	$(RM) tests/jbuild

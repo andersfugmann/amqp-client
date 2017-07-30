@@ -1,4 +1,5 @@
 open Amqp
+open Amqp_thread
 
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->

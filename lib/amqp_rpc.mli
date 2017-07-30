@@ -1,5 +1,7 @@
 (** Rpc client and server patterns *)
 
+open Amqp_thread
+
 (** Rpc Client pattern *)
 module Client :
   sig

@@ -1,6 +1,7 @@
 module Channel = Amqp_channel
 module Exchange = Amqp_exchange
 module Message = Amqp_message
+open Amqp_thread
 open Amqp_spec.Queue
 
 type t = { name: string }

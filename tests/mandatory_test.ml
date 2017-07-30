@@ -1,4 +1,5 @@
 open Amqp
+open Amqp_thread
 
 let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return ()
 
@@ -11,6 +12,10 @@ let assert_reader_closed reader =
   Pipe.read reader >>| function
   | `Ok _ -> assert false
   | `Eof -> ()
+
+let print_r = function
+  | `Ok -> Printf.eprintf "Got ok\n%!"
+  | `Failed -> Printf.eprintf "Got failed\n%!"
 
 let test =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->

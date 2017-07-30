@@ -1,3 +1,5 @@
+open Amqp_thread
+
 (** Connection *)
 type t
 

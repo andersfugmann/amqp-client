@@ -1,4 +1,5 @@
 open Amqp
+open Amqp_thread
 
 
 let rec repeat channel queue =

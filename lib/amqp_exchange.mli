@@ -1,5 +1,7 @@
 (** Operations on exchanges *)
 
+open Amqp_thread
+
 type _ t
 
 type _ exchange_type

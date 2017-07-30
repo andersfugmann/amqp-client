@@ -1,0 +1,13 @@
+(jbuild_version 1)
+
+(executables
+ ((names (rpc_server rpc_client))
+  (libraries (amqp-client.async))
+ )
+)
+
+(alias
+ ((name    runtest)
+  (deps    (rpc_server.exe rpc_client.exe))
+ )
+)

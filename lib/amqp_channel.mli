@@ -1,4 +1,5 @@
 (** Operations on channels *)
+open Amqp_thread
 open Amqp_spec
 
 (**/**)

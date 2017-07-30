@@ -4,8 +4,10 @@
   successfully even if delivery failed.
 * Allow multiple listeners for returned messages
 * Minor optimizations
+* Fixed bug in lwt thread causing flush to hand indefinatly if there are no consumers
+* Switch build system to jbuild
 
-1.0.7 (WIP):
+1.0.7:
 * Enable travis ci
 
 1.0.6:

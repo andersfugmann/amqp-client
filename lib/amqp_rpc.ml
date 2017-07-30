@@ -5,6 +5,7 @@ module Exchange = Amqp_exchange
 module Message = Amqp_message
 open Amqp_types
 open Amqp_spec.Basic
+open Amqp_thread
 
 module Client = struct
 

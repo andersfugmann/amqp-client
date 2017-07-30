@@ -5,23 +5,11 @@
 (rule (copy ../spec/amqp_constants.ml amqp_constants.ml))
 
 (library
- ((name amqp_thread_lwt)
-  (public_name amqp-client.lwt.driver)
-  (synopsis "lwt driver")
-  (modules (Amqp_thread_lwt))
-  (libraries (lwt))
-  (optional)
- )
-)
-
-(library
- ((name        amqp_client.lwt)
+ ((name amqp_client.lwt)
   (public_name amqp-client.lwt)
   (synopsis "lwt version")
-  (modules (:standard \ (Amqp_thread_lwt Amqp_thread_async Gen_spec)))
-  (libraries (ocplib-endian amqp_thread_lwt))
+  (libraries (ocplib-endian lwt lwt.log lwt.unix))
   (wrapped false)
-  (flags (-open Amqp_thread_lwt))
   (optional)
  )
 )

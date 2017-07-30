@@ -1,4 +1,5 @@
 (** Internal *)
+open Amqp_thread
 open Amqp_types
 
 type channel_no = int

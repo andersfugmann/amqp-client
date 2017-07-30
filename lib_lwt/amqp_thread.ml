@@ -70,91 +70,127 @@ module Log = struct
   let error fmt = Lwt_log.ign_error_f ~section fmt
 end
 
-(* Pipes. Bound are not implemented yet .*)
+let get_caller () =
+  Printexc.get_callstack 4
+  |> Printexc.raw_backtrace_to_string
+
+(* Pipes. Bounds are not implemented yet. *)
 module Pipe = struct
   type 'a elem = Data of 'a
                | Flush of unit Lwt_condition.t
 
+  type 'a t = { cond: unit Lwt_condition.t;
+                queue: 'a elem Queue.t;
+                mutable closed: bool;
+              }
+
   module Reader = struct
-    type 'a t = 'a elem Lwt_stream.t
+    type nonrec 'a t = 'a t
   end
+
   module Writer = struct
-    type 'a t = 'a elem option -> unit
+    type nonrec 'a t = 'a t
   end
 
   let create () =
-    let stream, push = Lwt_stream.create () in
-    ( stream, push )
+    (* Printf.eprintf "%s : %s\n%!%!" __LOC__ "create"; *)
+    let t = { cond = Lwt_condition.create ();
+              queue = Queue.create ();
+              closed = false;
+            } in
+    (t, t)
 
   (** Not supported yet *)
   let set_size_budget _t _budget = ()
 
   (* Can be readers and writers. *)
   let flush t =
-    let cond = Lwt_condition.create () in
-    t (Some (Flush cond));
-    Lwt_condition.wait cond
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "flush"; *)
+    match Queue.is_empty t.queue with
+    | true -> return ()
+    | false ->
+      let cond = Lwt_condition.create () in
+      Queue.push (Flush cond) t.queue;
+      Lwt_condition.wait cond
+
+  let rec read_raw t =
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "read_raw"; *)
+    match Queue.is_empty t.queue with
+    | true ->
+      begin match t.closed with
+      | true -> return `Eof
+      | false ->
+        Lwt_condition.wait t.cond >>= fun () ->
+        read_raw t
+      end
+    | false ->
+      return (`Ok (Queue.pop t.queue))
 
   let rec read t =
-    Lwt_stream.get t >>= function
-    | None -> return `Eof
-    | Some Data d -> return (`Ok d)
-    | Some Flush cond ->
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "read"; *)
+    read_raw t >>= function
+    | `Eof -> return `Eof
+    | `Ok (Data d) -> return @@ `Ok d
+    | `Ok (Flush cond) ->
       Lwt_condition.signal cond ();
       read t
 
-  let write_without_pushback t data =
-    t (Some (Data data))
+  let write_raw t data =
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "write_raw"; *)
+    Queue.push data t.queue;
+    Lwt_condition.broadcast t.cond ()
 
-  let write t  data =
+  let write_without_pushback t data =
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "write_without_pushback"; *)
+    write_raw t (Data data)
+
+  let write t data =
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "write"; *)
     write_without_pushback t data;
     return ()
 
+  let rec iter t ~f =
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "iter"; *)
+    read t >>= function
+    | `Eof -> return ()
+    | `Ok d -> f d >>= fun () -> iter t ~f
+
+  let rec iter_without_pushback t ~f =
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "iter_without_pushback"; *)
+    read t >>= function
+    | `Eof -> return ()
+    | `Ok d -> f d; iter_without_pushback t ~f
+
   (* Pipe of pipes. Must spawn more *)
   let interleave_pipe t =
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "interleave_pipe"; *)
     let (reader, writer) = create () in
     let rec copy t =
-      Lwt_stream.get t >>= function
-      | Some n ->
-        writer (Some n);
+      read_raw t >>= function
+      | `Eof -> return ()
+      | `Ok data ->
+        write_raw writer data;
         copy t
-      | None -> return ()
     in
-    let run = function
-      | Data t -> copy t
-      | Flush _ ->
-        failwith "Cannot flush this one"
-    in
-    spawn (Lwt_stream.iter_p run t);
+    spawn (iter_without_pushback t ~f:(fun p -> spawn (copy p)));
     reader
 
 
   let transfer_in ~from:queue t =
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "transfer_in"; *)
     Queue.iter (write_without_pushback t) queue;
     return ()
 
+  (* Should close wait for all consumers to finish? *)
   let close t =
-    let cond = Lwt_condition.create () in
-    t (Some (Flush cond));
-    t None;
-    Lwt_condition.wait cond
-
-  let iter t ~f =
-    let rec inner () =
-      read t >>= function
-      | `Eof -> return ()
-      | `Ok d -> f d >>= fun () ->
-        inner ()
-    in
-    inner ()
-
-  let iter_without_pushback t ~f =
-    let rec inner () =
-      read t >>= function
-      | `Eof -> return ()
-      | `Ok d -> f d; inner ()
-    in
-    inner ()
+    (* Printf.eprintf "%s : %s\n%!" __LOC__ "close"; *)
+    t.closed <- true;
+    begin match Queue.is_empty t.queue with
+    | true -> return ()
+    | false -> flush t
+    end >>= fun () ->
+    Lwt_condition.broadcast t.cond ();
+    return ()
 
 end
 
@@ -168,7 +204,9 @@ module Reader = struct
       | n when n = len ->
           return `Ok
       | n -> begin
-          Lwt.catch (fun () -> Lwt_io.read_into input buf n (len - n)) (fun _exn -> return 0) >>= function
+          Lwt.catch
+            (fun () -> Lwt_io.read_into input buf n (len - n))
+            (fun _exn -> return 0) >>= function
           | 0 -> return (`Eof n)
           | read -> inner (n + read)
         end

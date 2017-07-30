@@ -1,5 +1,7 @@
 (** Amqp message type and functions *)
 
+open Amqp_thread
+
 type message = Amqp_spec.Basic.Content.t * string
 
 val string_header: string -> string -> Amqp_types.header

@@ -1,0 +1,75 @@
+(* -*- tuareg -*- *)
+
+let template =
+"
+(executable (
+  (name NAME)
+  (modules (MODULE))
+  (libraries (amqp_client.TYPE))
+))
+
+(alias (
+  (name runtest)
+  (deps (NAME.exe))
+  (action (echo NAME))
+  (action (run ./NAME.exe))
+))
+";;
+
+let ends_with s str =
+  let l = String.length s in
+  match String.length str with
+  | n when n >= l ->
+    String.sub str (n - l) l = s
+  | _ -> false
+;;
+
+let is_test_file name =
+  ends_with "_test.ml" name
+;;
+
+let files =
+  Sys.readdir "."
+  |> Array.to_list
+  |> List.filter is_test_file
+;;
+
+let strip_suffix name =
+  (* Find last index of '.' *)
+  match String.rindex name '.' with
+  | n -> String.sub name 0 n
+  | exception Not_found -> name
+;;
+
+(* Replace a string in larger text. How??? *)
+let replace_string s ~by str =
+  let rec nsplit ~from ~by str =
+    let by_len = String.length by in
+    match String.sub str from by_len = by with
+    | true -> String.sub str 0 from :: nsplit ~from:0 ~by (String.sub str (from + by_len) (String.length str - by_len - from))
+    | false -> nsplit ~from:(from + 1) ~by str
+    | exception Invalid_argument _ -> [ str ]
+  in
+  nsplit ~from:0 ~by:s str
+  |> String.concat by
+
+let create_test name =
+  template
+  |> replace_string "NAME" ~by:name
+  |> replace_string "MODULE" ~by:(String.capitalize_ascii name)
+;;
+
+let tests () =
+  files
+  |> List.map strip_suffix
+  |> List.map (fun name -> create_test name)
+  |> String.concat "\n"
+;;
+
+let tap f x =
+  f x; x
+
+let () =
+  tests ()
+  |> Jbuild_plugin.V1.send
+;;
