@@ -4,6 +4,7 @@
 (rule (copy ../spec/amqp_spec.ml amqp_spec.ml))
 (rule (copy ../spec/amqp_constants.ml amqp_constants.ml))
 
+
 (library
  ((name amqp_client.lwt)
   (public_name amqp-client.lwt)

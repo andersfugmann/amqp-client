@@ -70,10 +70,6 @@ module Log = struct
   let error fmt = Lwt_log.ign_error_f ~section fmt
 end
 
-let get_caller () =
-  Printexc.get_callstack 4
-  |> Printexc.raw_backtrace_to_string
-
 (* Pipes. Bounds are not implemented yet. *)
 module Pipe = struct
   type 'a elem = Data of 'a
@@ -93,7 +89,6 @@ module Pipe = struct
   end
 
   let create () =
-    (* Printf.eprintf "%s : %s\n%!%!" __LOC__ "create"; *)
     let t = { cond = Lwt_condition.create ();
               queue = Queue.create ();
               closed = false;
@@ -105,7 +100,6 @@ module Pipe = struct
 
   (* Can be readers and writers. *)
   let flush t =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "flush"; *)
     match Queue.is_empty t.queue with
     | true -> return ()
     | false ->
@@ -114,7 +108,6 @@ module Pipe = struct
       Lwt_condition.wait cond
 
   let rec read_raw t =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "read_raw"; *)
     match Queue.is_empty t.queue with
     | true ->
       begin match t.closed with
@@ -127,7 +120,6 @@ module Pipe = struct
       return (`Ok (Queue.pop t.queue))
 
   let rec read t =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "read"; *)
     read_raw t >>= function
     | `Eof -> return `Eof
     | `Ok (Data d) -> return @@ `Ok d
@@ -136,34 +128,28 @@ module Pipe = struct
       read t
 
   let write_raw t data =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "write_raw"; *)
     Queue.push data t.queue;
     Lwt_condition.broadcast t.cond ()
 
   let write_without_pushback t data =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "write_without_pushback"; *)
     write_raw t (Data data)
 
   let write t data =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "write"; *)
     write_without_pushback t data;
     return ()
 
   let rec iter t ~f =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "iter"; *)
     read t >>= function
     | `Eof -> return ()
     | `Ok d -> f d >>= fun () -> iter t ~f
 
   let rec iter_without_pushback t ~f =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "iter_without_pushback"; *)
     read t >>= function
     | `Eof -> return ()
     | `Ok d -> f d; iter_without_pushback t ~f
 
   (* Pipe of pipes. Must spawn more *)
   let interleave_pipe t =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "interleave_pipe"; *)
     let (reader, writer) = create () in
     let rec copy t =
       read_raw t >>= function
@@ -177,20 +163,21 @@ module Pipe = struct
 
 
   let transfer_in ~from:queue t =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "transfer_in"; *)
     Queue.iter (write_without_pushback t) queue;
     return ()
 
   (* Should close wait for all consumers to finish? *)
   let close t =
-    (* Printf.eprintf "%s : %s\n%!" __LOC__ "close"; *)
     t.closed <- true;
     begin match Queue.is_empty t.queue with
     | true -> return ()
     | false -> flush t
     end >>= fun () ->
-    Lwt_condition.broadcast t.cond ();
     return ()
+
+  let close_without_pushback t =
+    t.closed <- true;
+    Lwt_condition.broadcast t.cond ()
 
 end
 

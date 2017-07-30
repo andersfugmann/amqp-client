@@ -75,6 +75,7 @@ module Pipe = struct
     Queue.iter (write_without_pushback t) from;
     return ()
 
+  let close_without_pushback t = Pipe.close t
   let close t = Pipe.close t; flush t >>= fun _ -> return ()
   let read r = Pipe.read r
   let iter r ~f = Pipe.iter r ~f

@@ -30,7 +30,7 @@ type _ pcp =
   | Pcp_no_confirm: no_confirm pcp
   | Pcp_with_confirm: publish_confirm -> with_confirm pcp
 
-type return_writer = (Basic.Return.t * (Basic.Content.t * string)) Pipe.Writer.t
+type return_handler = (Basic.Return.t * (Basic.Content.t * string)) option -> unit
 
 type 'a t = { framing: Amqp_framing.t;
               channel_no: int;
@@ -38,7 +38,7 @@ type 'a t = { framing: Amqp_framing.t;
               id: string;
               mutable counter: int;
               publish_confirm: 'a pcp;
-              mutable return_writers: return_writer list;
+              mutable return_handlers: return_handler list;
             }
 
 let channel { framing; channel_no; _ } = (framing, channel_no)
@@ -73,13 +73,10 @@ module Internal = struct
 
   let set_result ivar = function
     | Delivered ->
-      Printf.eprintf "Mark message as delivered\n%!";
       Ivar.fill ivar `Ok
     | Rejected ->
-      Printf.eprintf "Mark message as rejected\n%!";
       Ivar.fill ivar `Failed
     | Undeliverable ->
-      Printf.eprintf "Mark message as undeliverable\n%!";
       Ivar.fill ivar `Failed
 
   (** Need to add if we should expect returns also. *)
@@ -112,7 +109,6 @@ let register_flow_handler t =
 
 let handle_confirms channel t =
   let confirm multiple result tag =
-    Printf.eprintf "Received confirm\n%!";
     let results = match multiple with
       | true -> MList.take_while ~pred:(fun m -> m.delivery_tag <= tag) t.unacked
       | false -> MList.take ~pred:(fun m -> m.delivery_tag = tag) t.unacked
@@ -121,15 +117,17 @@ let handle_confirms channel t =
     List.iter (fun m -> m.result_handler result) results
   in
 
-  let handle_return (r, _) =
-    Printf.eprintf "Received return (undeliverable)\n%!";
-    let pred message =
-      message.routing_key = r.Basic.Return.routing_key && message.exchange_name = r.Basic.Return.exchange
-    in
+  let return_handler = function
+    | Some (r, _) -> begin
+        let pred message =
+          message.routing_key = r.Basic.Return.routing_key && message.exchange_name = r.Basic.Return.exchange
+        in
 
-    match MList.take ~pred t.unacked with
-    | None -> Printf.eprintf "No messages found to mark as undeliverable\n%!"
-    | Some m -> m.result_handler Undeliverable
+        match MList.take ~pred t.unacked with
+        | None -> Log.error "No messages found to mark as undeliverable. This would indicate a library error"
+        | Some m -> m.result_handler Undeliverable
+      end
+    | None -> ()
   in
 
   let open Basic in
@@ -139,19 +137,11 @@ let handle_confirms channel t =
   read_reject ~once:false (fun m -> confirm false Rejected m.Reject.delivery_tag) channel;
 
   Confirm.Select.request channel { Confirm.Select.nowait = false } >>= fun () ->
-  return handle_return
+  return return_handler
 
-let register_return_handler t return_handler =
-  Printf.eprintf "Register return handler\n%!";
-  let handler message =
-    Printf.eprintf "Distribute the returned message\n%!";
-    List.iter (fun writer -> Pipe.write_without_pushback writer message ) t.return_writers
-  in
-  let handler = match return_handler with
-    | Some return_handler -> fun m -> return_handler m; handler m
-    | None -> handler
-  in
+let register_return_handler t =
   let (_, read) = Basic.Return.Internal.read in
+  let handler m = List.iter (fun h -> h (Some m)) t.return_handlers in
   read ~once:false handler (channel t)
 
 let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
@@ -166,17 +156,17 @@ let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.ch
     | No_confirm -> Pcp_no_confirm
   in
   begin match publish_confirm with
-   | Pcp_with_confirm t -> handle_confirms (framing, channel_no) t >>= fun return_handler -> return (Some return_handler)
-   | Pcp_no_confirm -> return None
-  end >>= fun return_hander ->
-  let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm; return_writers = [] } in
+  | Pcp_with_confirm t -> handle_confirms (framing, channel_no) t >>= fun return_handler -> return [return_handler]
+  | Pcp_no_confirm -> return []
+  end >>= fun return_handlers ->
+  let t = { framing; channel_no; consumers; id; counter = 0; publish_confirm; return_handlers } in
   Internal.register_deliver_handler t;
 
   register_flow_handler t;
-  register_return_handler t return_hander;
+  register_return_handler t;
   return t
 
-let close { framing; channel_no; return_writers; _ } =
+let close { framing; channel_no; return_handlers; _ } =
   let open Channel.Close in
   request (framing, channel_no)
     { reply_code=200;
@@ -184,12 +174,17 @@ let close { framing; channel_no; return_writers; _ } =
       class_id=0;
       method_id=0; } >>= fun () ->
   Amqp_framing.close_channel framing channel_no >>= fun () ->
-  List.map Pipe.close return_writers |> Deferred.all_unit
+  List.iter (fun h -> h None) return_handlers;
+  return ()
 
 
 let on_return t =
   let reader, writer = Pipe.create () in
-  t.return_writers <- writer :: t.return_writers;
+  let handler = function
+    | Some m -> Pipe.write_without_pushback writer m
+    | None -> Pipe.close_without_pushback writer
+  in
+  t.return_handlers <- handler :: t.return_handlers;
   reader
 
 let flush t =
