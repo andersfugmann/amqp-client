@@ -42,10 +42,11 @@ let read_method (message_id, spec, make, _apply) =
     let handler data =
       let req = read make data in
       handler req;
-      if (once) then
-        Amqp_framing.deregister_method_handler channel message_id;
+      if (once) then begin
+        Amqp_framing.deregister_method_handler channel message_id
+      end
     in
-    Amqp_framing.register_method_handler channel message_id handler;
+    Amqp_framing.register_method_handler channel message_id handler
   in
   (message_id, read)
 
@@ -60,7 +61,7 @@ let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec
   let write_content content output =
     let property_flags = ref 0 in
     let property_word = Output.short_ref output in
-    c_apply (c_write property_flags output) content;
+    let output = c_apply (c_write property_flags output) content in
     update_property_flag !property_flags property_word property_bits;
     output
   in
@@ -84,9 +85,10 @@ let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec,
     in
     let handler data =
       let req = read make data in
-      if (once) then
-        Amqp_framing.deregister_method_handler channel message_id;
-      Amqp_framing.register_content_handler channel c_method (c_handler req);
+      if (once) then begin
+        Amqp_framing.deregister_method_handler channel message_id
+      end;
+      Amqp_framing.register_content_handler channel c_method (c_handler req)
     in
     Amqp_framing.register_method_handler channel message_id handler
   in

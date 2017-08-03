@@ -52,11 +52,11 @@ let channel t channel_no =
   | Some ch -> ch
 
 let size_of_writer writer =
-  let sizer = Output.sizer () in
-  let (_ : Amqp_io.Output.t) = writer sizer in
-  Output.size sizer
+  Output.sizer ()
+  |> writer
+  |> Output.size
 
-let create_frame channel_no tpe (writer : (Amqp_io.Output.t -> Amqp_io.Output.t)) =
+let create_frame channel_no tpe writer =
   let length = size_of_writer writer in
   let output = Output.create (1+2+4+length+1) in
 
@@ -90,7 +90,7 @@ let add_content_frames queue max_length channel_no class_id writer data =
 
   let length = String.length data in
 
-  (* Here comes the data *)
+  (* Send the data *)
   let rec send offset =
     if offset < length then
       let size = min max_length (length - offset) in
@@ -105,7 +105,6 @@ let add_content_frames queue max_length channel_no class_id writer data =
   in
   send 0
 
-(* This should write to the pipe using write', and return a deferred (which is does already, just better *)
 let write_message (t, channel_no) (message_id, writer) content =
   let channel = channel t channel_no in
   match content with
