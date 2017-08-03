@@ -1,9 +1,27 @@
 open Printf
 let indent = ref 0
+let no_loc = ref false
 
-let emit fmt =
+let option_map ~f = function
+  | Some v -> f v
+  | None -> None
+
+let option_iter ~f = function
+  | Some v -> f v
+  | None -> ()
+
+let emit_loc loc =
+  match !no_loc with
+  | true -> ()
+  | false ->
+    let indent = String.make (!indent * 2) ' ' in
+    printf "%s# %d \"%s\"\n" indent loc __FILE__
+
+let emit ?loc fmt =
+  option_iter ~f:emit_loc loc;
   assert (!indent >= 0);
   let indent = String.make (!indent * 2) ' ' in
+  (* Get last location *)
   printf ("%s" ^^ fmt ^^ "\n") indent
 
 let emit_doc = function
@@ -154,13 +172,14 @@ let emit_domains tree =
   emit "(* Domains *)";
   Hashtbl.iter (fun d (t, doc) ->
       emit_doc doc;
-      emit "type %s = %s" (bind_name d) (bind_name t);
+      emit ~loc:__LINE__ "type %s = %s" (bind_name d) (bind_name t);
     ) domains;
 
   emit "";
   emit "(**/**)";
-  emit "module Internal_alias = struct";
+  emit ~loc:__LINE__ "module Internal_alias = struct";
   incr indent;
+
   Hashtbl.iter (fun d (t, _) ->
       emit "let %s = %s" (bind_name d) (variant_name t);
     ) domains;
@@ -196,24 +215,24 @@ let emit_constants tree =
   emit "(* Constants *)";
   List.iter
     (function Constant { Constant.name; value; doc } ->
-      emit_doc doc;
-      emit "let %s = %d" (bind_name name) value | _ -> ())
+       emit_doc doc;
+       emit ~loc:__LINE__ "let %s = %d" (bind_name name) value | _ -> ())
     tree
 
 let emit_class_index tree =
   emit "(* Class index *)";
   let idx = ref 0 in
-  emit "let index_of_class = function";
+  emit ~loc:__LINE__ "let index_of_class = function";
   incr indent;
   List.iter (function Class { Class.index; _ } -> emit "| %d -> %d" index !idx; incr idx | _ -> ()) tree;
   emit "| _ -> failwith \"Unknown class\"";
   decr indent;
-  emit "let classes = %d" !idx
+  emit ~loc:__LINE__ "let classes = %d" !idx
 
 let emit_method_index tree =
   emit "(* Class - Method index *)";
   let idx = ref 0 in
-  emit "let index_of_class_method = function";
+  emit ~loc:__LINE__ "let index_of_class_method = function";
   incr indent;
   List.iter (function
       | Class { Class.index; methods; _ } ->
@@ -228,7 +247,7 @@ let emit_method_index tree =
       | _ -> ()) tree;
   emit "| _ -> failwith \"Unknown class\"";
   decr indent;
-  emit "let methods = %d" !idx
+  emit ~loc:__LINE__ "let methods = %d" !idx
 
 
 let spec_str arguments =
@@ -250,7 +269,7 @@ let emit_method ?(is_content=false) class_index
     } =
 
   emit_doc doc;
-  emit "module %s = struct" (variant_name name);
+  emit ~loc:__LINE__ "module %s = struct" (variant_name name);
   incr indent;
   let t_args =
     arguments
@@ -281,16 +300,16 @@ let emit_method ?(is_content=false) class_index
   in
 
   (match types with
-   | [] -> emit "type t = unit"
+   | [] -> emit ~loc:__LINE__ "type t = unit"
    | t ->
-     emit "type t = {";
+     emit ~loc:__LINE__ "type t = {";
      incr indent;
      List.iter (fun (a, b, doc) -> emit "%s: %s; %s" a b doc) t;
      decr indent;
      emit "}");
   emit "";
   emit "(**/**)";
-  emit "module Internal = struct";
+  emit ~loc:__LINE__ "module Internal = struct";
   incr indent;
   emit "open !Internal_alias";
 
@@ -299,20 +318,20 @@ let emit_method ?(is_content=false) class_index
   else
     emit "open Amqp_protocol.Spec";
 
-  emit "let spec = %s" (spec_str arguments);
 
+  emit_loc __LINE__;
+  emit "let spec = %s" (spec_str arguments);
   emit "let make %s = %s" (String.concat " " names) t_args;
   emit "let apply f %s = f %s" t_args values;
   emit "let def = ((%d, %d), spec, make, apply)" class_index index;
 
-
   begin match is_content, content with
     | false, false  ->
-      emit "let write = write_method def";
-      emit "let read = read_method def"
+      emit ~loc:__LINE__ "let write = write_method def";
+      emit ~loc:__LINE__ "let read = read_method def"
     | false, true ->
-      emit "let write = write_method_content def Content.Internal.def";
-      emit "let read = read_method_content def Content.Internal.def"
+      emit ~loc:__LINE__ "let write = write_method_content def Content.Internal.def";
+      emit ~loc:__LINE__ "let read = read_method_content def Content.Internal.def"
     | true, _ ->
       ()
   end;
@@ -325,9 +344,9 @@ let emit_method ?(is_content=false) class_index
   let inames = List.filter ((<>) "_") names in
   begin match is_content with
     | true ->
-      emit "let init %s () = Internal.make %s" (List.map (fun n -> "?" ^ n) inames |> String.concat " ") (String.concat " " inames)
+      emit ~loc:__LINE__ "let init %s () = Internal.make %s" (List.map (fun n -> "?" ^ n) inames |> String.concat " ") (String.concat " " inames)
     | false ->
-      emit "let init %s () = Internal.make %s" (List.map (fun n -> "~" ^ n) inames |> String.concat " ") (String.concat " " inames)
+      emit ~loc:__LINE__ "let init %s () = Internal.make %s" (List.map (fun n -> "~" ^ n) inames |> String.concat " ") (String.concat " " inames)
   end;
 
 
@@ -341,11 +360,11 @@ let emit_method ?(is_content=false) class_index
         ""
     in
     if client then
-      emit "let reply = reply%d Internal.read %s"
+      emit ~loc:__LINE__ "let reply = reply%d Internal.read %s"
         (List.length response)
         (response |> List.map (fun s -> Printf.sprintf "%s.Internal.write %s" s (id s)) |> String.concat " ");
     if server then
-      emit "let request = request%d Internal.write %s"
+      emit ~loc:__LINE__ "let request = request%d Internal.write %s"
         (List.length response)
         (response |> List.map (fun s -> Printf.sprintf "%s.Internal.read %s" s (id s)) |> String.concat " ");
   end;
@@ -369,7 +388,7 @@ let emit_class { Class.name; content; index; methods; doc } =
   in
   let methods = reorder methods in
   emit_doc doc;
-  emit "module %s = struct" (variant_name name);
+  emit ~loc:__LINE__ "module %s = struct" (variant_name name);
   incr indent;
 
   if (content != []) then
@@ -399,6 +418,7 @@ let emit_class { Class.name; content; index; methods; doc } =
   ()
 
 let emit_printer tree =
+  emit_loc __LINE__;
   emit "module Printer = struct";
   incr indent;
   emit "let id_to_string (cid, mid) =";
@@ -418,6 +438,7 @@ let emit_printer tree =
   ()
 
 let emit_specification tree =
+  emit_loc __LINE__;
   emit "open Amqp_types";
   emit "open Amqp_protocol";
   emit "open Amqp_protocol_helpers";
@@ -432,13 +453,16 @@ let () =
   (* Argument parsing *)
   let output_type = ref Specification in
   let filename = ref "" in
+
   Arg.parse
     ["-type", Arg.Symbol (["constants"; "specification"],
                           fun t -> output_type := match t with
                             | "constants" -> Constants
                             | "specification" -> Specification
                             | _ -> failwith "Illegal argument"
-                          ), "Type of output"]
+                         ), "Type of output";
+     "-noloc", Arg.Set no_loc, "Inhibit emission of location pointers"
+    ]
     (fun f -> filename := f)
     "Generate protocol code";
 
