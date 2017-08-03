@@ -2,19 +2,20 @@
 
 let template =
 "
-(executable (
-  (name NAME)
-  (modules (MODULE))
+(executables (
+  (names (NAMES))
   (libraries (amqp_client.TYPE))
 ))
 
 (alias (
   (name runtest)
-  (deps (NAME.exe))
-  (action (echo NAME))
-  (action (run ./NAME.exe))
+  (deps (BINARIES))
+  (action (bash \"ACTIONS\"))
 ))
 ";;
+
+let action = "(./BINARY && echo BINARY ok || (echo BINARY failed; false))"
+;;
 
 let ends_with s str =
   let l = String.length s in
@@ -53,17 +54,15 @@ let replace_string s ~by str =
   nsplit ~from:0 ~by:s str
   |> String.concat by
 
-let create_test name =
-  template
-  |> replace_string "NAME" ~by:name
-  |> replace_string "MODULE" ~by:(String.capitalize_ascii name)
-;;
-
 let tests () =
-  files
-  |> List.map strip_suffix
-  |> List.map (fun name -> create_test name)
-  |> String.concat "\n"
+  let names = List.map strip_suffix files in
+  let binaries = List.map (fun x -> x ^ ".exe") names in
+  let actions = List.map (fun bin -> replace_string "BINARY" ~by:bin action) binaries in
+
+  template
+  |> replace_string "NAMES" ~by:(String.concat " " names)
+  |> replace_string "BINARIES" ~by:(String.concat " " binaries)
+  |> replace_string "ACTIONS" ~by:(String.concat "&&" actions)
 ;;
 
 let tap f x =
@@ -71,5 +70,6 @@ let tap f x =
 
 let () =
   tests ()
+  (* |> tap (Printf.printf "%s\n") *)
   |> Jbuild_plugin.V1.send
 ;;
