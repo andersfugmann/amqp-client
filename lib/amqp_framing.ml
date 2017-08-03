@@ -53,10 +53,10 @@ let channel t channel_no =
 
 let size_of_writer writer =
   let sizer = Output.sizer () in
-  writer sizer;
+  let (_ : Amqp_io.Output.t) = writer sizer in
   Output.size sizer
 
-let create_frame channel_no tpe writer =
+let create_frame channel_no tpe (writer : (Amqp_io.Output.t -> Amqp_io.Output.t)) =
   let length = size_of_writer writer in
   let output = Output.create (1+2+4+length+1) in
 

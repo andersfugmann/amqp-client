@@ -136,7 +136,7 @@ let pvariant_name str =
   "`" ^ (variant_name str)
 
 let rec print = function
-  | Xml.Element (n, attrs, nodes) ->
+  | Xml.Element (_n, _attrs, nodes) ->
       incr indent;
       List.iter print nodes;
       decr indent;

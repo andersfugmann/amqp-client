@@ -3,7 +3,7 @@ NPROC := $(shell nproc || echo 4)
 all: build
 
 build:
-	jbuilder build @install -j $(NPROC)
+	jbuilder build @install -j $(NPROC) --dev
 
 clean:
 	jbuilder clean
