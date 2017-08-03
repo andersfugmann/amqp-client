@@ -1,5 +1,5 @@
 NPROC := $(shell nproc || echo 4)
-.PHONY: all build clean test install
+.PHONY: all build clean test install update-version
 all: build
 
 build:
@@ -29,3 +29,9 @@ integration:
 	sed 's/TYPE/lwt/g' tests/jbuild.in > tests/jbuild
 	jbuilder runtest
 	$(RM) tests/jbuild
+
+update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')
+update-version:
+	@echo "Set version to: $(VERSION)"
+	@sed -i 's/version = ".*"/version = "$(VERSION)"/' lib/amqp_connection.ml
+	@sed -i 's/^version: ".*"/version: "$(VERSION)"/' amqp-client.opam
