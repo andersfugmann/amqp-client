@@ -3,9 +3,10 @@
 * Fix bug where message would always be signalled as delivered
   successfully even if delivery failed.
 * Allow multiple listeners for returned messages
-* Minor optimizations
-* Fixed bug in lwt thread causing flush to hand indefinatly if there are no consumers
+* Minor optimizations* Fixed bug in lwt thread causing flush
+  hang indefinatly if there are no consumers
 * Switch build system to jbuild
+* Minor code improvements
 
 1.0.7:
 * Enable travis ci
