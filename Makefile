@@ -24,10 +24,10 @@ tests/%.exe: tests/%.ml
 integration:
 	$(MAKE) clean
 	sed 's/TYPE/async/g' tests/jbuild.in > tests/jbuild
-	jbuilder runtest
+	jbuilder runtest --dev
 	$(MAKE) clean
 	sed 's/TYPE/lwt/g' tests/jbuild.in > tests/jbuild
-	jbuilder runtest
+	jbuilder runtest --dev
 	$(RM) tests/jbuild
 
 update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')

@@ -165,7 +165,6 @@ module Pipe = struct
     Queue.iter (write_without_pushback t) queue;
     return ()
 
-  (* Should close wait for all consumers to finish? *)
   let close t =
     t.closed <- true;
     begin match Queue.is_empty t.queue with
