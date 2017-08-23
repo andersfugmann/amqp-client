@@ -21,6 +21,10 @@ let return a = return a
 let after ms = after (Core.Time.Span.of_ms ms)
 let spawn t = don't_wait_for t
 
+let with_timeout seconds deferred =
+  let duration = Core.Time.Span.of_sec (float_of_int seconds) in
+  Clock.with_timeout duration deferred
+
 module Ivar = struct
   type 'a t = 'a Ivar.t
   let create = Ivar.create
