@@ -16,6 +16,12 @@ module Client :
         To call directly to a named queue, use
         [call t Exchange.default ~routing_key:"name_of_the_queue" ~headers:[]]
 
+        [correlation_id] allows you to specify a correlation id. The
+        id will be suffixed with an id to allow the caller to reuse
+        correlation ids. This can be used for tracing by reusing
+        correlation ids of incomming requests resulting in new
+        calls. If no correlation is given the id of the [client] is used.
+
         The function allows the call to specify both a routing key and
         headers regardless of the type of exchange used, as exchanges
         may be chained in a way where both headers and routing keys
@@ -23,6 +29,7 @@ module Client :
     *)
     val call :
       t ->
+      ?correlation_id:string ->
       ttl:int ->
       routing_key:string ->
       headers:Amqp_types.header list ->

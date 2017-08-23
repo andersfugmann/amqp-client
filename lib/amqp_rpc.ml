@@ -49,8 +49,12 @@ module Client = struct
     spawn (Pipe.iter (Channel.on_return channel) ~f:(fun (_, message) -> handle_reply t false message));
     return t
 
-  let call t ~ttl ~routing_key ~headers exchange (header, body) =
-    let correlation_id = Printf.sprintf "%s.%d" t.id t.counter in
+  let call t ?correlation_id ~ttl ~routing_key ~headers exchange (header, body) =
+    let correlation_id_prefix = match correlation_id with
+      | Some cid -> cid
+      | None -> t.id
+    in
+    let correlation_id = Printf.sprintf "%s.%d" correlation_id_prefix t.counter in
     t.counter <- t.counter + 1;
     (* Register handler for the reply before sending the query *)
     let var = Ivar.create () in
