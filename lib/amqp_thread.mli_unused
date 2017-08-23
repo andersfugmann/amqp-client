@@ -13,6 +13,7 @@ val ( >>| ) : 'a Deferred.t -> ('a -> 'b) -> 'b Deferred.t
 val return : 'a -> 'a Deferred.t
 val after : float -> unit Deferred.t
 val spawn : unit Deferred.t -> unit
+val with_timeout : int -> 'a Deferred.t -> [ `Result of 'a | `Timeout ] Deferred.t
 
 module Ivar : sig
   type 'a t

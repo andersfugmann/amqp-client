@@ -4,6 +4,12 @@ let return = Lwt.return
 let after ms = Lwt_unix.sleep (ms /. 1000.0)
 let spawn t = Lwt.ignore_result t
 
+let with_timeout seconds deferred =
+  Lwt.pick [
+    Lwt_unix.sleep (float_of_int seconds) >>| (fun () -> `Timeout);
+    deferred >>| (fun success -> `Result success)
+  ]
+
 module Ivar = struct
   type 'a state = Empty of 'a Lwt_condition.t
                 | Full of 'a

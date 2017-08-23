@@ -29,7 +29,10 @@ module Client = struct
           Ivar.fill var reply;
           Hashtbl.remove t.outstanding id;
           return ()
-        | exception Not_found -> failwith ("Unknown correlation id: " ^ id)
+        | exception Not_found ->
+          (* maybe such a id never existed, maybe it arrived too late so
+           * it was deleted in the meantime *)
+          return ()
       end
     | None -> failwith "No correlation id set"
 
@@ -68,7 +71,11 @@ module Client = struct
                  }
     in
     Exchange.publish t.channel ~mandatory:true ~routing_key exchange (header, body) >>= function
-    | `Ok -> Ivar.read var
+    | `Ok -> with_timeout ttl (Ivar.read var) >>= function
+      | `Timeout ->
+        Hashtbl.remove t.outstanding correlation_id;
+        return None
+      | `Result a -> return a
 
   (** Release resources *)
   let close t =
