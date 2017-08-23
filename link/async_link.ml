@@ -1,3 +1,10 @@
+module Compat = struct
+  [@@@warning "-3"]
+  module Async = Async.Std
+  module Core = Core.Std
+end
+open Compat
+
 open Async
 
 let host = "localhost"

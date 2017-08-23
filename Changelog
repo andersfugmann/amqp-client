@@ -7,6 +7,7 @@
   hang indefinatly if there are no consumers
 * Switch build system to jbuild
 * Minor code improvements
+* Add backward compatabilty to async < 0.9
 
 1.0.7:
 * Enable travis ci

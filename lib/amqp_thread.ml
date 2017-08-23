@@ -1,4 +1,14 @@
 (** Async compatibility layer *)
+
+(**/**)
+module Compat = struct
+  [@@@warning "-3"]
+  module Async = Async.Std
+  module Core = Core.Std
+end
+open Compat
+(**/**)
+
 open Async
 
 module Deferred = struct
