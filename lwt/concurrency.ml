@@ -1,3 +1,4 @@
+open Lib
 let (>>=) = Lwt.(>>=)
 let (>>|) = Lwt.(>|=)
 let return = Lwt.return
@@ -82,7 +83,7 @@ module Pipe = struct
                | Flush of unit Lwt_condition.t
 
   type 'a t = { cond: unit Lwt_condition.t;
-                queue: 'a elem Queue.t;
+                queue: 'a elem Ocaml_lib.Queue.t;
                 mutable closed: bool;
               }
 
@@ -96,7 +97,7 @@ module Pipe = struct
 
   let create () =
     let t = { cond = Lwt_condition.create ();
-              queue = Queue.create ();
+              queue = Ocaml_lib.Queue.create ();
               closed = false;
             } in
     (t, t)
@@ -106,15 +107,15 @@ module Pipe = struct
 
   (* Can be readers and writers. *)
   let flush t =
-    match Queue.is_empty t.queue with
+    match Ocaml_lib.Queue.is_empty t.queue with
     | true -> return ()
     | false ->
       let cond = Lwt_condition.create () in
-      Queue.push (Flush cond) t.queue;
+      Ocaml_lib.Queue.push (Flush cond) t.queue;
       Lwt_condition.wait cond
 
   let rec read_raw t =
-    match Queue.is_empty t.queue with
+    match Ocaml_lib.Queue.is_empty t.queue with
     | true ->
       begin match t.closed with
       | true -> return `Eof
@@ -123,7 +124,7 @@ module Pipe = struct
         read_raw t
       end
     | false ->
-      return (`Ok (Queue.pop t.queue))
+      return (`Ok (Ocaml_lib.Queue.pop t.queue))
 
   let rec read t =
     read_raw t >>= function
@@ -134,7 +135,7 @@ module Pipe = struct
       read t
 
   let write_raw t data =
-    Queue.push data t.queue;
+    Ocaml_lib.Queue.push data t.queue;
     Lwt_condition.broadcast t.cond ()
 
   let write_without_pushback t data =
@@ -168,12 +169,12 @@ module Pipe = struct
     reader
 
   let transfer_in ~from:queue t =
-    Queue.iter (write_without_pushback t) queue;
+    Ocaml_lib.Queue.iter (write_without_pushback t) queue;
     return ()
 
   let close t =
     t.closed <- true;
-    begin match Queue.is_empty t.queue with
+    begin match Ocaml_lib.Queue.is_empty t.queue with
     | true -> return ()
     | false -> flush t
     end >>= fun () ->

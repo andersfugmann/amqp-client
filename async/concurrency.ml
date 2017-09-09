@@ -1,6 +1,8 @@
 (** Async compatibility layer *)
 
 (**/**)
+open Lib
+
 module Compat = struct
   [@@@warning "-3"]
   module Async = Async.Std
@@ -86,7 +88,7 @@ module Pipe = struct
   let write_without_pushback r elm = Pipe.write_without_pushback r elm
 
   let transfer_in ~from t =
-    Queue.iter (write_without_pushback t) from;
+    Ocaml_lib.Queue.iter (write_without_pushback t) from;
     return ()
 
   let close_without_pushback t = Pipe.close t

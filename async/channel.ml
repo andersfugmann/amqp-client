@@ -1,6 +1,6 @@
-open Amqp_thread
-open Amqp_spec
-open Amqp_lib
+open Concurrency
+open Spec
+open Lib
 
 type no_confirm = [ `Ok ]
 type with_confirm = [ `Ok | `Failed ]
@@ -24,7 +24,7 @@ type message_info = { delivery_tag: int;
                     }
 
 type publish_confirm = { mutable message_count: int;
-                         unacked: message_info MList.t }
+                         unacked: message_info Mlist.t }
 
 type _ pcp =
   | Pcp_no_confirm: no_confirm pcp
@@ -32,7 +32,7 @@ type _ pcp =
 
 type return_handler = (Basic.Return.t * (Basic.Content.t * string)) option -> unit
 
-type 'a t = { framing: Amqp_framing.t;
+type 'a t = { framing: Framing.t;
               channel_no: int;
               consumers: consumers;
               id: string;
@@ -65,7 +65,7 @@ module Internal = struct
     read ~once:false handler (channel t)
 
   let register_consumer_handler t consumer_tag handler =
-    if Hashtbl.mem t.consumers consumer_tag then raise Amqp_types.Busy;
+    if Hashtbl.mem t.consumers consumer_tag then raise Types.Busy;
     Hashtbl.add t.consumers consumer_tag handler
 
   let deregister_consumer_handler t consumer_tag =
@@ -87,7 +87,7 @@ module Internal = struct
       let result_handler = set_result var in
       t.message_count <- t.message_count + 1;
       let delivery_tag = t.message_count in
-      MList.append t.unacked {delivery_tag; routing_key; exchange_name; result_handler};
+      Mlist.append t.unacked {delivery_tag; routing_key; exchange_name; result_handler};
       (Ivar.read var : [`Ok | `Failed] Deferred.t)
     | Pcp_no_confirm -> return `Ok
 end
@@ -97,12 +97,12 @@ let close_handler channel_no close =
   Log.info "Reply code: %d\n" close.Channel.Close.reply_code;
   Log.info "Reply text: %s\n" close.Channel.Close.reply_text;
   Log.info "Message: (%d, %d)\n" close.Channel.Close.class_id close.Channel.Close.method_id;
-  raise (Amqp_types.Channel_closed channel_no)
+  raise (Types.Channel_closed channel_no)
 
 let register_flow_handler t =
   let (_, read) = Channel.Flow.Internal.read in
   let handler { Channel.Flow.active } =
-    Amqp_framing.set_flow t.framing t.channel_no active;
+    Framing.set_flow t.framing t.channel_no active;
     spawn (Channel.Flow_ok.Internal.write (channel t) { Channel.Flow_ok.active })
   in
   read ~once:false handler (channel t)
@@ -110,8 +110,8 @@ let register_flow_handler t =
 let handle_confirms channel t =
   let confirm multiple result tag =
     let results = match multiple with
-      | true -> MList.take_while ~pred:(fun m -> m.delivery_tag <= tag) t.unacked
-      | false -> MList.take ~pred:(fun m -> m.delivery_tag = tag) t.unacked
+      | true -> Mlist.take_while ~pred:(fun m -> m.delivery_tag <= tag) t.unacked
+      | false -> Mlist.take ~pred:(fun m -> m.delivery_tag = tag) t.unacked
                  |> Option.map_default ~f:(fun v -> [v]) ~default:[]
     in
     List.iter (fun m -> m.result_handler result) results
@@ -123,7 +123,7 @@ let handle_confirms channel t =
           message.routing_key = r.Basic.Return.routing_key && message.exchange_name = r.Basic.Return.exchange
         in
 
-        match MList.take ~pred t.unacked with
+        match Mlist.take ~pred t.unacked with
         | None -> Log.error "No messages found to mark as undeliverable. This would indicate a library error"
         | Some m -> m.result_handler Undeliverable
       end
@@ -144,15 +144,15 @@ let register_return_handler t =
   let handler m = List.iter (fun h -> h (Some m)) t.return_handlers in
   read ~once:false handler (channel t)
 
-let create: type a. id:string -> a confirms -> Amqp_framing.t -> Amqp_framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
+let create: type a. id:string -> a confirms -> Framing.t -> Framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
   let consumers = Hashtbl.create 0 in
-  let id = Printf.sprintf "%s.%s.%d" (Amqp_framing.id framing) id channel_no in
-  Amqp_framing.open_channel framing channel_no >>= fun () ->
+  let id = Printf.sprintf "%s.%s.%d" (Framing.id framing) id channel_no in
+  Framing.open_channel framing channel_no >>= fun () ->
   spawn (Channel.Close.reply (framing, channel_no) (close_handler channel_no));
   Channel.Open.request (framing, channel_no) () >>= fun () ->
 
   let publish_confirm : a pcp = match confirm_type with
-    | With_confirm -> Pcp_with_confirm { message_count = 0; unacked = MList.create () }
+    | With_confirm -> Pcp_with_confirm { message_count = 0; unacked = Mlist.create () }
     | No_confirm -> Pcp_no_confirm
   in
   begin match publish_confirm with
@@ -173,7 +173,7 @@ let close { framing; channel_no; return_handlers; _ } =
       reply_text="Closed on user request";
       class_id=0;
       method_id=0; } >>= fun () ->
-  Amqp_framing.close_channel framing channel_no >>= fun () ->
+  Framing.close_channel framing channel_no >>= fun () ->
   List.iter (fun h -> h None) return_handlers;
   return ()
 
@@ -188,7 +188,7 @@ let on_return t =
   reader
 
 let flush t =
-  Amqp_framing.flush_channel t.framing t.channel_no
+  Framing.flush_channel t.framing t.channel_no
 
 let id t = t.id
 
@@ -207,7 +207,7 @@ let set_global_prefetch ?(count=0) ?(size=0) t =
 module Transaction = struct
   type tx = EChannel: _ t -> tx
 
-  open Amqp_spec.Tx
+  open Spec.Tx
   let start t =
     Select.request (channel t) () >>= fun () ->
     return (EChannel t)

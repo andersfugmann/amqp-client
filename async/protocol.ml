@@ -1,7 +1,7 @@
 (** Internal *)
-open !Amqp_thread
-open Amqp_types
-open Amqp_io
+open !Concurrency
+open Types
+open Io
 
 type _ elem =
   | Bit: bool elem

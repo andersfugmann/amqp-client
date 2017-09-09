@@ -1,18 +1,15 @@
-module Channel = Amqp_channel
-module Exchange = Amqp_exchange
-module Message = Amqp_message
-open Amqp_thread
-open Amqp_spec.Queue
+open Concurrency
+open Spec.Queue
 
 type t = { name: string }
 
-let message_ttl v = "x-message-ttl", Amqp_types.VLonglong v
-let auto_expire v = "x-expires", Amqp_types.VLonglong v
-let max_length v = "x-max-length", Amqp_types.VLonglong v
-let max_length_bytes v = "x-max-length-bytes", Amqp_types.VLonglong v
-let dead_letter_exchange v = "x-dead-letter-exchange", Amqp_types.VLongstr v
-let dead_letter_routing_key v = "x-dead-letter-routing-key", Amqp_types.VLongstr v
-let maximum_priority v = "x-max-priotity", Amqp_types.VLonglong v
+let message_ttl v = "x-message-ttl", Types.VLonglong v
+let auto_expire v = "x-expires", Types.VLonglong v
+let max_length v = "x-max-length", Types.VLonglong v
+let max_length_bytes v = "x-max-length-bytes", Types.VLonglong v
+let dead_letter_exchange v = "x-dead-letter-exchange", Types.VLongstr v
+let dead_letter_routing_key v = "x-dead-letter-routing-key", Types.VLongstr v
+let maximum_priority v = "x-max-priotity", Types.VLonglong v
 
 let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(arguments=[]) name =
   let channel = Channel.channel channel in
@@ -24,7 +21,7 @@ let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(a
   return { name }
 
 let get ~no_ack channel t =
-  let open Amqp_spec.Basic in
+  let open Spec.Basic in
   let channel = Channel.channel channel in
   Get.request channel { Get.queue=t.name; no_ack } >>= function
   | `Get_empty () ->
@@ -48,7 +45,7 @@ type 'a consumer = { channel: 'a Channel.t;
 
 (** Consume message from a queue. *)
 let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =
-  let open Amqp_spec.Basic in
+  let open Spec.Basic in
   let (reader, writer) = Pipe.create () in
   let consumer_tag = Printf.sprintf "%s.%s" (Channel.Internal.unique_id channel) id in
 
@@ -83,7 +80,7 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =
   return ({ channel; tag; writer }, reader)
 
 let cancel consumer =
-  let open Amqp_spec.Basic in
+  let open Spec.Basic in
   Cancel.request (Channel.channel consumer.channel) { Cancel.consumer_tag = consumer.tag; no_wait = false } >>= fun _rep ->
   Channel.Internal.deregister_consumer_handler consumer.channel consumer.tag;
   Pipe.close consumer.writer

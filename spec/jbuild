@@ -14,14 +14,14 @@
 )
 
 (rule
- ((targets (amqp_spec.ml))
+ ((targets (spec.ml))
   (deps    (amqp0-9-1.extended.xml gen_spec.exe))
   (action  (with-stdout-to ${@} (run ./gen_spec.exe -type specification ${<})))
  )
 )
 
 (rule
- ((targets (amqp_constants.ml))
+ ((targets (constants.ml))
   (deps    (amqp0-9-1.extended.xml gen_spec.exe))
   (action  (with-stdout-to ${@} (run ./gen_spec.exe -type constants ${<})))
  )

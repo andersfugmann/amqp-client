@@ -1,7 +1,7 @@
 (** Internal *)
-open Amqp_thread
-open Amqp_protocol
-open Amqp_io
+open Concurrency
+open Protocol
+open Io
 
 type 'a post_handler = ('a -> unit) option
 
@@ -31,27 +31,27 @@ let rec list_create f = function
   | n -> f () :: list_create f (n - 1)
 
 let write_method (message_id, spec, _make, apply) =
-  let write = Spec.write spec in
+  let write = Protocol.Spec.write spec in
   let writer msg output = apply (write output) msg in
   fun channel msg ->
-    Amqp_framing.write_message channel (message_id, (writer msg)) None
+    Framing.write_message channel (message_id, (writer msg)) None
 
 let read_method (message_id, spec, make, _apply) =
-  let read = Spec.read spec in
+  let read = Protocol.Spec.read spec in
   let read ~once (handler: 'a -> unit) channel : unit =
     let handler data =
       let req = read make data in
       handler req;
       if (once) then begin
-        Amqp_framing.deregister_method_handler channel message_id
+        Framing.deregister_method_handler channel message_id
       end
     in
-    Amqp_framing.register_method_handler channel message_id handler
+    Framing.register_method_handler channel message_id handler
   in
   (message_id, read)
 
 let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec, _c_make, c_apply) =
-  let write = Spec.write spec in
+  let write = Protocol.Spec.write spec in
   let c_write = Content.write c_spec in
   let property_bits = Content.length c_spec in
   assert (property_bits <= 15);
@@ -67,13 +67,13 @@ let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec
   in
 
   fun channel (meth, content, data) ->
-    Amqp_framing.write_message channel (message_id, (write_method meth))
+    Framing.write_message channel (message_id, (write_method meth))
       (Some (c_method, (write_content content), data))
 
 let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec, c_make, _c_apply) =
-  let read = Spec.read spec in
-  let c_read = Content.read c_spec in
-  let flags = Content.length c_spec in
+  let read = Protocol.Spec.read spec in
+  let c_read = Protocol.Content.read c_spec in
+  let flags = Protocol.Content.length c_spec in
 
   let read ~once (handler: 'a -> unit) channel : unit =
     let c_handler req (content, data) =
@@ -81,16 +81,16 @@ let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec,
       let header = c_read c_make property_flags content in
       let message = (req, (header, data)) in
       handler message;
-      Amqp_framing.deregister_content_handler channel c_method
+      Framing.deregister_content_handler channel c_method
     in
     let handler data =
       let req = read make data in
       if (once) then begin
-        Amqp_framing.deregister_method_handler channel message_id
+        Framing.deregister_method_handler channel message_id
       end;
-      Amqp_framing.register_content_handler channel c_method (c_handler req)
+      Framing.register_content_handler channel c_method (c_handler req)
     in
-    Amqp_framing.register_method_handler channel message_id handler
+    Framing.register_method_handler channel message_id handler
   in
   (message_id, read)
 
@@ -119,7 +119,7 @@ let request2 req (mid1, rep1) id1 (mid2, rep2) id2 channel message =
   let var = Ivar.create () in
   let handler id mid msg =
     Ivar.fill var (id msg);
-    Amqp_framing.deregister_method_handler channel mid
+    Framing.deregister_method_handler channel mid
   in
   rep1 ~once:true (handler id1 mid2) channel;
   rep2 ~once:true (handler id2 mid1) channel;

@@ -1,8 +1,8 @@
-open Amqp_spec.Basic
+open Spec.Basic
 type message = (Content.t * string)
 
-let string_header key value = key, Amqp_types.VLongstr value
-let int_header key value = key, Amqp_types.VLonglong value
+let string_header key value = key, Types.VLongstr value
+let int_header key value = key, Types.VLonglong value
 
 type t =
   { delivery_tag : int;
@@ -15,7 +15,7 @@ type t =
 let make
     ?(content_type:string option)
     ?(content_encoding: string option)
-    ?(headers: Amqp_types.table option)
+    ?(headers: Types.table option)
     ?(delivery_mode: int option)
     ?(priority: int option)
     ?(correlation_id: string option)
@@ -49,15 +49,15 @@ let make
    }, body)
 
 let ack channel t =
-  let open Amqp_spec.Basic in
-  Ack.request (Amqp_channel.channel channel)
+  let open Spec.Basic in
+  Ack.request (Channel.channel channel)
     { Ack.delivery_tag = t.delivery_tag; multiple = false }
 
 let reject ~requeue channel t =
-  let open Amqp_spec.Basic in
-  Reject.request (Amqp_channel.channel channel)
+  let open Spec.Basic in
+  Reject.request (Channel.channel channel)
     { Reject.delivery_tag = t.delivery_tag; requeue }
 
 
 let recover ~requeue channel =
-  Amqp_spec.Basic.Recover.request  (Amqp_channel.channel channel) { Amqp_spec.Basic.Recover.requeue }
+  Spec.Basic.Recover.request  (Channel.channel channel) { Spec.Basic.Recover.requeue }

@@ -1,5 +1,5 @@
-open Amqp_thread
-open Amqp_spec.Connection
+open Concurrency
+open Spec.Connection
 
 let version = "1.1.0"
 
@@ -10,7 +10,7 @@ let string_until c str =
   with
   | Not_found -> str
 
-type t = { framing: Amqp_framing.t;
+type t = { framing: Framing.t;
            virtual_host: string;
            mutable channel: int;
            mutable closing: bool;
@@ -18,7 +18,7 @@ type t = { framing: Amqp_framing.t;
 
 let reply_start framing (username, password) =
   let print_item table s =
-    let open Amqp_types in
+    let open Types in
     match List.assoc s table with
     | VLongstr v -> Log.info "%s: %s" s v
     | _ -> ()
@@ -31,7 +31,7 @@ let reply_start framing (username, password) =
               mechanisms = _;
               locales } =
 
-    let open Amqp_types in
+    let open Types in
     ["product"; "version" ] |> List.iter (print_item server_properties);
     Log.info "Amqp: %d.%d" version_major version_minor;
 
@@ -43,7 +43,7 @@ let reply_start framing (username, password) =
         "platform", VLongstr (Sys.os_type);
         "library", VLongstr "ocaml-amqp";
         "version", VLongstr version;
-        "client id", VLongstr (Amqp_framing.id framing);
+        "client id", VLongstr (Framing.id framing);
         "capabilities", VTable [
           "publisher_confirms", VBoolean true;
           "exchange_exchange_bindings", VBoolean true;
@@ -68,7 +68,7 @@ let reply_tune framing =
     Log.debug "Frame_max: %d" frame_max;
     Log.debug "Heartbeat: %d" heartbeat;
     Ivar.fill var (if heartbeat = 0 then `Disabled else `Heartbeat heartbeat);
-    Amqp_framing.set_max_length framing frame_max;
+    Framing.set_max_length framing frame_max;
     return {
       Tune_ok.channel_max;
       frame_max;
@@ -97,7 +97,7 @@ let rec send_heartbeat delay t =
   if t.closing then
     return ()
   else begin
-    Amqp_framing.send_heartbeat t.framing >>= fun () ->
+    Framing.send_heartbeat t.framing >>= fun () ->
     send_heartbeat delay t
   end
 
@@ -107,10 +107,10 @@ let register_blocked_handler framing =
   let (_, read_unblocked) = Unblocked.Internal.read in
   let blocked_handler { Blocked.reason } =
     Log.info "Connection blocked: %s" reason;
-    Amqp_framing.set_flow_all framing true
+    Framing.set_flow_all framing true
   in
   let unblocked_handler () =
-    Amqp_framing.set_flow_all framing false
+    Framing.set_flow_all framing false
   in
   read_blocked ~once:false blocked_handler (framing, 0);
   read_unblocked ~once:false unblocked_handler (framing, 0)
@@ -124,15 +124,15 @@ let connection_closed t _s =
   | true ->
       Log.info "Close Received ok";
       return ()
-  | false -> raise Amqp_types.Connection_closed
+  | false -> raise Types.Connection_closed
 
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 
   Tcp.connect ~nodelay:() host port >>= fun (input, output) ->
 
-  let framing = Amqp_framing.init ~id input output in
+  let framing = Framing.init ~id input output in
   let t = { framing; virtual_host; channel = 0; closing = false } in
-  Amqp_framing.start framing (connection_closed t) >>= fun () ->
+  Framing.start framing (connection_closed t) >>= fun () ->
   reply_start framing credentials >>= fun () ->
   reply_tune framing >>= fun server_heartbeat ->
   begin
@@ -151,14 +151,14 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
 
 let open_channel ~id confirms t =
   t.channel <- t.channel + 1;
-  Amqp_channel.create ~id confirms t.framing t.channel
+  Channel.create ~id confirms t.framing t.channel
 
 let close t =
   t.closing <- true;
-  Amqp_framing.flush t.framing >>= fun () ->
+  Framing.flush t.framing >>= fun () ->
   Close.request (t.framing, 0) { Close.reply_code = 200;
                                  reply_text = "Closed on user request";
                                  class_id = 0;
                                  method_id = 0;
                                } >>= fun () ->
-  Amqp_framing.close t.framing
+  Framing.close t.framing

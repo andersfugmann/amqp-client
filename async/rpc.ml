@@ -1,11 +1,6 @@
-module Connection = Amqp_connection
-module Channel = Amqp_channel
-module Queue = Amqp_queue
-module Exchange = Amqp_exchange
-module Message = Amqp_message
-open Amqp_types
-open Amqp_spec.Basic
-open Amqp_thread
+open Concurrency
+open Types
+open Spec.Basic
 
 module Client = struct
 
@@ -80,15 +75,15 @@ module Client = struct
   (** Release resources *)
   let close t =
     Hashtbl.iter (fun _ var -> Ivar.fill var None) t.outstanding;
-    Amqp_queue.cancel t.consumer >>= fun () ->
-    Amqp_queue.delete t.channel t.queue >>= fun () ->
+    Queue.cancel t.consumer >>= fun () ->
+    Queue.delete t.channel t.queue >>= fun () ->
     Channel.close t.channel >>= fun () ->
     return ()
 end
 
 module Server = struct
 
-  open Amqp_spec.Basic
+  open Spec.Basic
   (* The server needs a queue name and a handler *)
 
   type 'a t = { consumer: 'a Queue.consumer }

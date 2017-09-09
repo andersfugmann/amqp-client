@@ -1,6 +1,6 @@
 (** Rpc client and server patterns *)
 
-open Amqp_thread
+open Concurrency
 
 (** Rpc Client pattern *)
 module Client :
@@ -8,7 +8,7 @@ module Client :
     type t
 
     (** Initialize a client with the [id] for tracing *)
-    val init : id:string -> Amqp_connection.t -> t Deferred.t
+    val init : id:string -> Connection.t -> t Deferred.t
 
     (** Make an rpc call to the exchange using the routing key and headers.
         @param ttl is the message timeout.
@@ -32,10 +32,10 @@ module Client :
       ?correlation_id:string ->
       ttl:int ->
       routing_key:string ->
-      headers:Amqp_types.header list ->
-      _ Amqp_exchange.t ->
-      Amqp_spec.Basic.Content.t * string ->
-      Amqp_message.message option Deferred.t
+      headers:Types.header list ->
+      _ Exchange.t ->
+      Spec.Basic.Content.t * string ->
+      Message.message option Deferred.t
 
     (** Release resources *)
     val close : t -> unit Deferred.t
@@ -50,7 +50,7 @@ module Server :
         This will set the dead letter exchange to the header exchange to help
         clients to be notified if a request has timed out
     *)
-    val queue_argument : Amqp_types.header
+    val queue_argument : Types.header
 
     (** Start an rpc server producing replies for requests coming in
         on the given queue.
@@ -64,9 +64,9 @@ module Server :
     *)
     val start :
       ?async:bool -> ?discard_redelivered:bool ->
-      ([< `Failed | `Ok ] as 'a) Amqp_channel.t ->
-      Amqp_queue.t ->
-      (Amqp_message.message -> Amqp_message.message Deferred.t) -> 'a t Deferred.t
+      ([< `Failed | `Ok ] as 'a) Channel.t ->
+      Queue.t ->
+      (Message.message -> Message.message Deferred.t) -> 'a t Deferred.t
 
     (** Stop the server *)
     val stop : _ t -> unit Deferred.t

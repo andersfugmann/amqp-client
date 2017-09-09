@@ -1,28 +1,26 @@
 (** Internal *)
-open Amqp_thread
-open Amqp_protocol
-open Amqp_io
-open Amqp_lib
-module S = Amqp_protocol.Spec
+open Concurrency
+open Lib
+module S = Protocol.Spec
 
 type channel_no = int
 
 type channel_state =
   | Ready
-  | Waiting of Amqp_types.class_id * Input.t * int * Bytes.t
+  | Waiting of Types.class_id * Io.Input.t * int * Bytes.t
 
 type message =
-  | Method of Amqp_types.message_id * Input.t
-  | Content of Amqp_types.class_id * Input.t * string
+  | Method of Types.message_id * Io.Input.t
+  | Content of Types.class_id * Io.Input.t * string
 
-type data = Input.t
+type data = Io.Input.t
 
 type content_handler = data * string -> unit
 type method_handler = data -> unit
 
 type channel = { mutable state: channel_state;
-                 method_handlers: (Amqp_types.message_id * method_handler) MList.t;
-                 content_handlers: (Amqp_types.class_id * content_handler) MList.t;
+                 method_handlers: (Types.message_id * method_handler) Mlist.t;
+                 content_handlers: (Types.class_id * content_handler) Mlist.t;
                  writer: String.t Pipe.Writer.t;
                  mutable ready: unit Ivar.t;
                }
@@ -42,31 +40,31 @@ let read_content_header = S.read S.(Short :: Short :: Longlong :: [])
 
 
 let read_frame_header, write_frame_header =
-  let open Amqp_protocol.Spec in
+  let open Protocol.Spec in
   let spec = Octet :: Short :: Long :: [] in
   read spec, write spec
 
 let channel t channel_no =
   match t.channels.(channel_no) with
-  | None -> raise (Amqp_types.Channel_not_found channel_no)
+  | None -> raise (Types.Channel_not_found channel_no)
   | Some ch -> ch
 
 let size_of_writer writer =
-  Output.sizer ()
+  Io.Output.sizer ()
   |> writer
-  |> Output.size
+  |> Io.Output.size
 
 let create_frame channel_no tpe writer =
   let length = size_of_writer writer in
-  let output = Output.create (1+2+4+length+1) in
+  let output = Io.Output.create (1+2+4+length+1) in
 
   write_frame_header output tpe channel_no length
   |> writer
-  |> fun w -> Output.octet w Amqp_constants.frame_end;
-  Output.get output
+  |> fun w -> Io.Output.octet w Constants.frame_end;
+  Io.Output.get output
 
 let write_method_id =
-  let open Amqp_protocol.Spec in
+  let open Protocol.Spec in
   write (Short :: Short :: [])
 
 let create_method_frame channel_no (cid, mid) writer =
@@ -74,10 +72,10 @@ let create_method_frame channel_no (cid, mid) writer =
     write_method_id output cid mid
     |> writer
   in
-  create_frame channel_no Amqp_constants.frame_method writer
+  create_frame channel_no Constants.frame_method writer
 
 let create_content_header =
-  let open Amqp_protocol.Spec in
+  let open Protocol.Spec in
   write (Short :: Short :: Longlong :: [])
 
 let add_content_frames queue max_length channel_no class_id writer data =
@@ -85,8 +83,8 @@ let add_content_frames queue max_length channel_no class_id writer data =
     create_content_header output class_id 0 (String.length data)
     |> writer
   in
-  let msg = create_frame channel_no Amqp_constants.frame_header writer in
-  Queue.add msg queue;
+  let msg = create_frame channel_no Constants.frame_header writer in
+  Ocaml_lib.Queue.add msg queue;
 
   let length = String.length data in
 
@@ -95,10 +93,10 @@ let add_content_frames queue max_length channel_no class_id writer data =
     if offset < length then
       let size = min max_length (length - offset) in
       let msg =
-        create_frame channel_no Amqp_constants.frame_body
-          (fun output -> Output.string output ~src_pos:offset ~len:size data; output)
+        create_frame channel_no Constants.frame_body
+          (fun output -> Io.Output.string output ~src_pos:offset ~len:size data; output)
       in
-      Queue.add msg queue;
+      Ocaml_lib.Queue.add msg queue;
       send (offset + max_length)
     else
       ()
@@ -110,9 +108,9 @@ let write_message (t, channel_no) (message_id, writer) content =
   match content with
   | Some (class_id, c_writer, data) ->
     Ivar.read channel.ready >>= fun () ->
-    let frames = Queue.create () in
+    let frames = Ocaml_lib.Queue.create () in
     let msg = create_method_frame channel_no message_id writer in
-    Queue.add msg frames;
+    Ocaml_lib.Queue.add msg frames;
     add_content_frames frames t.max_length channel_no class_id c_writer data;
     Pipe.transfer_in channel.writer ~from:frames
   | None ->
@@ -121,7 +119,7 @@ let write_message (t, channel_no) (message_id, writer) content =
 
 let send_heartbeat t =
   let channel = channel t 0 in
-  create_frame 0 Amqp_constants.frame_heartbeat (fun i -> i)
+  create_frame 0 Constants.frame_heartbeat (fun i -> i)
   |> Pipe.write channel.writer
 
 (** read_frame reads a frame from the input, and sends the data to
@@ -129,48 +127,48 @@ let send_heartbeat t =
 let decode_message t tpe channel_no size input =
   let channel = channel t channel_no in
   match channel.state, tpe with
-  | Ready, n when n = Amqp_constants.frame_method ->
+  | Ready, n when n = Constants.frame_method ->
     (* Standard method message *)
     let message_id = read_method_frame (fun a b -> a, b) input in
     let handler =
-      MList.take ~pred:(fun elt -> fst elt = message_id) channel.method_handlers
-      |> Option.get_exn ~exn:Amqp_types.No_handler_found
+      Mlist.take ~pred:(fun elt -> fst elt = message_id) channel.method_handlers
+      |> Option.get_exn ~exn:Types.No_handler_found
       |> snd
     in
-    MList.prepend channel.method_handlers (message_id, handler);
+    Mlist.prepend channel.method_handlers (message_id, handler);
     handler input;
-  | Ready, n when n = Amqp_constants.frame_header ->
+  | Ready, n when n = Constants.frame_header ->
     let class_id, _weight, size =
       read_content_header (fun a b c -> a, b, c) input
     in
 
     if size = 0 then begin
       let handler =
-        MList.take ~pred:(fun elt -> fst elt = class_id) channel.content_handlers
-        |> Option.get_exn ~exn:Amqp_types.No_handler_found
+        Mlist.take ~pred:(fun elt -> fst elt = class_id) channel.content_handlers
+        |> Option.get_exn ~exn:Types.No_handler_found
         |> snd
       in
-      MList.prepend channel.content_handlers (class_id, handler);
+      Mlist.prepend channel.content_handlers (class_id, handler);
       handler (input, "")
     end
     else
       channel.state <- Waiting (class_id, input, 0, Bytes.create size)
-  | Waiting (class_id, content, offset, buffer), n when n = Amqp_constants.frame_body ->
-    Input.copy input ~dst_pos:offset ~len:size buffer;
+  | Waiting (class_id, content, offset, buffer), n when n = Constants.frame_body ->
+    Io.Input.copy input ~dst_pos:offset ~len:size buffer;
     if (String.length buffer = offset + size) then begin
       channel.state <- Ready;
       let handler =
-        MList.take ~pred:(fun elt -> fst elt = class_id) channel.content_handlers
-        |> Option.get_exn ~exn:Amqp_types.No_handler_found
+        Mlist.take ~pred:(fun elt -> fst elt = class_id) channel.content_handlers
+        |> Option.get_exn ~exn:Types.No_handler_found
         |> snd
       in
-      MList.prepend channel.content_handlers (class_id, handler);
+      Mlist.prepend channel.content_handlers (class_id, handler);
       handler (content, buffer);
     end
     else
       channel.state <- Waiting (class_id, content, offset + size, buffer)
-  | _, n when n = Amqp_constants.frame_heartbeat -> ()
-  | _, n -> raise (Amqp_types.Unknown_frame_type n)
+  | _, n when n = Constants.frame_heartbeat -> ()
+  | _, n -> raise (Types.Unknown_frame_type n)
 
 let rec read_frame t close_handler =
   let header = Bytes.create (1+2+4) in
@@ -178,7 +176,7 @@ let rec read_frame t close_handler =
   | `Eof n ->
       close_handler (Bytes.sub_string header 0 n)
   | `Ok ->
-    let input = Input.init header in
+    let input = Io.Input.init header in
     let tpe, channel_no, length = read_frame_header (fun a b c -> a, b, c) input in
     let buf = Bytes.create (length+1) in
     Reader.read t.input buf >>= function
@@ -187,28 +185,28 @@ let rec read_frame t close_handler =
         Bytes.blit buf 0 s (1+2+4) n;
         close_handler (Bytes.to_string s)
     | `Ok -> match buf.[length] |> Char.code with
-      | n when n = Amqp_constants.frame_end ->
-        let input = Input.init buf in
+      | n when n = Constants.frame_end ->
+        let input = Io.Input.init buf in
         decode_message t tpe channel_no length input;
         read_frame t close_handler
       | n -> failwith (Printf.sprintf "Unexpected frame end: %x" n)
 
 let register_method_handler (t, channel_no) message_id handler =
   let c = channel t channel_no in
-  MList.prepend c.method_handlers (message_id, handler)
+  Mlist.prepend c.method_handlers (message_id, handler)
 
 let register_content_handler (t, channel_no) class_id handler =
   let c = channel t channel_no in
-  MList.prepend c.content_handlers (class_id, handler)
+  Mlist.prepend c.content_handlers (class_id, handler)
 
 let deregister_method_handler (t, channel_no) message_id =
   let c = channel t channel_no in
-  let (_ : 'a option) = MList.take ~pred:(fun (id, _) -> id = message_id) c.method_handlers in
+  let (_ : 'a option) = Mlist.take ~pred:(fun (id, _) -> id = message_id) c.method_handlers in
   ()
 
 let deregister_content_handler (t, channel_no) class_id =
   let c = channel t channel_no in
-  let (_ : 'a option) = MList.take ~pred:(fun (id, _) -> id = class_id) c.content_handlers in
+  let (_ : 'a option) = Mlist.take ~pred:(fun (id, _) -> id = class_id) c.content_handlers in
   ()
 
 let set_flow_on_channel c = function
@@ -241,8 +239,8 @@ let open_channel t channel_no =
   in
   t.channels.(channel_no) <-
     Some { state = Ready;
-           method_handlers = MList.create ();
-           content_handlers = MList.create ();
+           method_handlers = Mlist.create ();
+           content_handlers = Mlist.create ();
            writer;
            ready;
          };

@@ -1,6 +1,6 @@
 (** Operations on channels *)
-open Amqp_thread
-open Amqp_spec
+open Concurrency
+open Spec
 
 (**/**)
 type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
@@ -10,7 +10,7 @@ type consumers = (string, consumer) Hashtbl.t
 type _ t
 
 (**/**)
-val channel : _ t -> Amqp_framing.t * int
+val channel : _ t -> Framing.t * int
 
 module Internal : sig
   val register_consumer_handler : _ t -> string -> consumer -> unit
@@ -31,7 +31,7 @@ val with_confirm: with_confirm confirms
 (** Create a new channel.
     Use Connection.open_channel rather than this method directly *)
 val create : id:string -> 'a confirms ->
-  Amqp_framing.t -> Amqp_framing.channel_no -> 'a t Deferred.t
+  Framing.t -> Framing.channel_no -> 'a t Deferred.t
 
 (** Close the channel *)
 val close : _ t -> unit Deferred.t

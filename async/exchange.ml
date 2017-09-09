@@ -1,7 +1,5 @@
-module Channel = Amqp_channel
-
-open Amqp_thread
-open Amqp_spec.Exchange
+open Concurrency
+open Spec.Exchange
 
 (* type match_type = Any | All *)
 
@@ -9,7 +7,7 @@ type _ exchange_type =
   | Direct: [`Queue of string] exchange_type
   | Fanout: unit exchange_type
   | Topic:  [`Topic of string] exchange_type
-  | Match:  [`Headers of Amqp_types.header list] exchange_type
+  | Match:  [`Headers of Types.header list] exchange_type
 
 let direct_t = Direct
 let fanout_t = Fanout
@@ -42,7 +40,7 @@ let string_of_exchange_type: type a. a exchange_type -> string  = function
 
 module Internal = struct
   let bind_queue: type a. _ Channel.t -> a t -> string -> a -> unit Deferred.t =
-    let open Amqp_spec.Queue in
+    let open Spec.Queue in
     fun channel { name; exchange_type} queue ->
       let bind ?(routing_key="") ?(arguments=[]) () =
         let query = { Bind.queue;
@@ -61,7 +59,7 @@ module Internal = struct
       | Match -> fun (`Headers arguments) -> bind ~arguments ()
 
   let unbind_queue: type a. _ Channel.t -> a t -> string -> a -> unit Deferred.t =
-    let open Amqp_spec.Queue in
+    let open Spec.Queue in
     fun channel { name; exchange_type} queue ->
       let unbind ?(routing_key="") ?(arguments=[]) () =
         let query = { Unbind.queue;
@@ -80,7 +78,7 @@ module Internal = struct
 end
 
 
-let declare: type a. ?passive:bool -> ?durable:bool -> ?auto_delete:bool -> _ Channel.t -> a exchange_type -> ?arguments:Amqp_types.table -> string -> a t Deferred.t =
+let declare: type a. ?passive:bool -> ?durable:bool -> ?auto_delete:bool -> _ Channel.t -> a exchange_type -> ?arguments:Types.table -> string -> a t Deferred.t =
   fun ?(passive=false) ?(durable=false) ?(auto_delete=false) channel exchange_type ?(arguments=[]) name ->
     Declare.request (Channel.channel channel)
       { Declare.exchange = name;
@@ -141,7 +139,7 @@ let publish channel t
     ~routing_key
     (header, body) =
 
-  let open Amqp_spec.Basic in
+  let open Spec.Basic in
   let header = match header.Content.app_id with
     | Some _ -> header
     | None -> { header with Content.app_id = Some (Channel.id channel) }

@@ -314,9 +314,9 @@ let emit_method ?(is_content=false) class_index
   emit "open !Internal_alias";
 
   if is_content then
-    emit "open Amqp_protocol.Content"
+    emit "open Protocol.Content"
   else
-    emit "open Amqp_protocol.Spec";
+    emit "open Protocol.Spec";
 
 
   emit_loc __LINE__;
@@ -439,9 +439,9 @@ let emit_printer tree =
 
 let emit_specification tree =
   emit_loc __LINE__;
-  emit "open Amqp_types";
-  emit "open Amqp_protocol";
-  emit "open Amqp_protocol_helpers";
+  emit "open Types";
+  emit "open Protocol";
+  emit "open Protocol_helpers";
   emit_domains tree
   |> List.iter (function Class x -> emit_class x | _ -> ());
   (* emit_printer tree; *)
