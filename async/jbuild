@@ -9,6 +9,6 @@
   (public_name amqp-client.async)
   (synopsis "async version")
   (libraries (ocplib-endian async lib))
-  ;(optional)
+  (optional)
  )
 )

@@ -19,8 +19,7 @@ The high level interface exposes usage patterns such as
  * create exchange
  * bind a queue to an exchange
  * post message to an exchange
- * RPC client
- * RPC server
+ * RPC client / server
 
 The library requires all resources to be explicitly allocated to avoid
 crashes because a service is replying on other services to allocate AMQP resources
@@ -28,16 +27,15 @@ crashes because a service is replying on other services to allocate AMQP resourc
 
 Channels and consumers are tagged with an id, host name, pid etc. to ease tracing on AMQP level.
 
-[Documentation for the API (async version)](http://andersfugmann.github.io/amqp-client/).
+[Documentation for the API (async version)](http://andersfugmann.github.io/amqp-client/amqp-client.async/Amqp/index.html).
 
 
-### Build instructions
+### Build infrastructure
 
 The system is not functorized over an abstraction to the threading
 model. Instead the build system chooses which threading model
 abstraction to be used and stacially compiles it in.  This has the
-advantage that files do not need to carry functor boilerplate and that
-the compiler can inline function calls.
+advantage that files do not need to carry functor boilerplate
 
 The disadvantage is that it does not allow users to supply their own
 threading model implementation.
@@ -46,7 +44,7 @@ To build the library
 
 ```make build```
 
-```make install``` will install bLwt and Async depending on availability of Async / Lwt.
+```make install``` will install Lwt and Async depending on availability of Async / Lwt.
 
 ### Using the library
 

@@ -1,5 +1,5 @@
 NPROC := $(shell nproc || echo 4)
-.PHONY: all build clean test install update-version
+.PHONY: all build clean test install update-version doc commit-doc
 all: build
 
 build:
@@ -35,3 +35,13 @@ update-version:
 	@echo "Set version to: $(VERSION)"
 	@sed -i 's/version = ".*"/version = "$(VERSION)"/' lib/amqp_connection.ml
 	@sed -i 's/^version: ".*"/version: "$(VERSION)"/' amqp-client.opam
+
+doc:
+	jbuilder build --dev @doc
+
+commit-doc: doc
+	git -C html rm -fr \*
+	cp -av _build/default/_doc/* html
+	git -C html add '*' && echo ok
+	git -C html commit --amend -m "Update documentation"
+	git -C html push --force

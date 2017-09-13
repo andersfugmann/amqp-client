@@ -1,3 +1,7 @@
+1.1.1:
+* Let jbuilder wrap the library
+* Use jbuilder to generate documentation
+
 1.1.0:
 * Handle mandatory flag on channels with confirm set
 * Fix bug where message would always be signalled as delivered
