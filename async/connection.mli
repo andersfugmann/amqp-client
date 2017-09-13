@@ -1,4 +1,4 @@
-open Concurrency
+open Thread
 
 (** Connection *)
 type t

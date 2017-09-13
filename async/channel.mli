@@ -1,5 +1,5 @@
 (** Operations on channels *)
-open Concurrency
+open Thread
 open Spec
 
 (**/**)

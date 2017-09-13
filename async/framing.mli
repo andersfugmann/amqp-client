@@ -1,5 +1,5 @@
 (** Internal *)
-open Concurrency
+open Thread
 type channel_no = int
 
 type message = Method of Types.message_id * Io.Input.t

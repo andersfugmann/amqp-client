@@ -1,6 +1,6 @@
 (** Rpc client and server patterns *)
 
-open Concurrency
+open Thread
 
 (** Rpc Client pattern *)
 module Client :

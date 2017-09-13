@@ -1,6 +1,6 @@
 (** Amqp message type and functions *)
 
-open Concurrency
+open Thread
 
 type message = Spec.Basic.Content.t * string
 

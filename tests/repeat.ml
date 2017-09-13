@@ -1,5 +1,5 @@
 open Amqp
-open Amqp_thread
+open Amqp.Thread
 
 
 let rec repeat channel queue =

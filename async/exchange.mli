@@ -1,5 +1,5 @@
 (** Operations on exchanges *)
-open Concurrency
+open Thread
 
 type _ t
 

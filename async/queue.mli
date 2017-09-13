@@ -1,4 +1,4 @@
-open Concurrency
+open Thread
 
 (** Operations on Queues *)
 type t

@@ -4,7 +4,7 @@ let template =
 "
 (executables (
   (names (NAMES))
-  (libraries (amqp_client.TYPE))
+  (libraries (amqp-client.TYPE))
 ))
 
 (alias (

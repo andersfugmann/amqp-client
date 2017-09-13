@@ -30,6 +30,6 @@
   (public_name amqp-client.lwt)
   (synopsis "lwt version")
   (libraries (ocplib-endian lwt lwt.log lwt.unix lib))
-  (optional)
+  ; (optional)
  )
 )

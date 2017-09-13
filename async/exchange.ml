@@ -1,4 +1,4 @@
-open Concurrency
+open Thread
 open Spec.Exchange
 
 (* type match_type = Any | All *)

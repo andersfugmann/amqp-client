@@ -1,4 +1,4 @@
-open Concurrency
+open Thread
 open Spec
 open Lib
 

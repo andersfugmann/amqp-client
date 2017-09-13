@@ -1,5 +1,5 @@
 (** Internal *)
-open Concurrency
+open Thread
 open Lib
 module S = Protocol.Spec
 

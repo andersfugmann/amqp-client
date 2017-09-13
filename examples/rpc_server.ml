@@ -1,5 +1,5 @@
 open Amqp
-open Amqp_thread
+open Amqp.Thread
 
 let handler (h, s) =
   Log.info "Recieved request: %s" s;

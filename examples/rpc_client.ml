@@ -1,5 +1,5 @@
 open Amqp
-open Amqp_thread
+open Amqp.Thread
 
 let rec request t i =
   let req = Printf.sprintf "Echo: %d" i in

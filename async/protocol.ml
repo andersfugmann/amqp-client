@@ -1,5 +1,5 @@
 (** Internal *)
-open !Concurrency
+open !Thread
 open Types
 open Io
 
