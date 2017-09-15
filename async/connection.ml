@@ -1,7 +1,7 @@
 open Thread
 open Spec.Connection
 
-let version = "1.1.0"
+let version = "1.1.1"
 
 let string_until c str =
   try

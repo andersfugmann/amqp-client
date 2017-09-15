@@ -33,7 +33,7 @@ integration:
 update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')
 update-version:
 	@echo "Set version to: $(VERSION)"
-	@sed -i 's/version = ".*"/version = "$(VERSION)"/' lib/amqp_connection.ml
+	@sed -i 's/version = ".*"/version = "$(VERSION)"/' async/connection.ml
 	@sed -i 's/^version: ".*"/version: "$(VERSION)"/' amqp-client.opam
 
 doc:
