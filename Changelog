@@ -1,6 +1,7 @@
 1.1.1:
 * Let jbuilder wrap the library
 * Use jbuilder to generate documentation
+* Allow empty queue name to have AMQP specify name (closes #4)
 
 1.1.0:
 * Handle mandatory flag on channels with confirm set

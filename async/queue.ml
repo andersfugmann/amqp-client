@@ -17,8 +17,7 @@ let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(a
               auto_delete; no_wait=false; arguments }
   in
   Declare.request channel req >>= fun rep ->
-  assert (rep.Declare_ok.queue = name);
-  return { name }
+  return { rep.Declare_ok.queue }
 
 let get ~no_ack channel t =
   let open Spec.Basic in
