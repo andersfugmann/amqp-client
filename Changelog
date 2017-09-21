@@ -1,3 +1,6 @@
+1.1.2:
+* Reinclude async version of the library
+
 1.1.1:
 * Let jbuilder wrap the library
 * Use jbuilder to generate documentation
