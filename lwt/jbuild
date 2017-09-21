@@ -26,7 +26,7 @@
 (rule (copy# ../async/rpc.mli rpc.mli))
 
 (library
- ((name amqp)
+ ((name Amqp)
   (public_name amqp-client.lwt)
   (synopsis "lwt version")
   (libraries (ocplib-endian lwt lwt.log lwt.unix lib))
