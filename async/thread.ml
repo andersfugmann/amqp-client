@@ -22,7 +22,7 @@ module Deferred = struct
 
   module List = struct
     let init ~f n = Deferred.List.init ~f n
-    let iter ~f l = Deferred.List.iter ~f l
+    let iter ?(how:[>`Sequential | `Parallel] = `Parallel) ~f l = Deferred.List.iter ~how ~f l
   end
 
 end

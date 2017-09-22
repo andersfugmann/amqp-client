@@ -3,6 +3,19 @@
 (library
  ((name lib)
   (public_name amqp-client.lib)
+  (modules (:standard \ mlist_test))
   (synopsis "Layer providing access to pervasives modules + helper modules")
+ )
+)
+
+(executable
+ ((name mlist_test)
+ )
+)
+
+(alias
+ ((name    runtest)
+  (deps    (mlist_test.exe))
+  (action (run ${exe:mlist_test.exe}))
  )
 )

@@ -6,13 +6,13 @@ and 'a cell = Nil
 type 'a t = { mutable first: 'a elem;
               mutable last: 'a elem }
 
-(* Create sentinel *)
+(** create an empty list *)
 let create () =
   let sentinal = { content = Obj.magic (); next = Nil } in
   { first = sentinal;
     last = sentinal; }
 
-(** Returns the first elements that satisfies [pred] and removes it from the list. O(n) *)
+(** Returns the first element that satisfies [pred] and removes it from the list. O(n) *)
 let take ~pred t =
   let rec inner = function
     | Nil -> None
@@ -47,7 +47,7 @@ let take_while ~pred t =
     | Cons ({content = _; next = Cons { content; next } } as cell) when pred content ->
         cell.next <- next;
         if (next = Nil) then t.last <- cell else ();
-        content :: inner next;
+        content :: inner (Cons cell);
     | Cons _ -> []
   in
   inner (Cons t.first)

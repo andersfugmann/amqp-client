@@ -7,6 +7,7 @@ build:
 
 clean:
 	jbuilder clean
+	rm -f test/jbuild
 
 test:
 	jbuilder runtest -j $(NPROC)
@@ -24,11 +25,10 @@ tests/%.exe: tests/%.ml
 integration:
 	$(MAKE) clean
 	sed 's/TYPE/async/g' tests/jbuild.in > tests/jbuild
-	jbuilder runtest --dev
+	jbuilder build @tests/integration --dev
 	$(MAKE) clean
 	sed 's/TYPE/lwt/g' tests/jbuild.in > tests/jbuild
-	jbuilder runtest --dev
-	$(RM) tests/jbuild
+	jbuilder build @tests/integration --dev
 
 update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')
 update-version:

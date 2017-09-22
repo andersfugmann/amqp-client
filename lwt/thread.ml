@@ -65,7 +65,11 @@ module Deferred = struct
         | i -> i :: inner (i + 1)
       in
       inner 0 |> Lwt_list.map_p f
-    let iter ~f l = Lwt_list.iter_p f l
+
+    let iter ?(how:[>`Sequential | `Parallel] = `Parallel) ~f l =
+      match how with
+      | `Sequential -> Lwt_list.iter_s f l
+      | `Parallel -> Lwt_list.iter_p f l
   end
 end
 
