@@ -1,7 +1,7 @@
 (jbuild_version 1)
 
 (executables
- ((names (rpc_server rpc_client))
+ ((names (rpc_server rpc_client main))
   (libraries (amqp-client.async))
  )
 )

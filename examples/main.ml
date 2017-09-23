@@ -1,23 +1,20 @@
 open Amqp
 open Amqp.Thread
 
-let log fmt = Printf.printf (fmt ^^ "\n%!")
-
 let consume channel queue =
   let handler { Message.message = (_content, body); _ } =
     let i = int_of_string body in
     begin match i with
       | i when i mod 1000 = 0 ->
-        log "%i" i
+        Log.info "%i" i
       | 1 ->
-        log "Done";
+        Log.info "Done";
         Scheduler.shutdown 0
       | _ -> ()
     end;
-    return ()
   in
   Queue.consume ~no_ack:true ~id:"test" channel queue >>= fun (_consumer, reader) ->
-  spawn (Pipe.iter_without_pushback reader ~f:(fun m -> spawn (handler m)));
+  spawn (Pipe.iter_without_pushback reader ~f:(fun m -> handler m));
   return ()
 
 let rec produce channel queue = function
@@ -30,14 +27,14 @@ let rec produce channel queue = function
 let _ =
   let _ =
     Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
-    log "Connection started";
+    Log.info "Connection started";
     Connection.open_channel Channel.no_confirm ~id:"test" connection >>= fun channel ->
-    log "Channel opened";
+    Log.info "Channel opened";
     Queue.declare channel ~arguments:[] ~auto_delete:true "test.main" >>= fun queue ->
 
     spawn (consume channel queue);
-    produce channel queue 100000 >>= fun () ->
-    log "Done producing";
+    produce channel queue 50000 >>= fun () ->
+    Log.info "Done producing";
     return ();
   in
   Scheduler.go ()
