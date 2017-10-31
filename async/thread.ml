@@ -50,7 +50,7 @@ end
 module Reader = struct
   type t = Reader.t
   let close = Reader.close
-  let read t buf = Reader.really_read t buf
+  let read t buf = Reader.really_read t (Bytes.unsafe_to_string buf)
 end
 
 module Writer = struct

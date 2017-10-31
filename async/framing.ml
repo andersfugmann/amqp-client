@@ -62,6 +62,7 @@ let create_frame channel_no tpe writer =
   |> writer
   |> fun w -> Io.Output.octet w Constants.frame_end;
   Io.Output.get output
+  |> Bytes.unsafe_to_string
 
 let write_method_id =
   let open Protocol.Spec in
@@ -79,14 +80,13 @@ let create_content_header =
   write (Short :: Short :: Longlong :: [])
 
 let add_content_frames queue max_length channel_no class_id writer data =
+  let length = String.length data in
   let writer output =
-    create_content_header output class_id 0 (String.length data)
+    create_content_header output class_id 0 length
     |> writer
   in
   let msg = create_frame channel_no Constants.frame_header writer in
   Ocaml_lib.Queue.add msg queue;
-
-  let length = String.length data in
 
   (* Send the data *)
   let rec send offset =
@@ -155,7 +155,7 @@ let decode_message t tpe channel_no size input =
       channel.state <- Waiting (class_id, input, 0, Bytes.create size)
   | Waiting (class_id, content, offset, buffer), n when n = Constants.frame_body ->
     Io.Input.copy input ~dst_pos:offset ~len:size buffer;
-    if (String.length buffer = offset + size) then begin
+    if (Bytes.length buffer = offset + size) then begin
       channel.state <- Ready;
       let handler =
         Mlist.take ~pred:(fun elt -> fst elt = class_id) channel.content_handlers
@@ -163,7 +163,7 @@ let decode_message t tpe channel_no size input =
         |> snd
       in
       Mlist.prepend channel.content_handlers (class_id, handler);
-      handler (content, buffer);
+      handler (content, Bytes.unsafe_to_string buffer);
     end
     else
       channel.state <- Waiting (class_id, content, offset + size, buffer)
@@ -176,7 +176,7 @@ let rec read_frame t close_handler =
   | `Eof n ->
       close_handler (Bytes.sub_string header 0 n)
   | `Ok ->
-    let input = Io.Input.init header in
+    let input = Io.Input.init (Bytes.unsafe_to_string header) in
     let tpe, channel_no, length = read_frame_header (fun a b c -> a, b, c) input in
     let buf = Bytes.create (length+1) in
     Reader.read t.input buf >>= function
@@ -184,9 +184,9 @@ let rec read_frame t close_handler =
         let s = Bytes.extend header 0 n in
         Bytes.blit buf 0 s (1+2+4) n;
         close_handler (Bytes.to_string s)
-    | `Ok -> match buf.[length] |> Char.code with
+    | `Ok -> match Bytes.get buf length |> Char.code with
       | n when n = Constants.frame_end ->
-        let input = Io.Input.init buf in
+        let input = Io.Input.init (Bytes.unsafe_to_string buf) in
         decode_message t tpe channel_no length input;
         read_frame t close_handler
       | n -> failwith (Printf.sprintf "Unexpected frame end: %x" n)
