@@ -2,21 +2,27 @@ language: c
 sudo: required
 services:
   - rabbitmq
-install:
-  - wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
+install: wget https://raw.githubusercontent.com/ocaml/ocaml-ci-scripts/master/.travis-opam.sh
 script: bash -ex .travis-opam.sh
 env:
-  global:
-    - PACKAGE=amqp-client
-    - DEPOPTS="*"
-    - TESTS=true
-    - PRE_INSTALL_HOOK="opam remove amqp-client || true"
-    - POST_INSTALL_HOOK="opam install async lwt --yes; make integration"
   matrix:
-    - OCAML_VERSION=4.03
-    - OCAML_VERSION=4.04
-    - OCAML_VERSION=4.05
-    - OCAML_VERSION=4.06
+  - OCAML_VERSION=4.03
+  - OCAML_VERSION=4.04
+  - OCAML_VERSION=4.05
+  - OCAML_VERSION=4.06
+
+  global:
+  - PACKAGE=amqp-client
+  - DEPOPTS="*"
+  - TESTS=true
+  - PRE_INSTALL_HOOK="opam remove amqp-client || true"
+  - POST_INSTALL_HOOK="opam install async lwt --yes; make integration"
+  - DEPOPTS="*"
+
+os:
+  - linux
+  - osx
+
 cache:
   directories:
     - $HOME/.opam
