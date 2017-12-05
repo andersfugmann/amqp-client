@@ -15,9 +15,10 @@ val maximum_priority : int -> string * Types.value
 (** Declare a queue *)
 val declare :
   _ Channel.t ->
-  ?durable:Types.bit ->
-  ?exclusive:Types.bit ->
-  ?auto_delete:Types.bit ->
+  ?durable:bool ->
+  ?exclusive:bool ->
+  ?auto_delete:bool ->
+  ?passive:bool ->
   ?arguments:Types.table ->
   string -> t Deferred.t
 
