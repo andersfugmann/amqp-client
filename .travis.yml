@@ -23,6 +23,6 @@ os:
   - linux
   - osx
 
-cache:
-  directories:
-    - $HOME/.opam
+#cache:
+#  directories:
+#    - $HOME/.opam
