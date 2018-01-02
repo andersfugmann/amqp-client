@@ -1,3 +1,6 @@
+1.1.5:
+* Compatible with core/async v0.10
+
 1.1.4:
 * Support immutable strings
 
