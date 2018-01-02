@@ -1,16 +1,6 @@
 (** Async compatibility layer *)
 
-(**/**)
 open Lib
-
-module Compat = struct
-  [@@@warning "-3"]
-  module Async = Async.Std
-  module Core = Core.Std
-end
-open Compat
-(**/**)
-
 open Async
 
 module Deferred = struct
@@ -50,7 +40,7 @@ end
 module Reader = struct
   type t = Reader.t
   let close = Reader.close
-  let read t buf = Reader.really_read t (Bytes.unsafe_to_string buf)
+  let read t buf = Reader.really_read t buf
 end
 
 module Writer = struct
@@ -62,7 +52,9 @@ end
 
 module Tcp = struct
   let connect ?nodelay host port =
-    let addr = Tcp.to_host_and_port host port in
+    let addr = Core.Host_and_port.create ~host ~port
+               |> Tcp.Where_to_connect.of_host_and_port
+    in
     Tcp.connect ~buffer_age_limit:`Unlimited addr >>= fun (s, r, w) ->
     (match nodelay with
      | Some () -> Socket.setopt s Socket.Opt.nodelay true
