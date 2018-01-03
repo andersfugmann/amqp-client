@@ -17,12 +17,6 @@ env:
   - TESTS=true
   - PRE_INSTALL_HOOK="opam remove amqp-client || true"
   - POST_INSTALL_HOOK="opam install async lwt --yes; make integration"
-  - DEPOPTS="*"
 
 os:
   - linux
-  - osx
-
-#cache:
-#  directories:
-#    - $HOME/.opam
