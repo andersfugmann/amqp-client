@@ -12,8 +12,7 @@ depends: [
   "jbuilder" {build}
   "xml-light" {build}
   "ocplib-endian" {>= "0.6"}
-  "async" {test}
-  "lwt" {test}
+  "lwt" {>= "2.4.6"}
 ]
-# This package is transitional. Users should use async or lwt version.
-available: [ ocaml-version >= "4.04.1" ]
+
+available: [ ocaml-version >= "4.03.0" ]

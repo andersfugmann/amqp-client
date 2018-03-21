@@ -1,4 +1,5 @@
 open Async
+open Amqp_client_async
 
 let host = "localhost"
 

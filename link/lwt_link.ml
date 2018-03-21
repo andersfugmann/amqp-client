@@ -1,4 +1,5 @@
 open Lwt
+open Amqp_client_lwt
 
 let host = "localhost"
 

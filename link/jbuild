@@ -3,14 +3,14 @@
 (executable
  ((name async_link)
   (modules (Async_link))
-  (libraries (amqp-client.async))
+  (libraries (amqp-client-async))
  )
 )
 
 (executable
  ((name lwt_link)
   (modules (Lwt_link))
-  (libraries (amqp-client.lwt))
+  (libraries (amqp-client-lwt))
  )
 )
 

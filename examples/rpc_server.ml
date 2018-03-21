@@ -1,18 +1,18 @@
-open Amqp
-open Amqp.Thread
+open Async
+open Amqp_client_async
 
 let handler (h, s) =
-  Log.info "Recieved request: %s" s;
+  Log.Global.info "Recieved request: %s" s;
   return (h, s)
 
 let start =
   Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
-  Log.info "Connection started";
+  Log.Global.info "Connection started";
   Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
-  Log.info "Channel opened";
+  Log.Global.info "Channel opened";
   Queue.declare channel ~arguments:[Rpc.Server.queue_argument] "rpc.server.echo_reply" >>= fun queue ->
   Rpc.Server.start channel queue handler >>= fun _server ->
-  Log.info "Listening for requsts";
+  Log.Global.info "Listening for requsts";
 
   return ()
 

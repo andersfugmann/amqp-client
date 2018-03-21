@@ -3,7 +3,7 @@ NPROC := $(shell nproc || echo 4)
 all: build
 
 build:
-	jbuilder build @install -j $(NPROC) --dev
+	jbuilder build @install --dev
 
 clean:
 	jbuilder clean
@@ -22,13 +22,8 @@ uninstall:
 tests/%.exe: tests/%.ml
 	jbuild build $@
 
-integration:
-	$(MAKE) clean
-	sed 's/TYPE/async/g' tests/jbuild.in > tests/jbuild
-	jbuilder build @tests/integration --dev
-	$(MAKE) clean
-	sed 's/TYPE/lwt/g' tests/jbuild.in > tests/jbuild
-	jbuilder build @tests/integration --dev
+integration: build
+	jbuilder build @integration --dev -j 1
 
 update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')
 update-version:

@@ -2,7 +2,7 @@
 
 (executables
  ((names (rpc_server rpc_client main))
-  (libraries (amqp-client.async))
+  (libraries (amqp-client-async))
  )
 )
 

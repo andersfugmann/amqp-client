@@ -10,6 +10,8 @@
 
 (executable
  ((name mlist_test)
+  (modules (mlist_test))
+  (libraries (lib))
  )
 )
 

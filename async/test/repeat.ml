@@ -1,7 +1,6 @@
 open Amqp
 open Amqp.Thread
 
-
 let rec repeat channel queue =
   Log.info "rep";
   Queue.publish channel queue (Message.make "Test") >>= function

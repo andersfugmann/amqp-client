@@ -4,6 +4,6 @@ _build
 .#*
 html
 .merlin
-amqp-client.install
+amqp-client*.install
 tests/jbuild
 amqp-client.[0-9].*
