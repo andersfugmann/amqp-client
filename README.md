@@ -94,4 +94,4 @@ Compile with:
 $ ocamlfind ocamlopt -thread -package amqp-client-async amqp_example.ml -linkpkg -o amqp_example
 ```
 
-More examples are available here: https://github.com/andersfugmann/amqp-client/tree/master/tests
+More examples are available here: https://github.com/andersfugmann/amqp-client/tree/master/examples
