@@ -17,3 +17,4 @@ let test =
 
 let _ =
   Scheduler.go ()
+let () = Printf.printf "Done\n"

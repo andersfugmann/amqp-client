@@ -16,6 +16,15 @@
 
 (alias
  ((name runtest)
-  (deps (async_link.exe lwt_link.exe))
+  (deps (async_link.exe))
+  (package amqp-client-async)
+ )
+)
+
+(alias
+ ((name runtest)
+  (deps (lwt_link.exe))
+  (package amqp-client-lwt)
+
  )
 )

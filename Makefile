@@ -23,7 +23,7 @@ tests/%.exe: tests/%.ml
 	jbuild build $@
 
 integration: build
-	jbuilder build @integration --dev -j 1
+	jbuilder build @integration --dev
 
 update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')
 update-version:

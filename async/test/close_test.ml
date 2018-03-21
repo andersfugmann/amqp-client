@@ -38,3 +38,4 @@ let test () =
 let _ =
   test () |> ignore;
   Scheduler.go ()
+let () = Printf.printf "Done\n"
