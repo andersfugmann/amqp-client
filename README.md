@@ -40,27 +40,37 @@ advantage that files do not need to carry functor boilerplate
 The disadvantage is that it does not allow users to supply their own
 threading model implementation.
 
+#### Opam
+It is recommended to install the package though opam.
+You should choose the package matching the concurrency library that your application will use
+
+For Janestreet async: `opam install amqp-client-async`
+For Ocsigen Lwt: `opam install amqp-client-lwt`
+
+#### Manual build
+
 To build the library
 
 ```make build```
 
-```make install``` will install Lwt and Async depending on availability of Async / Lwt.
+```make install``` will install both Lwt and Async.
 
 ### Using the library
 
 To compile using Async do:
 
-```ocamlfind ocamlopt -thread -package amqp-client.async myprog.ml```
+```ocamlfind ocamlopt -thread -package amqp-client-async myprog.ml```
 
 To compile using the Lwt version of the library do:
 
-```ocamlfind ocamlopt -thread -package amqp-client.lwt myprog.ml```
+```ocamlfind ocamlopt -thread -package amqp-client-lwt myprog.ml```
 
 
-### Example
+### Example (Async)
 
 ```ocaml
 open Async
+open Amqp_client_async
 
 let host = "localhost"
 
@@ -81,7 +91,7 @@ let _ =
 Compile with:
 
 ```
-$ ocamlfind ocamlopt -thread -package amqp-client.async amqp_example.ml -linkpkg -o amqp_example
+$ ocamlfind ocamlopt -thread -package amqp-client-async amqp_example.ml -linkpkg -o amqp_example
 ```
 
 More examples are available here: https://github.com/andersfugmann/amqp-client/tree/master/tests
