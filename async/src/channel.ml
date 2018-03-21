@@ -1,6 +1,6 @@
 open Thread
 open Spec
-open Lib
+open Amqp_client_lib
 
 type no_confirm = [ `Ok ]
 type with_confirm = [ `Ok | `Failed ]

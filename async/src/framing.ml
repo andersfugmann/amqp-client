@@ -1,6 +1,6 @@
 (** Internal *)
 open Thread
-open Lib
+open Amqp_client_lib
 module S = Protocol.Spec
 
 type channel_no = int

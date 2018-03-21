@@ -1,3 +1,6 @@
+1.1.6:
+* Split into amqp-client-async and amqp-client-lwt
+
 1.1.5:
 * Compatible with core/async v0.10
 

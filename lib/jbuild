@@ -1,8 +1,8 @@
 (jbuild_version 1)
 
 (library
- ((name lib)
-  (public_name amqp-client.lib)
+ ((name amqp_client_lib)
+  (public_name amqp-client)
   (modules (:standard \ mlist_test))
   (synopsis "Layer providing access to pervasives modules + helper modules")
  )

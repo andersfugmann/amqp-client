@@ -1,6 +1,5 @@
 (** Async compatibility layer *)
-
-open Lib
+open Amqp_client_lib
 open Async
 
 module Deferred = struct

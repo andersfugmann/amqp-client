@@ -1,4 +1,4 @@
-open Lib
+open Amqp_client_lib
 let (>>=) = Lwt.(>>=)
 let (>>|) = Lwt.(>|=)
 let return = Lwt.return
