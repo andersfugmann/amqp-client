@@ -1,5 +1,6 @@
 (** Operations on exchanges *)
 open Thread
+open Amqp_client_lib
 
 type _ t
 

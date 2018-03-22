@@ -1,6 +1,7 @@
 (** Rpc client and server patterns *)
 
 open Thread
+open Amqp_client_lib
 
 (** Rpc Client pattern *)
 module Client :

@@ -439,6 +439,7 @@ let emit_printer tree =
 
 let emit_specification tree =
   emit_loc __LINE__;
+  emit "open Amqp_client_lib";
   emit "open Types";
   emit "open Protocol";
   emit "open Protocol_helpers";

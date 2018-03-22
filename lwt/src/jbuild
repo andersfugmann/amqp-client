@@ -10,13 +10,10 @@
 (rule (copy# ../../async/src/connection.ml connection.ml))
 (rule (copy# ../../async/src/exchange.ml exchange.ml))
 (rule (copy# ../../async/src/framing.ml framing.ml))
-(rule (copy# ../../async/src/io.ml io.ml))
 (rule (copy# ../../async/src/message.ml message.ml))
 (rule (copy# ../../async/src/protocol_helpers.ml protocol_helpers.ml))
-(rule (copy# ../../async/src/protocol.ml protocol.ml))
 (rule (copy# ../../async/src/queue.ml queue.ml))
 (rule (copy# ../../async/src/rpc.ml rpc.ml))
-(rule (copy# ../../async/src/types.ml types.ml))
 
 (rule (copy# ../../async/src/channel.mli channel.mli))
 (rule (copy# ../../async/src/connection.mli connection.mli))

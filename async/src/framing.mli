@@ -1,6 +1,8 @@
 (** Internal *)
 open Thread
+open Amqp_client_lib
 type channel_no = int
+
 
 type message = Method of Types.message_id * Io.Input.t
              | Content of Types.class_id * Io.Input.t * string

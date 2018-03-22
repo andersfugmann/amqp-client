@@ -1,5 +1,4 @@
 (** Internal *)
-open !Thread
 open Types
 open Io
 

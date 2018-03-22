@@ -1,4 +1,5 @@
 open Thread
+open Amqp_client_lib
 
 (** Operations on Queues *)
 type t

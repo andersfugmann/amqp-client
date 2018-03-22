@@ -1,4 +1,6 @@
 open Spec.Basic
+open Amqp_client_lib
+
 type message = (Content.t * string)
 
 let string_header key value = key, Types.VLongstr value

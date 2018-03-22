@@ -1,7 +1,7 @@
 (** Internal *)
 open Thread
-open Protocol
-open Io
+module Protocol = Amqp_client_lib.Protocol
+module Io = Amqp_client_lib.Io
 
 type 'a post_handler = ('a -> unit) option
 
@@ -52,15 +52,15 @@ let read_method (message_id, spec, make, _apply) =
 
 let write_method_content (message_id, spec, _make, apply) ((c_method, _), c_spec, _c_make, c_apply) =
   let write = Protocol.Spec.write spec in
-  let c_write = Content.write c_spec in
-  let property_bits = Content.length c_spec in
+  let c_write = Protocol.Content.write c_spec in
+  let property_bits = Protocol.Content.length c_spec in
   assert (property_bits <= 15);
   let write_method msg output =
     apply (write output) msg
   in
   let write_content content output =
     let property_flags = ref 0 in
-    let property_word = Output.short_ref output in
+    let property_word = Io.Output.short_ref output in
     let output = c_apply (c_write property_flags output) content in
     update_property_flag !property_flags property_word property_bits;
     output
@@ -77,7 +77,7 @@ let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec,
 
   let read ~once (handler: 'a -> unit) channel : unit =
     let c_handler req (content, data) =
-      let property_flags = read_property_flag (Input.short content) flags in
+      let property_flags = read_property_flag (Io.Input.short content) flags in
       let header = c_read c_make property_flags content in
       let message = (req, (header, data)) in
       handler message;

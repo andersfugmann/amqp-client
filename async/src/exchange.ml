@@ -1,4 +1,5 @@
 open Thread
+open Amqp_client_lib
 open Spec.Exchange
 
 (* type match_type = Any | All *)

@@ -1,4 +1,5 @@
 open Thread
+open Amqp_client_lib
 open Spec.Queue
 
 type t = { name: string }

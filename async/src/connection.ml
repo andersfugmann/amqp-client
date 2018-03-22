@@ -1,4 +1,5 @@
 open Thread
+open Amqp_client_lib
 open Spec.Connection
 
 let version = "1.1.5"
