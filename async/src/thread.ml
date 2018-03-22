@@ -8,10 +8,9 @@ module Deferred = struct
   let try_with f = Monitor.try_with ~extract_exn:true f >>= function
     | Core.Result.Ok v -> return (`Ok v)
     | Core.Result.Error exn -> return (`Error exn)
-
   module List = struct
     let init ~f n = Deferred.List.init ~f n
-    let iter ?(how:[>`Sequential | `Parallel] = `Parallel) ~f l = Deferred.List.iter ~how ~f l
+    let iter ?(how:[`Sequential | `Parallel] = `Parallel) ~f l = Deferred.List.iter ~how:(how :> Async_kernel.Monad_sequence.how) ~f l
   end
 
 end
@@ -71,6 +70,13 @@ end
 
 (* Pipes *)
 module Pipe = struct
+  module Writer = struct
+    type 'a t = 'a Pipe.Writer.t
+  end
+  module Reader = struct
+    type 'a t = 'a Pipe.Reader.t
+  end
+
   let create () = Pipe.create ()
   let set_size_budget t = Pipe.set_size_budget t
   let flush t = Pipe.downstream_flushed t >>= fun _ -> return ()
@@ -87,13 +93,6 @@ module Pipe = struct
   let read r = Pipe.read r
   let iter r ~f = Pipe.iter r ~f
   let iter_without_pushback r ~f = Pipe.iter_without_pushback r ~f
-
-  module Writer = struct
-    type 'a t = 'a Pipe.Writer.t
-  end
-  module Reader = struct
-    type 'a t = 'a Pipe.Reader.t
-  end
 
 end
 
