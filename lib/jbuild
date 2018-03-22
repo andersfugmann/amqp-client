@@ -2,7 +2,7 @@
 
 (library
  ((name amqp_client_lib)
-  (public_name amqp-client)
+  (public_name amqp-client.lib)
   (modules (:standard \ mlist_test))
   (synopsis "Layer providing access to pervasives modules + helper modules")
  )

@@ -8,6 +8,6 @@
  ((name amqp_client_async)
   (public_name amqp-client-async)
   (synopsis "Amqp client using async for concurrency")
-  (libraries (ocplib-endian async amqp_client_lib))
+  (libraries (ocplib-endian async amqp-client.lib))
  )
 )
