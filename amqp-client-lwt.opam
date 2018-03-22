@@ -11,7 +11,7 @@ build-test: [["jbuilder" "runtest" "-p" name "-j" jobs]]
 depends: [
   "jbuilder" {build}
   "xml-light" {build}
-  "amqp-client"
+  "amqp-client" { = "1.1.5" }
   "ocplib-endian" {>= "0.6"}
   "lwt" {>= "2.4.6"}
 ]
