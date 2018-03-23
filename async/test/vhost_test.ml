@@ -1,5 +1,5 @@
 open Amqp
-open Amqp.Thread
+open Thread
 
 let test =
   Deferred.try_with (fun () -> Connection.connect ~id:"ocaml-amqp-tests" ~virtual_host:"/not_there" "localhost") >>= function

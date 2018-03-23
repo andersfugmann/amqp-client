@@ -9,6 +9,5 @@
   (public_name amqp-client-async)
   (synopsis "Amqp client using async for concurrency")
   (libraries (amqp-client.lib async))
-  (optional)
  )
 )

@@ -1,5 +1,5 @@
 open Amqp
-open Amqp.Thread
+open Thread
 let test =
   Connection.connect ~id:"ocaml-amqp-tests" "localhost" >>= fun connection ->
   Log.info "Connection started";

@@ -3,7 +3,7 @@
 (executable
  ((name mlist_test)
   (modules (mlist_test))
-  (libraries (amqp_client_lib))
+  (libraries (amqp-client.lib))
  )
 )
 

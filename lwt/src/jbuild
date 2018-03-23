@@ -28,6 +28,5 @@
   (public_name amqp-client-lwt)
   (synopsis "Amqp client using lwt for concurrency")
   (libraries (ocplib-endian lwt lwt.log lwt.unix amqp-client.lib))
-  (optional)
  )
 )

@@ -1,5 +1,5 @@
 open Amqp
-open Amqp.Thread
+open Thread
 
 let rec consume_queue channel queue =
   Queue.get ~no_ack:true channel queue >>= function

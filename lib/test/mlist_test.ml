@@ -1,4 +1,4 @@
-open Lib
+open Amqp_client_lib
 let test_empty =
   let t = Mlist.create () in
   assert ((Mlist.take ~pred:(fun _ -> true) t) = None);

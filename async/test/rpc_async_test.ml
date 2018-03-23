@@ -1,5 +1,5 @@
 open Amqp
-open Amqp.Thread
+open Thread
 
 let req_queue = "test.rpc"
 

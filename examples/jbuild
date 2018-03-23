@@ -9,5 +9,6 @@
 (alias
  ((name    runtest)
   (deps    (rpc_server.exe rpc_client.exe))
+  (package amqp-client-async)
  )
 )

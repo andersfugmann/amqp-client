@@ -1,5 +1,5 @@
 open Amqp
-open Amqp.Thread
+open Thread
 
 let rec repeat channel queue =
   Log.info "rep";

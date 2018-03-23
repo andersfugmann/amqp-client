@@ -1,5 +1,5 @@
 open Amqp
-open Amqp.Thread
+open Thread
 
 let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return ()
 
