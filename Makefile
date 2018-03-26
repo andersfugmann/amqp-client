@@ -35,9 +35,14 @@ update-version:
 doc:
 	jbuilder build --dev @doc
 
-commit-doc: doc
-	git -C html rm -fr \*
-	cp -av _build/default/_doc/* html
-	git -C html add '*' && echo ok
-	git -C html commit --amend -m "Update documentation"
-	git -C html push --force
+gh-pages: doc
+	git clone `git config --get remote.origin.url` .gh-pages --reference .
+	git -C .gh-pages checkout --orphan gh-pages
+	git -C .gh-pages reset
+	git -C .gh-pages clean -dxf
+	cp  -r _build/default/_doc/* .gh-pages
+	git -C .gh-pages add .
+	git -C .gh-pages config user.email 'docs@amqp-client'
+	git -C .gh-pages commit -m "Update documentation"
+	git -C .gh-pages push origin gh-pages -f
+	rm -rf .gh-pages

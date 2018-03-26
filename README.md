@@ -22,13 +22,12 @@ The high level interface exposes usage patterns such as
  * RPC client / server
 
 The library requires all resources to be explicitly allocated to avoid
-crashes because a service is replying on other services to allocate AMQP resources
-(exchanges, queues etc.).
+crashes because a service is relying on other services to allocate
+AMQP resources (exchanges, queues etc.).
 
 Channels and consumers are tagged with an id, host name, pid etc. to ease tracing on AMQP level.
 
-[Documentation for the API (async version)](http://andersfugmann.github.io/amqp-client/amqp-client.async/Amqp/index.html).
-
+[Documentation for the API (http://andersfugmann.github.io/amqp-client/).
 
 ### Build infrastructure
 
@@ -53,7 +52,7 @@ To build the library
 
 ```make build```
 
-```make install``` will install both Lwt and Async.
+```make install``` will install both Lwt and Async versions.
 
 ### Using the library
 
