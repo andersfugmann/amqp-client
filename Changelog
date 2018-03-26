@@ -1,4 +1,4 @@
-1.1.6:
+2.0.0:
 * Split into amqp-client-async and amqp-client-lwt
 
 1.1.5:
