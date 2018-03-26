@@ -28,8 +28,9 @@ integration: build
 update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')
 update-version:
 	@echo "Set version to: $(VERSION)"
-	@sed -i 's/version = ".*"/version = "$(VERSION)"/' async/connection.ml
-	@sed -i 's/^version: ".*"/version: "$(VERSION)"/' amqp-client.opam
+	@sed -i 's/version = ".*"/version = "$(VERSION)"/' async/src/connection.ml
+	@sed -i 's/^version: ".*"/version: "$(VERSION)"/' amqp-client*.opam
+	@sed -i "s/\(.*\"amqp-client\" { = \"\).*\(\" }\)/\1${VERSION}\2/" amqp-client-*.opam
 
 doc:
 	jbuilder build --dev @doc
