@@ -15,5 +15,5 @@ depends: [
   "async" {test}
   "lwt" {test}
 ]
-# This package is transitional. Users should use async or lwt version.
+
 available: [ ocaml-version >= "4.04.1" ]

@@ -46,3 +46,7 @@ gh-pages: doc
 	git -C .gh-pages commit -m "Update documentation"
 	git -C .gh-pages push origin gh-pages -f
 	rm -rf .gh-pages
+
+release: VERSION=$(shell head -n 1 Changelog | sed 's/://')
+release:
+	@./release.sh "$(VERSION)"
