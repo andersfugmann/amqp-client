@@ -1,3 +1,6 @@
+2.0.1:
+* Compatibility with lwt 4.0.0
+
 2.0.0:
 * Split into amqp-client-async and amqp-client-lwt
 
