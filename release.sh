@@ -8,7 +8,7 @@ BASENAME=$(basename $PWD)
 
 for f in ${BASENAME}*.opam; do
     NAME=$(basename -s .opam $f)
-    echo "Relase package $NAME.$VERSION"
+    echo "Release package $NAME.$VERSION"
     DIR=${BASE}/${NAME}/${NAME}.${VERSION}
     mkdir -p ${DIR}
 
