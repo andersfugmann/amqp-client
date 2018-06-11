@@ -27,7 +27,7 @@ AMQP resources (exchanges, queues etc.).
 
 Channels and consumers are tagged with an id, host name, pid etc. to ease tracing on AMQP level.
 
-[Documentation for the API (http://andersfugmann.github.io/amqp-client/).
+[Documentation for the API](http://andersfugmann.github.io/amqp-client/).
 
 ### Build infrastructure
 
@@ -44,6 +44,7 @@ It is recommended to install the package though opam.
 You should choose the package matching the concurrency library that your application will use
 
 For Janestreet async: `opam install amqp-client-async`
+
 For Ocsigen Lwt: `opam install amqp-client-lwt`
 
 #### Manual build
