@@ -1,3 +1,7 @@
+2.0.2:
+* Add rabbitmq AMQP spec to git repository to fix sandbox compilation
+  (Leonidas-from-XIV)
+
 2.0.1:
 * Compatibility with lwt 4.0.0
 
