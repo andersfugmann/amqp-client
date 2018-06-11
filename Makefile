@@ -1,5 +1,5 @@
 NPROC := $(shell nproc || echo 4)
-.PHONY: all build clean test install update-version doc commit-doc
+.PHONY: all build clean test install update-version update-spec doc commit-doc
 all: build
 
 build:
@@ -31,6 +31,10 @@ update-version:
 	@sed -i 's/version = ".*"/version = "$(VERSION)"/' async/src/connection.ml
 	@sed -i 's/^version: ".*"/version: "$(VERSION)"/' amqp-client*.opam
 	@sed -i "s/\(.*\"amqp-client\" { = \"\).*\(\" }\)/\1${VERSION}\2/" amqp-client-*.opam
+
+update-spec:
+	@echo "Retrieving AMQP spec from RabbitMQ servers"
+	curl --fail https://www.rabbitmq.com/resources/specs/amqp0-9-1.extended.xml > spec/amqp0-9-1.extended.xml
 
 doc:
 	jbuilder build --dev @doc

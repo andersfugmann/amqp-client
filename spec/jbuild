@@ -7,12 +7,6 @@
  )
 )
 
-(rule (
-  (targets (amqp0-9-1.extended.xml))
-  (action (with-stdout-to ${@} (run curl http://www.rabbitmq.com/resources/specs/amqp0-9-1.extended.xml)))
- )
-)
-
 (rule
  ((targets (spec.ml))
   (deps    (amqp0-9-1.extended.xml gen_spec.exe))
