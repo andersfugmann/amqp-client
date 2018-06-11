@@ -7,3 +7,4 @@ html
 amqp-client*.install
 tests/jbuild
 amqp-client.[0-9].*
+/_opam/
