@@ -1,6 +1,6 @@
 open Printf
 let indent = ref 0
-let no_loc = ref false
+let emit_location = ref true
 
 let option_map ~f = function
   | Some v -> f v
@@ -11,11 +11,12 @@ let option_iter ~f = function
   | None -> ()
 
 let emit_loc loc =
-  match !no_loc with
-  | true -> ()
-  | false ->
+  match !emit_location with
+  | true ->
     let indent = String.make (!indent * 2) ' ' in
-    printf "%s# %d \"%s\"\n" indent loc __FILE__
+    printf "%s(* %s:%d *)\n" indent __FILE__ loc
+  | false ->
+    printf "# %d \"%s\"\n" loc __FILE__
 
 let emit ?loc fmt =
   option_iter ~f:emit_loc loc;
@@ -462,7 +463,7 @@ let () =
                             | "specification" -> Specification
                             | _ -> failwith "Illegal argument"
                          ), "Type of output";
-     "-noloc", Arg.Set no_loc, "Inhibit emission of location pointers"
+     "-noloc", Arg.Clear emit_location, "Inhibit emission of location pointers"
     ]
     (fun f -> filename := f)
     "Generate protocol code";
