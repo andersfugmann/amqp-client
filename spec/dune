@@ -1,0 +1,17 @@
+(executable
+ (name gen_spec)
+ (modules Gen_spec)
+ (libraries xml-light str)
+)
+
+(rule
+ (targets spec.ml)
+ (deps    amqp0-9-1.extended.xml)
+ (action  (with-stdout-to %{targets} (run ./gen_spec.exe -type specification %{deps})))
+)
+
+(rule
+ (targets constants.ml)
+ (deps    amqp0-9-1.extended.xml)
+ (action  (with-stdout-to %{targets} (run ./gen_spec.exe -type constants %{deps})))
+)

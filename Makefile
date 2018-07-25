@@ -1,29 +1,28 @@
-NPROC := $(shell nproc || echo 4)
 .PHONY: all build clean test install update-version update-spec doc commit-doc
 all: build
 
 build:
-	jbuilder build @install --dev
+	dune build @install
 
 clean:
-	jbuilder clean
+	dune clean
 	rm -f test/jbuild
 
 test:
-	jbuilder runtest -j $(NPROC)
+	dune runtest
 
 install: build
-	jbuilder install
+	dune install
 
 uninstall:
-	jbuilder uninstall
+	dune uninstall
 
 # Run tests.
 tests/%.exe: tests/%.ml
 	jbuild build $@
 
 integration: build
-	jbuilder build @integration --dev
+	dune build @integration
 
 update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')
 update-version:
@@ -37,7 +36,7 @@ update-spec:
 	curl --fail https://www.rabbitmq.com/resources/specs/amqp0-9-1.extended.xml > spec/amqp0-9-1.extended.xml
 
 doc:
-	jbuilder build --dev @doc
+	dune build @doc
 
 gh-pages: doc
 	git clone `git config --get remote.origin.url` .gh-pages --reference .

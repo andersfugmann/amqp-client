@@ -1,0 +1,6 @@
+(library
+ (name amqp_client_lib)
+ (public_name amqp-client.lib)
+ (libraries ocplib-endian)
+ (synopsis "Layer providing access to pervasives modules + helper modules")
+)

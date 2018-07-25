@@ -1,0 +1,23 @@
+(executable
+ (name async_link)
+ (modules Async_link)
+ (libraries amqp-client-async)
+)
+
+(executable
+ (name lwt_link)
+ (modules Lwt_link)
+ (libraries amqp-client-lwt)
+)
+
+(alias
+ (name runtest)
+ (deps async_link.exe)
+ (package amqp-client-async)
+)
+
+(alias
+ (name runtest)
+ (deps lwt_link.exe)
+ (package amqp-client-lwt)
+)

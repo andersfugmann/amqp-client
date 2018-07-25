@@ -1,0 +1,11 @@
+(executable
+ (name mlist_test)
+ (modules mlist_test)
+ (libraries amqp-client.lib)
+)
+
+(alias
+ (name runtest)
+ (deps mlist_test.exe)
+ (action (run ./mlist_test.exe))
+)

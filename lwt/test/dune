@@ -1,0 +1,95 @@
+(rule (copy# ../../async/test/channel_test.ml channel_test.ml))
+(rule (copy# ../../async/test/close_test.ml close_test.ml))
+(rule (copy# ../../async/test/connection_test.ml connection_test.ml))
+(rule (copy# ../../async/test/exchange_test.ml exchange_test.ml))
+(rule (copy# ../../async/test/mandatory_test.ml mandatory_test.ml))
+(rule (copy# ../../async/test/queue_test.ml queue_test.ml))
+(rule (copy# ../../async/test/repeat.ml repeat.ml))
+(rule (copy# ../../async/test/rpc_async_test.ml rpc_async_test.ml))
+(rule (copy# ../../async/test/rpc_test.ml rpc_test.ml))
+(rule (copy# ../../async/test/vhost_test.ml vhost_test.ml))
+(rule (copy# ../../async/test/with_confirm_test.ml with_confirm_test.ml))
+
+(executables
+ (names channel_test
+        close_test
+        connection_test
+        exchange_test
+        mandatory_test
+        queue_test
+        repeat
+        rpc_async_test
+        rpc_test
+        vhost_test
+        with_confirm_test)
+  (libraries amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./channel_test.exe))
+ (locks  integration)
+ (package amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./connection_test.exe))
+ (locks  integration)
+ (package amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./exchange_test.exe))
+ (locks  integration)
+ (package amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./mandatory_test.exe))
+ (locks  integration)
+ (package amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./queue_test.exe))
+ (locks  integration)
+ (package amqp-client-lwt)
+)
+
+;(alias
+; ((name   integration)
+;  (action (run ./repeat.exe))
+;  (package amqp-client-lwt)
+;))
+
+(alias
+ (name   integration)
+ (action (run ./rpc_async_test.exe))
+ (locks  integration)
+ (package amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./rpc_test.exe))
+ (locks  integration)
+ (package amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./vhost_test.exe))
+ (locks  integration)
+ (package amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./with_confirm_test.exe))
+ (locks  integration)
+ (package amqp-client-lwt)
+)

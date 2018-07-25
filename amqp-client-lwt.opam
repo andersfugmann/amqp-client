@@ -6,10 +6,10 @@ bug-reports: "https://github.com/andersfugmann/amqp-client/issues"
 dev-repo: "https://github.com/andersfugmann/amqp-client.git"
 license: "BSD3"
 version: "2.0.2"
-build: [["jbuilder" "build" "-p" name "-j" jobs]]
-build-test: [["jbuilder" "runtest" "-p" name "-j" jobs]]
+build: [["dune" "build" "-p" name "-j" jobs]]
+build-test: [["dune" "runtest" "-p" name "-j" jobs]]
 depends: [
-  "jbuilder" {build}
+  "dune" {build}
   "xml-light" {build}
   "amqp-client" { = "2.0.2" }
   "ocplib-endian" {>= "0.6"}

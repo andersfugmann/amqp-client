@@ -1,0 +1,83 @@
+(executables
+ (names        channel_test
+                 close_test
+                 connection_test
+                 exchange_test
+                 mandatory_test
+                 queue_test
+                 repeat
+                 rpc_async_test
+                 rpc_test
+                 vhost_test
+                 with_confirm_test)
+  (libraries    amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./channel_test.exe))
+ (locks  integration)
+ (package amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./connection_test.exe))
+ (locks  integration)
+ (package amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./exchange_test.exe))
+ (locks  integration)
+ (package amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./mandatory_test.exe))
+ (locks  integration)
+ (package amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./queue_test.exe))
+ (locks  integration)
+ (package amqp-client-async)
+)
+
+;(alias
+; ((name   integration)
+;  (action (run ./repeat.exe))
+;  (package amqp-client-async)
+;))
+
+(alias
+ (name   integration)
+ (action (run ./rpc_async_test.exe))
+ (locks  integration)
+ (package amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./rpc_test.exe))
+ (locks  integration)
+ (package amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./vhost_test.exe))
+ (locks  integration)
+ (package amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./with_confirm_test.exe))
+ (locks  integration)
+ (package amqp-client-async)
+)
