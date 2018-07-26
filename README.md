@@ -27,7 +27,7 @@ AMQP resources (exchanges, queues etc.).
 
 Channels and consumers are tagged with an id, host name, pid etc. to ease tracing on AMQP level.
 
-[Documentation for the API](http://andersfugmann.github.io/amqp-client/).
+[Documentation for the API](http://andersfugmann.github.io/amqp-client/index.html).
 
 ### Build infrastructure
 
