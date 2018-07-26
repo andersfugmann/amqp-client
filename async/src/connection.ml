@@ -2,7 +2,7 @@ open Thread
 open Amqp_client_lib
 open Spec.Connection
 
-let version = "2.0.2"
+let version = "2.0.3"
 
 let string_until c str =
   try
