@@ -11,7 +11,9 @@ env:
   - OCAML_VERSION=4.05 PACKAGE="amqp-client-async" POST_INSTALL_HOOK="jbuilder build @integration -p amqp-client-async"
   - OCAML_VERSION=4.05 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="jbuilder build @integration -p amqp-client-lwt"
   - OCAML_VERSION=4.06 PACKAGE="amqp-client-async" POST_INSTALL_HOOK="jbuilder build @integration -p amqp-client-async"
-  - OCAML_VERSION=4.06 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="jbuilder build @integration  -p amqp-client-lwt"
+  - OCAML_VERSION=4.06 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="jbuilder build @integration -p amqp-client-lwt"
+  - OCAML_VERSION=4.07 PACKAGE="amqp-client-async" POST_INSTALL_HOOK="jbuilder build @integration -p amqp-client-async"
+  - OCAML_VERSION=4.07 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="jbuilder build @integration -p amqp-client-lwt"
 
   global:
   - DEPOPTS="*"
