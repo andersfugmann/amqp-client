@@ -2,7 +2,7 @@ open Thread
 open Amqp_client_lib
 open Spec.Connection
 
-let version = "2.0.3"
+let version = "2.1.0"
 
 let string_until c str =
   try
@@ -43,7 +43,7 @@ let reply_start framing (username, password) =
       locale = string_until ';' locales;
       Start_ok.client_properties = [
         "platform", VLongstr (Sys.os_type);
-        "library", VLongstr "ocaml-amqp";
+        "library", VLongstr "amqp-client (ocaml)";
         "version", VLongstr version;
         "client id", VLongstr (Framing.id framing);
         "capabilities", VTable [
