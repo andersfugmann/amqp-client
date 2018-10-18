@@ -19,10 +19,10 @@ uninstall:
 
 # Run tests.
 tests/%.exe: tests/%.ml
-	jbuild build $@
+	dune build $@
 
 integration: build
-	dune build @integration
+	dune build -j 1 @integration
 
 update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')
 update-version:
