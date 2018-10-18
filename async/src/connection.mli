@@ -38,3 +38,6 @@ val connect :
 *)
 val open_channel : id:string -> 'a Channel.confirms -> t -> 'a Channel.t Deferred.t
 val close : t -> unit Deferred.t
+
+(** [on_closed] becomes ready when the connection has been closed. *)
+val on_closed : t -> unit Deferred.t

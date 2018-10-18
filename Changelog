@@ -1,3 +1,8 @@
+2.1.0:
+* Use dune commands in makefile
+* Reimplement Ivar for lwt based on Lwt.wait
+* Add on_closed function for channels and connections
+
 2.0.3:
 * Fix compilation on 4.07
 * Switch to dune build system

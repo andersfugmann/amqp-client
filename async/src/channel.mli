@@ -36,6 +36,9 @@ val create : id:string -> 'a confirms ->
 (** Close the channel *)
 val close : _ t -> unit Deferred.t
 
+(** [on_closed] becomes determined after then channel is closed *)
+val on_closed : _ t -> unit Deferred.t
+
 (** Receive all returned messages. Reutnred message will be send to
     all readers returned from call to this function.  Listening for
     returned messages are useful in e.g. rpc to know that message

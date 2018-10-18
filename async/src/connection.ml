@@ -15,6 +15,7 @@ type t = { framing: Framing.t;
            virtual_host: string;
            mutable channel: int;
            mutable closing: bool;
+           closed: unit Ivar.t;
          }
 
 let reply_start framing (username, password) =
@@ -103,7 +104,6 @@ let rec send_heartbeat delay t =
   end
 
 let register_blocked_handler framing =
-
   let (_, read_blocked) = Blocked.Internal.read in
   let (_, read_unblocked) = Unblocked.Internal.read in
   let blocked_handler { Blocked.reason } =
@@ -121,18 +121,18 @@ let open_connection { framing; virtual_host; _ } =
   return x
 
 let connection_closed t _s =
-  match t.closing with
-  | true ->
-      Log.info "Close Received ok";
-      return ()
-  | false -> raise Types.Connection_closed
+  Ivar.fill t.closed ();
+  return ()
 
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 
   Tcp.connect ~nodelay:() host port >>= fun (input, output) ->
 
   let framing = Framing.init ~id input output in
-  let t = { framing; virtual_host; channel = 0; closing = false } in
+  let t =
+    { framing; virtual_host; channel = 0; closing = false;
+      closed = Ivar.create () }
+  in
   Framing.start framing (connection_closed t) >>= fun () ->
   reply_start framing credentials >>= fun () ->
   reply_tune framing >>= fun server_heartbeat ->
@@ -163,3 +163,5 @@ let close t =
                                  method_id = 0;
                                } >>= fun () ->
   Framing.close t.framing
+
+let on_closed t = Ivar.read t.closed
