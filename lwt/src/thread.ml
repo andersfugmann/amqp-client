@@ -11,37 +11,35 @@ let with_timeout seconds deferred =
     deferred >>| (fun success -> `Result success)
   ]
 
+(* Replace with simpler Lwt.wait *)
 module Ivar = struct
-  type 'a state = Empty of 'a Lwt_condition.t
-                | Full of 'a
-  type 'a t = { mutable state: 'a state }
+  type 'a t = { t: 'a Lwt.t;
+                u: 'a Lwt.u;
+              }
   let create () =
-    { state = Empty (Lwt_condition.create ()) }
+    let (t,u) = Lwt.wait () in
+    { t; u }
 
-  let create_full v = { state = Full v }
-
-  let fill t v =
-    match t.state with
-    | Empty c -> Lwt_condition.broadcast c v;
-      t.state <- Full v
-    | Full _ -> failwith "Var already filled"
-
-  let read t =
-    match t.state with
-    | Empty c ->
-      Lwt_condition.wait c >>= fun v ->
-      return v
-    | Full v ->
-      return v
+  let create_full v =
+    let t = create () in
+    Lwt.wakeup_later t.u v;
+    t
 
   let is_full t =
-    match t.state with
-    | Empty _ -> false
-    | Full _ -> true
+    Lwt.is_sleeping t.t |> not
+
+  let fill t v =
+    match is_full t with
+    | false ->
+      Lwt.wakeup_later t.u v;
+    | true -> failwith "Var already filled"
+
+  let read t = t.t
 
   let fill_if_empty t v =
-    if (not (is_full t)) then
-      fill t v
+    match is_full t with
+    | false -> fill t v
+    | true -> ()
 end
 
 module Deferred = struct
