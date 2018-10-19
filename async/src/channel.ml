@@ -39,7 +39,7 @@ type 'a t = { framing: Framing.t;
               mutable counter: int;
               publish_confirm: 'a pcp;
               mutable return_handlers: return_handler list;
-              closed: unit Ivar.t;
+              mutable closed: unit Ivar.t option;
             }
 
 let channel { framing; channel_no; _ } = (framing, channel_no)
@@ -93,13 +93,16 @@ module Internal = struct
     | Pcp_no_confirm -> return `Ok
 end
 
-let close_handler ivar channel_no close =
+let close_handler t channel_no close =
   Log.info "Channel closed: %d" channel_no;
   Log.info "Reply code: %d\n" close.Channel.Close.reply_code;
   Log.info "Reply text: %s\n" close.Channel.Close.reply_text;
   Log.info "Message: (%d, %d)\n" close.Channel.Close.class_id close.Channel.Close.method_id;
-  Ivar.fill ivar ();
-  return ()
+  match t.closed with
+  | None -> raise (Types.Channel_closed channel_no)
+  | Some ivar ->
+    Ivar.fill ivar ();
+    return ()
 
 let register_flow_handler t =
   let (_, read) = Channel.Flow.Internal.read in
@@ -149,17 +152,21 @@ let register_return_handler t =
 let create: type a. id:string -> a confirms -> Framing.t -> Framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
   let consumers = Hashtbl.create 0 in
   let id = Printf.sprintf "%s.%s.%d" (Framing.id framing) id channel_no in
-  let closed = Ivar.create () in
   Framing.open_channel framing channel_no >>= fun () ->
-  spawn (Channel.Close.reply (framing, channel_no) (close_handler closed channel_no));
-  Channel.Open.request (framing, channel_no) () >>= fun () ->
-
   let publish_confirm : a pcp = match confirm_type with
     | With_confirm ->
       Pcp_with_confirm { message_count = 0; unacked = Mlist.create () }
     | No_confirm ->
       Pcp_no_confirm
   in
+  let t =
+    { framing; channel_no; consumers; id; counter = 0;
+      publish_confirm; return_handlers = []; closed = None; }
+  in
+
+  spawn (Channel.Close.reply (framing, channel_no) (close_handler t channel_no));
+  Channel.Open.request (framing, channel_no) () >>= fun () ->
+
   begin match publish_confirm with
   | Pcp_with_confirm t ->
     handle_confirms (framing, channel_no) t >>= fun return_handler ->
@@ -167,10 +174,7 @@ let create: type a. id:string -> a confirms -> Framing.t -> Framing.channel_no -
   | Pcp_no_confirm ->
     return []
   end >>= fun return_handlers ->
-  let t =
-    { framing; channel_no; consumers; id; counter = 0;
-      publish_confirm; return_handlers; closed; }
-  in
+  t.return_handlers <- return_handlers;
   Internal.register_deliver_handler t;
 
   register_flow_handler t;
@@ -197,7 +201,17 @@ let on_return t =
   t.return_handlers <- handler :: t.return_handlers;
   reader
 
-let on_closed t = Ivar.read t.closed
+let on_closed t =
+  let ivar =
+    match t.closed with
+    | Some ivar ->
+      ivar
+    | None ->
+      let ivar = Ivar.create () in
+      t.closed <- Some ivar;
+      ivar
+  in
+  Ivar.read ivar
 
 let flush t =
   Framing.flush_channel t.framing t.channel_no

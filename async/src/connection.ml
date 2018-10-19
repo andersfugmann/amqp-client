@@ -15,7 +15,7 @@ type t = { framing: Framing.t;
            virtual_host: string;
            mutable channel: int;
            mutable closing: bool;
-           closed: unit Ivar.t;
+           mutable closed: unit Ivar.t option;
          }
 
 let reply_start framing (username, password) =
@@ -81,15 +81,15 @@ let reply_tune framing =
   Ivar.read var >>= fun v ->
   return v
 
-let reply_close framing =
+let reply_close _t framing =
   let reply { Close.reply_code;
               reply_text;
-              class_id;
-              method_id;
+              class_id = _;
+              method_id = _;
             } =
-    Log.info "Reply code: %d" reply_code;
-    Log.info "Reply test: %s" reply_text;
-    Log.info "message_id: (%d, %d)" class_id method_id;
+    Log.info "Closed code: %d" reply_code;
+    Log.info "Closed text: %s" reply_text;
+    (* Ivar.fill t.closed (); *)
     return ()
   in
   Close.reply (framing, 0) reply
@@ -121,8 +121,25 @@ let open_connection { framing; virtual_host; _ } =
   return x
 
 let connection_closed t _s =
-  Ivar.fill t.closed ();
-  return ()
+  match t with
+  | { closed = Some ivar; _ } ->
+    Ivar.fill ivar ();
+    Framing.close t.framing
+  | { closing = false; _ } ->
+    raise Types.Connection_closed
+  | { closing = true; _ } ->
+    return ()
+
+let on_closed t =
+  let ivar = match t.closed with
+    | None ->
+      let ivar = Ivar.create () in
+      t.closed <- Some ivar;
+      ivar
+    | Some ivar ->
+      ivar
+  in
+  Ivar.read ivar
 
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 
@@ -131,7 +148,7 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
   let framing = Framing.init ~id input output in
   let t =
     { framing; virtual_host; channel = 0; closing = false;
-      closed = Ivar.create () }
+      closed = None }
   in
   Framing.start framing (connection_closed t) >>= fun () ->
   reply_start framing credentials >>= fun () ->
@@ -147,7 +164,7 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
   end;
   open_connection t >>= fun () ->
   register_blocked_handler framing;
-  spawn (reply_close framing);
+  spawn (reply_close t framing);
   return t
 
 let open_channel ~id confirms t =
@@ -163,5 +180,3 @@ let close t =
                                  method_id = 0;
                                } >>= fun () ->
   Framing.close t.framing
-
-let on_closed t = Ivar.read t.closed

@@ -1,5 +1,5 @@
 (executables
- (names rpc_server rpc_client main)
+ (names rpc_server rpc_client main on_closed)
  (libraries amqp-client-async)
 )
 

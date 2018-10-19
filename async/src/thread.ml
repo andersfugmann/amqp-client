@@ -26,13 +26,7 @@ let with_timeout seconds deferred =
   Clock.with_timeout duration deferred
 
 module Ivar = struct
-  type 'a t = 'a Ivar.t
-  let create = Ivar.create
-  let create_full = Ivar.create_full
-  let fill = Ivar.fill
-  let read t = Ivar.read t
-  let is_full = Ivar.is_full
-  let fill_if_empty = Ivar.fill_if_empty
+  include Ivar
 end
 
 module Reader = struct
