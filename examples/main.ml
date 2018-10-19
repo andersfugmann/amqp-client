@@ -1,5 +1,5 @@
-open Amqp
-open Amqp.Thread
+open Amqp_client_async
+open Thread
 
 let consume channel queue =
   let handler { Message.message = (_content, body); _ } =
