@@ -9,7 +9,7 @@ extensions. It supports both Core Async and Lwt threading models.
 Amqp-client is tested extensively against RabbitMQ, but should work
 with any AMQP server.
 
-The library exposes low level protocol handling though ```Amqp_spec```
+The library exposes low level protocol handling through ```Amqp_spec```
 and ```Amqp_framing``` modules as well as a high level interface
 though module ```Amqp```.
 
@@ -26,7 +26,14 @@ The library requires all resources to be explicitly allocated to avoid
 crashes because a service is relying on other services to allocate
 AMQP resources (exchanges, queues etc.).
 
-Channels and consumers are tagged with an id, host name, pid etc. to ease tracing on AMQP level.
+Channels and consumers are tagged with an id, host name, pid etc. to
+ease tracing on AMQP level.
+
+The design philiosiphy of the library is *fail fast*, meaning that if
+any external state changes (e.g. connection closes unexpectibly, queu
+consumption is cancelled) an exception is raised, and It is adviced to
+let the process crash and restart initialization rather than going
+through the complex task of reparing the state.
 
 [Documentation for the API](http://andersfugmann.github.io/amqp-client/index.html).
 
