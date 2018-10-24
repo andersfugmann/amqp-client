@@ -43,9 +43,6 @@ type 'a consumer = { channel: 'a Channel.t;
                      tag: string;
                      writer: Message.t Pipe.Writer.t }
 
-let default_cancel_handler consumer_tag () =
-  raise (Types.Consumer_cancelled consumer_tag)
-
 (** Consume message from a queue. *)
 let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false)
     ?on_cancel channel t =
@@ -53,7 +50,12 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false)
   let (reader, writer) = Pipe.create () in
   let consumer_tag = Printf.sprintf "%s.%s" (Channel.Internal.unique_id channel) id
   in
-  let on_cancel = Option.get ~default:(default_cancel_handler consumer_tag) on_cancel in
+  let on_cancel () =
+    Pipe.close_without_pushback writer;
+    match on_cancel with
+    | Some f -> f ()
+    | None -> raise (Types.Consumer_cancelled consumer_tag)
+  in
 
   let to_writer (deliver, header, body) =
     { Message.delivery_tag = deliver.Deliver.delivery_tag;
