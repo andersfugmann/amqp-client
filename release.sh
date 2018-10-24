@@ -13,7 +13,8 @@ for f in ${BASENAME}*.opam; do
     mkdir -p ${DIR}
 
     grep -Ev '^version:' ${NAME}.opam > ${DIR}/opam
-    cp ${NAME}.descr ${DIR}/descr
-    echo "http: \"$URL\"" > ${DIR}/url
-    echo "checksum: \"${CHECKSUM}\"" >> ${DIR}/url
+    echo "url {" >> ${DIR}/opam
+    echo "  src: \"${URL}\"" >> ${DIR}/opam
+    echo "  checksum: \"md5=${CHECKSUM}\"" >> ${DIR}/opam
+    echo "}" >> ${DIR}/opam
 done
