@@ -1,8 +1,12 @@
 (executables
- (names rpc_server rpc_client main on_closed)
+ (names rpc_server rpc_client main on_closed multi_receive)
  (libraries amqp-client-async)
 )
 
+(alias
+ (name examples)
+ (deps rpc_server.exe rpc_client.exe main.exe on_closed.exe multi_receive.exe)
+)
 
 (alias
  (name    runtest)

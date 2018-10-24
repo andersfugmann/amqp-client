@@ -1,6 +1,7 @@
 open Amqp_client_async
 open Thread
 
+(* Demonstrate how on_close can be used *)
 
 let _ =
   let _ =

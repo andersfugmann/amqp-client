@@ -24,6 +24,9 @@ tests/%.exe: tests/%.ml
 integration: build
 	dune build -j 1 @integration
 
+examples: build
+	dune build @examples
+
 update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')
 update-version:
 	@echo "Set version to: $(VERSION)"
