@@ -1,5 +1,6 @@
 OCaml client library for AMQP
 =============================
+[![BuildStatus](https://travis-ci.org/andersfugmann/amqp-client.svg?branch=master)](https://travis-ci.org/andersfugmann/amqp-client)
 
 Amqp-client is a AMQP client library written in pure OCaml. The
 library implements AMQP protocol version 0.9.1 as well as RabbitMQ-specific
