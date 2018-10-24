@@ -3,7 +3,7 @@ let (>>=) = Lwt.(>>=)
 let (>>|) = Lwt.(>|=)
 let return = Lwt.return
 let after ms = Lwt_unix.sleep (ms /. 1000.0)
-let spawn t = Lwt.ignore_result t
+let spawn t = Lwt.async (fun () -> t)
 
 let with_timeout seconds deferred =
   Lwt.pick [
