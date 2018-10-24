@@ -9,7 +9,8 @@
                  rpc_async_test
                  rpc_test
                  vhost_test
-                 with_confirm_test)
+                 with_confirm_test
+                 queue_cancel_test)
   (libraries    amqp-client-async)
 )
 
@@ -78,6 +79,13 @@
 (alias
  (name   integration)
  (action (run ./with_confirm_test.exe))
+ (locks  integration)
+ (package amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./queue_cancel_test.exe))
  (locks  integration)
  (package amqp-client-async)
 )

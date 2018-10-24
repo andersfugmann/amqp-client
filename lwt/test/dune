@@ -9,6 +9,7 @@
 (rule (copy# ../../async/test/rpc_test.ml rpc_test.ml))
 (rule (copy# ../../async/test/vhost_test.ml vhost_test.ml))
 (rule (copy# ../../async/test/with_confirm_test.ml with_confirm_test.ml))
+(rule (copy# ../../async/test/queue_cancel_test.ml queue_cancel_test.ml))
 
 (executables
  (names channel_test
@@ -21,7 +22,8 @@
         rpc_async_test
         rpc_test
         vhost_test
-        with_confirm_test)
+        with_confirm_test
+        queue_cancel_test)
   (libraries amqp-client-lwt)
 )
 
@@ -90,6 +92,13 @@
 (alias
  (name   integration)
  (action (run ./with_confirm_test.exe))
+ (locks  integration)
+ (package amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./queue_cancel_test.exe))
  (locks  integration)
  (package amqp-client-lwt)
 )
