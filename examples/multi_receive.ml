@@ -27,6 +27,9 @@ let handler_b channel message =
   | _ -> Printf.printf "No reply destination for message: %s" data;
     return ()
 
+let consumer_cancelled () =
+  Log.info "Consumer cancelled"
+
 let _ =
   (* Setup queue a *)
   Connection.connect ~id:"multi_receive_example" "localhost" >>= fun connection ->
@@ -41,7 +44,7 @@ let _ =
      other consumers must be present for the queue *)
 
   Queue.consume ~id:"relay_a" ~no_ack:true ~exclusive:true channel queue_a >>= fun (_consumer_a, reader_a) ->
-  Queue.consume ~id:"reply_b" ~no_ack:true ~exclusive:true channel queue_b >>= fun (_consumer_b, reader_b) ->
+  Queue.consume ~id:"reply_b" ~on_cancel:consumer_cancelled ~no_ack:true ~exclusive:true channel queue_b >>= fun (_consumer_b, reader_b) ->
 
 
   spawn (Pipe.iter reader_a ~f:(handler_a queue_b channel));
@@ -56,7 +59,6 @@ let _ =
       Printf.printf "Reply: %s\n%!" data;
       request (i + 1)
     | None ->
-      Printf.printf "No reply\n%!";
       request (i + 1)
   in
   request 0 >>= fun () ->

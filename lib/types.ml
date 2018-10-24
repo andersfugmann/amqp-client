@@ -4,6 +4,7 @@ exception Channel_closed of int
 exception Channel_not_found of int
 exception Unknown_frame_type of int
 exception No_handler_found
+exception Consumer_cancelled of string
 exception Busy
 
 type class_id = int

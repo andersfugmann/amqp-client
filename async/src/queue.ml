@@ -43,11 +43,17 @@ type 'a consumer = { channel: 'a Channel.t;
                      tag: string;
                      writer: Message.t Pipe.Writer.t }
 
+let default_cancel_handler consumer_tag () =
+  raise (Types.Consumer_cancelled consumer_tag)
+
 (** Consume message from a queue. *)
-let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =
+let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false)
+    ?on_cancel channel t =
   let open Spec.Basic in
   let (reader, writer) = Pipe.create () in
-  let consumer_tag = Printf.sprintf "%s.%s" (Channel.Internal.unique_id channel) id in
+  let consumer_tag = Printf.sprintf "%s.%s" (Channel.Internal.unique_id channel) id
+  in
+  let on_cancel = Option.get ~default:(default_cancel_handler consumer_tag) on_cancel in
 
   let to_writer (deliver, header, body) =
     { Message.delivery_tag = deliver.Deliver.delivery_tag;
@@ -68,7 +74,7 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) channel t =
   in
   let var = Ivar.create () in
   let on_receive consume_ok =
-    Channel.Internal.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag to_writer;
+    Channel.Internal.register_consumer_handler channel consume_ok.Consume_ok.consumer_tag to_writer on_cancel;
     Ivar.fill var consume_ok
   in
   let read = snd Consume_ok.Internal.read in

@@ -50,7 +50,7 @@ let reply_start framing (username, password) =
           "publisher_confirms", VBoolean true;
           "exchange_exchange_bindings", VBoolean true;
           "basic.nack", VBoolean true;
-          "consumer_cancel_notify", VBoolean false;
+          "consumer_cancel_notify", VBoolean true;
           "connection.blocked", VBoolean true;
           "consumer_priorities", VBoolean true;
           "authentication_failure_close", VBoolean true;

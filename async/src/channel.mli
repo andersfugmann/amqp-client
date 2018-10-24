@@ -3,8 +3,9 @@ open Thread
 open Spec
 
 (**/**)
+type on_cancel = unit -> unit
 type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
-type consumers = (string, consumer) Hashtbl.t
+type consumers = (string, consumer * on_cancel) Hashtbl.t
 (**/**)
 
 type _ t
@@ -13,7 +14,7 @@ type _ t
 val channel : _ t -> Framing.t * int
 
 module Internal : sig
-  val register_consumer_handler : _ t -> string -> consumer -> unit
+  val register_consumer_handler : _ t -> string -> consumer -> on_cancel -> unit
   val deregister_consumer_handler : _ t -> string -> unit
   val wait_for_confirm : 'a t -> routing_key:string -> exchange_name:string -> 'a Deferred.t
   val unique_id : _ t -> string

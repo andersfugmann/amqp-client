@@ -40,17 +40,22 @@ val publish :
   ?mandatory:bool ->
   Message.message -> 'a Deferred.t
 
-(** Setup consumption of a queue.
-    Remember to ack messages.
+(** Setup consumption of a queue.  Remember to ack messages.
 
-    All messages are processed concurrently.
-    To limit number of concurrent processes, set the prefetch threshold.
+    All messages are processed concurrently.  To limit number of
+    concurrent processes, set the prefetch threshold.
+
+    [on_cancel] is called if the server cancels consumption. This may
+    happen if e.g. the queue is deleted. If the argument is not
+    provided and exception is raised.
+
 *)
 val consume :
   id:string ->
   ?no_local:bool ->
   ?no_ack:bool ->
   ?exclusive:bool ->
+  ?on_cancel:(unit -> unit) ->
   'a Channel.t ->
   t ->
   ('a consumer * Message.t Pipe.Reader.t) Deferred.t

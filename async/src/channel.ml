@@ -13,8 +13,9 @@ type _ confirms =
 let no_confirm = No_confirm
 let with_confirm = With_confirm
 
+type on_cancel = unit -> unit
 type consumer = Basic.Deliver.t * Basic.Content.t * string -> unit
-type consumers = (string, consumer) Hashtbl.t
+type consumers = (string, consumer * on_cancel) Hashtbl.t
 
 type result = Delivered | Rejected | Undeliverable
 type message_info = { delivery_tag: int;
@@ -56,7 +57,7 @@ module Internal = struct
     let open Basic in
     let handler (deliver, (content, data)) =
       try
-        let handler = Hashtbl.find t.consumers deliver.Deliver.consumer_tag in
+        let handler, _ = Hashtbl.find t.consumers deliver.Deliver.consumer_tag in
         handler (deliver, content, data);
         (* Keep the current handler *)
       with
@@ -65,9 +66,9 @@ module Internal = struct
     let read = snd Deliver.Internal.read in
     read ~once:false handler (channel t)
 
-  let register_consumer_handler t consumer_tag handler =
+  let register_consumer_handler t consumer_tag handler on_cancel =
     if Hashtbl.mem t.consumers consumer_tag then raise Types.Busy;
-    Hashtbl.add t.consumers consumer_tag handler
+    Hashtbl.add t.consumers consumer_tag (handler, on_cancel)
 
   let deregister_consumer_handler t consumer_tag =
     Hashtbl.remove t.consumers consumer_tag
@@ -103,6 +104,18 @@ let close_handler t channel_no close =
   | Some ivar ->
     Ivar.fill ivar ();
     return ()
+
+let consumer_cancel_handler t (cancel : Basic.Cancel.t) =
+  let consumer_tag = cancel.Basic.Cancel.consumer_tag in
+  try
+    let _, on_cancel = Hashtbl.find t.consumers consumer_tag in
+    (* Remove the handler *)
+    Hashtbl.remove t.consumers consumer_tag;
+    on_cancel ()
+  with
+  | Not_found ->
+    failwith
+      ("Cannot cancel consumer, as no handler was found for consumer: " ^ consumer_tag)
 
 let register_flow_handler t =
   let (_, read) = Channel.Flow.Internal.read in
@@ -149,6 +162,7 @@ let register_return_handler t =
   let handler m = List.iter (fun h -> h (Some m)) t.return_handlers in
   read ~once:false handler (channel t)
 
+
 let create: type a. id:string -> a confirms -> Framing.t -> Framing.channel_no -> a t Deferred.t = fun ~id confirm_type framing channel_no ->
   let consumers = Hashtbl.create 0 in
   let id = Printf.sprintf "%s.%s.%d" (Framing.id framing) id channel_no in
@@ -165,6 +179,9 @@ let create: type a. id:string -> a confirms -> Framing.t -> Framing.channel_no -
   in
 
   spawn (Channel.Close.reply (framing, channel_no) (close_handler t channel_no));
+  let (_, read) = Basic.Cancel.Internal.read in
+  read ~once:false (consumer_cancel_handler t) (framing, channel_no);
+
   Channel.Open.request (framing, channel_no) () >>= fun () ->
 
   begin match publish_confirm with

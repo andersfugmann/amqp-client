@@ -94,6 +94,7 @@ let read_method_content (message_id, spec, make, _apply) ((c_method, _), c_spec,
   in
   (message_id, read)
 
+
 let request0 req =
   fun channel msg ->
     req channel msg
