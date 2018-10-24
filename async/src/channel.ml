@@ -80,7 +80,7 @@ module Internal = struct
     | Undeliverable ->
       Ivar.fill ivar `Failed
 
-  (** Need to add if we should expect returns also. *)
+  (* Need to add if we should expect returns also. *)
   let wait_for_confirm: type a. a t -> routing_key:string -> exchange_name:string -> a Deferred.t = fun t ~routing_key ~exchange_name ->
     match t.publish_confirm with
     | Pcp_with_confirm t ->

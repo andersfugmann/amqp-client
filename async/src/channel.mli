@@ -36,7 +36,13 @@ val create : id:string -> 'a confirms ->
 (** Close the channel *)
 val close : _ t -> unit Deferred.t
 
-(** [on_closed] becomes determined after then channel is closed *)
+(** [on_closed] becomes determined after then channel is closed.
+
+    If there are no consumers of this when the channel is close
+    [Connection_closed] will be raised to the governing exception
+    handler (the parent monitor in async, or [Lwt.async_exception_hook]
+    in lwt).
+*)
 val on_closed : _ t -> unit Deferred.t
 
 (** Receive all returned messages. Reutnred message will be send to
