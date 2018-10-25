@@ -17,35 +17,35 @@
 (alias
  (name   integration)
  (action (run ./channel_test.exe))
- (locks  integration)
+ (locks  ../../integration)
  (package amqp-client-async)
 )
 
 (alias
  (name   integration)
  (action (run ./connection_test.exe))
- (locks  integration)
+ (locks  ../../integration)
  (package amqp-client-async)
 )
 
 (alias
  (name   integration)
  (action (run ./exchange_test.exe))
- (locks  integration)
+ (locks  ../../integration)
  (package amqp-client-async)
 )
 
 (alias
  (name   integration)
  (action (run ./mandatory_test.exe))
- (locks  integration)
+ (locks  ../../integration)
  (package amqp-client-async)
 )
 
 (alias
  (name   integration)
  (action (run ./queue_test.exe))
- (locks  integration)
+ (locks  ../../integration)
  (package amqp-client-async)
 )
 
@@ -58,34 +58,34 @@
 (alias
  (name   integration)
  (action (run ./rpc_async_test.exe))
- (locks  integration)
+ (locks  ../../integration)
  (package amqp-client-async)
 )
 
 (alias
  (name   integration)
  (action (run ./rpc_test.exe))
- (locks  integration)
+ (locks  ../../integration)
  (package amqp-client-async)
 )
 
 (alias
  (name   integration)
  (action (run ./vhost_test.exe))
- (locks  integration)
+ (locks  ../../integration)
  (package amqp-client-async)
 )
 
 (alias
  (name   integration)
  (action (run ./with_confirm_test.exe))
- (locks  integration)
+ (locks  ../../integration)
  (package amqp-client-async)
 )
 
 (alias
  (name   integration)
  (action (run ./queue_cancel_test.exe))
- (locks  integration)
+ (locks  ../../integration)
  (package amqp-client-async)
 )
