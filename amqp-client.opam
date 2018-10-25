@@ -18,7 +18,7 @@ depends: [
   "async" {with-test}
   "lwt" {with-test}
 ]
-synopsis: "Amqp client base library."
+synopsis: "Amqp client base library"
 description: """
 This library provides high level client bindings for amqp. The library
 is tested against rabbitmq, but should work against other amqp
