@@ -21,9 +21,9 @@ depends: [
 synopsis: "Amqp client base library"
 description: """
 This library provides high level client bindings for amqp. The library
-is tested against rabbitmq, but should work against other amqp
+is tested with rabbitmq, but should work with other amqp
 servers. The library is written in pure OCaml.
 
-This is the base library requires by lwt/async versions.
+This is the base library required by lwt/async versions.
 You should install either amqp-client-async or amqp-client-lwt
 for actual client functionality."""
