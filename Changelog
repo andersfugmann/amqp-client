@@ -3,6 +3,7 @@
 * Reimplement Ivar for lwt based on Lwt.wait
 * Add on_closed function for channels and connections
 * Support consumer cancellation from server
+* Add connect_uri to connect using uri.
 
 2.0.3:
 * Fix compilation on 4.07

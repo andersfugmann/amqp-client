@@ -33,6 +33,17 @@ val connect :
   ?heartbeat:int ->
   string -> t Deferred.t
 
+(** Connect to amqp using an uri.
+
+    [connect_uri ~id:"test" "amqp://localhost/"] connects to amqp server on localhost using default port and default username/password.
+
+    The uri must be on the form: [ampq://user:password@hostname:port/vhost?params].
+    Currently only 'heartbeat_interval=<sec>' parameter is used.
+*)
+val connect_uri :
+  id:string ->
+  string -> t Deferred.t
+
 (** Open a new channel.
     @param id identifies the channel for tracing and debugging
 *)

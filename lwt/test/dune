@@ -1,6 +1,7 @@
 (rule (copy# ../../async/test/channel_test.ml channel_test.ml))
 (rule (copy# ../../async/test/close_test.ml close_test.ml))
 (rule (copy# ../../async/test/connection_test.ml connection_test.ml))
+(rule (copy# ../../async/test/connect_uri_test.ml connect_uri_test.ml))
 (rule (copy# ../../async/test/exchange_test.ml exchange_test.ml))
 (rule (copy# ../../async/test/mandatory_test.ml mandatory_test.ml))
 (rule (copy# ../../async/test/queue_test.ml queue_test.ml))
@@ -15,6 +16,7 @@
  (names channel_test
         close_test
         connection_test
+        connect_uri_test
         exchange_test
         mandatory_test
         queue_test
@@ -36,6 +38,12 @@
 (alias
  (name   integration)
  (action (run ./connection_test.exe))
+ (package amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./connect_uri_test.exe))
  (package amqp-client-lwt)
 )
 

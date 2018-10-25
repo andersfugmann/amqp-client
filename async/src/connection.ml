@@ -167,6 +167,40 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
   spawn (reply_close t framing);
   return t
 
+
+let connect_uri ~id uri =
+  let u = Uri.of_string uri in
+  let () = match Uri.scheme u with
+    | None -> raise (Invalid_argument "scheme required")
+    | Some "amqp" -> ()
+    | Some scheme -> raise (Invalid_argument ("Unsupported scheme: " ^ scheme))
+  in
+  let credentials = match Uri.user u, Uri.password u with
+    | Some user, Some password -> Some (user, password)
+    | None, None -> None
+    | _ -> failwith "Both user and password must be supplied"
+  in
+
+  let virtual_host = match Uri.path u with
+    | "" -> None
+    | vhost -> Some vhost
+  in
+  let heartbeat =
+    match List.assoc_opt "heartbeat_interval" (Uri.query u) with
+    | Some [interval] ->
+      Some (int_of_string interval)
+    | Some _ ->
+      raise (Invalid_argument "heartbeat_interval specified multiple times")
+    | None ->
+      None
+  in
+
+  let host = match Uri.host u with
+    | None -> raise (Invalid_argument "Uri must contain a host part")
+    | Some h -> h
+  in
+  connect ~id ?virtual_host ?port:(Uri.port u) ?credentials ?heartbeat host
+
 let open_channel ~id confirms t =
   t.channel <- t.channel + 1;
   Channel.create ~id confirms t.framing t.channel
