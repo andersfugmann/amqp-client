@@ -1,7 +1,10 @@
 open Amqp
 open Thread
 
-let req_queue = "test.rpc"
+let uniq s =
+  Printf.sprintf "%s_%d_%s" (Filename.basename Sys.argv.(0)) (Unix.getpid ()) s
+
+let req_queue = (uniq "test.rpc")
 
 let start_server channel =
   let handler (content, body) =
@@ -21,12 +24,12 @@ let rec run_tests rpc_client i =
   | None -> failwith "No reply"
 
 let test =
-  Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
+  Connection.connect ~id:(uniq "") "localhost" >>= fun connection ->
   Log.info "Connection started";
-  Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
+  Connection.open_channel ~id:(uniq "test") Channel.no_confirm connection >>= fun channel ->
   Log.info "Channel opened";
   spawn (start_server channel);
-  Rpc.Client.init ~id:"rpc.client.test" connection >>= fun client ->
+  Rpc.Client.init ~id:(uniq "rpc.client.test") connection >>= fun client ->
   run_tests client 0 >>= fun () ->
   Channel.close channel >>= fun () ->
   Log.info "Channel closed";

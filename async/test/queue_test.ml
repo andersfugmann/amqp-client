@@ -1,14 +1,17 @@
 open Amqp
 open Thread
 
+let uniq s =
+  Printf.sprintf "%s_%d_%s" (Filename.basename Sys.argv.(0)) (Unix.getpid ()) s
+
 let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return ()
 
 let test =
-  Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
+  Connection.connect ~id:(uniq "") "localhost" >>= fun connection ->
   Log.info "Connection started";
-  Connection.open_channel ~id:"queue.test" Channel.no_confirm connection >>= fun channel ->
+  Connection.open_channel ~id:(uniq "queue.test") Channel.no_confirm connection >>= fun channel ->
   Log.info "Channel opened";
-  Queue.declare channel ~auto_delete:true "queue.test" >>= fun queue ->
+  Queue.declare channel ~auto_delete:true (uniq "queue.test") >>= fun queue ->
   Log.info "Queue declared";
   Channel.set_prefetch channel ~count:100 >>= fun () ->
   Log.info "Prefetch set";
@@ -31,12 +34,12 @@ let test =
   Log.info "Message received";
   Message.ack channel m >>= fun () ->
 
-  Exchange.declare channel Exchange.topic_t "test_exchange" >>= fun exchange ->
+  Exchange.declare channel Exchange.topic_t (uniq "test_exchange") >>= fun exchange ->
   Log.info "Exchange declared";
-  Queue.bind channel queue exchange (`Topic "test.#.key") >>= fun () ->
+  Queue.bind channel queue exchange (`Topic (uniq "test.#.key")) >>= fun () ->
   Log.info "Queue bind declared";
 
-  Exchange.publish channel exchange ~routing_key:"test.a.b.c.key" (Message.make "Test") >>= fun res ->
+  Exchange.publish channel exchange ~routing_key:(uniq "test.a.b.c.key") (Message.make "Test") >>= fun res ->
   assert (res = `Ok);
   Log.info "Message published";
   Queue.get ~no_ack:false channel queue >>= fun m ->

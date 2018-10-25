@@ -1,18 +1,21 @@
 open Amqp
 open Thread
 
+let uniq s =
+  Printf.sprintf "%s_%d_%s" (Filename.basename Sys.argv.(0)) (Unix.getpid ()) s
+
 let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return ()
 
 let test =
-  Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
+  Connection.connect ~id:(uniq "") "localhost" >>= fun connection ->
   Log.info "Connection started";
-  Connection.open_channel ~id:"queue.test" Channel.no_confirm connection >>= fun channel ->
+  Connection.open_channel ~id:(uniq "queue.test") Channel.no_confirm connection >>= fun channel ->
   Log.info "Channel opened";
-  Queue.declare channel ~auto_delete:true "queue.test" >>= fun queue ->
+  Queue.declare channel ~auto_delete:true (uniq "queue.test") >>= fun queue ->
   Log.info "Queue declared";
   (* Start consuming *)
   let cancelled = ref false in
-  Queue.consume ~id:"consume_test" ~on_cancel:(fun () -> cancelled := true) channel queue >>= fun (_consumer, reader) ->
+  Queue.consume ~id:(uniq "consume_test") ~on_cancel:(fun () -> cancelled := true) channel queue >>= fun (_consumer, reader) ->
   Queue.publish channel queue (Message.make "Test") >>= fun `Ok ->
   Pipe.read reader >>= fun res ->
   assert (res <> `Eof);

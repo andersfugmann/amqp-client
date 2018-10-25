@@ -1,6 +1,9 @@
 open Amqp
 open Thread
 
+let uniq s =
+  Printf.sprintf "%s_%d_%s" (Filename.basename Sys.argv.(0)) (Unix.getpid ()) s
+
 let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return ()
 
 let assert_returned_message reader body =
@@ -18,9 +21,9 @@ let print_r = function
   | `Failed -> Printf.eprintf "Got failed\n%!"
 
 let test =
-  Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
+  Connection.connect ~id:(uniq "") "localhost" >>= fun connection ->
   Log.info "Connection started";
-  Connection.open_channel ~id:"queue.test" Channel.with_confirm connection >>= fun channel ->
+  Connection.open_channel ~id:(uniq "queue.test") Channel.with_confirm connection >>= fun channel ->
   Log.info "Channel opened";
 
   Exchange.publish channel Exchange.amq_direct ~mandatory:false ~routing_key:"non_existant_queue" (Message.make "") >>= fun r ->

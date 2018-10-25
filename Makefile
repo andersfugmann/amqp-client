@@ -22,7 +22,7 @@ tests/%.exe: tests/%.ml
 	dune build $@
 
 integration: build
-	dune build @integration
+	dune build -j 10 @integration
 
 examples: build
 	dune build @examples

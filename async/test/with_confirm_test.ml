@@ -1,6 +1,9 @@
 open Amqp
 open Thread
 
+let uniq s =
+  Printf.sprintf "%s_%d_%s" (Filename.basename Sys.argv.(0)) (Unix.getpid ()) s
+
 let rec consume_queue channel queue =
   Queue.get ~no_ack:true channel queue >>= function
   | Some _ ->
@@ -12,11 +15,11 @@ let rec list_create = function
   | n -> n :: list_create (n - 1)
 
 let test =
-  Connection.connect ~id:"inteegration_test" "localhost" >>= fun connection ->
+  Connection.connect ~id:(uniq "integration_test") "localhost" >>= fun connection ->
   Log.info "Connection started";
-  Connection.open_channel ~id:"with_confirm.test" Channel.with_confirm connection >>= fun channel ->
+  Connection.open_channel ~id:(uniq "with_confirm.test") Channel.with_confirm connection >>= fun channel ->
   Log.info "Channel opened";
-  Queue.declare channel ~auto_delete:true "with_confirm_test" >>= fun queue ->
+  Queue.declare channel ~auto_delete:true (uniq "with_confirm_test") >>= fun queue ->
   Queue.purge channel queue >>= fun () ->
 
   (* Publish 1000 messages in one go, and wait for all of them to complete *)

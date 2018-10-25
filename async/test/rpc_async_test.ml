@@ -1,7 +1,10 @@
 open Amqp
 open Thread
 
-let req_queue = "test.rpc"
+let uniq s =
+  Printf.sprintf "%s_%d_%s" (Filename.basename Sys.argv.(0)) (Unix.getpid ()) s
+
+let req_queue = (uniq "test.rpc")
 
 let list_init ~f n =
   let rec inner = function
@@ -29,13 +32,13 @@ let call rpc_client i =
   | None -> failwith "No reply"
 
 let test =
-  Connection.connect ~id:"fugmann" "localhost" >>= fun connection ->
+  Connection.connect ~id:(uniq "") "localhost" >>= fun connection ->
   Log.info "Connection started";
-  Connection.open_channel ~id:"test" Channel.no_confirm connection >>= fun channel ->
+  Connection.open_channel ~id:(uniq "test") Channel.no_confirm connection >>= fun channel ->
   Log.info "Channel opened";
   spawn (start_server channel);
   Log.info "Server started";
-  Rpc.Client.init ~id:"rpc.client.test" connection >>= fun client ->
+  Rpc.Client.init ~id:(uniq "rpc.client.test") connection >>= fun client ->
   Log.info "Client initialized";
   list_init 1000 ~f:(call client) |> Deferred.all_unit >>= fun () ->
   Log.info "All clients returned";
