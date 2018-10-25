@@ -186,13 +186,12 @@ let connect_uri ~id uri =
     | vhost -> Some vhost
   in
   let heartbeat =
-    match List.assoc_opt "heartbeat_interval" (Uri.query u) with
-    | Some [interval] ->
+    match List.assoc "heartbeat_interval" (Uri.query u) with
+    | [interval] ->
       Some (int_of_string interval)
-    | Some _ ->
+    | _ ->
       raise (Invalid_argument "heartbeat_interval specified multiple times")
-    | None ->
-      None
+    | exception Not_found -> None
   in
 
   let host = match Uri.host u with
