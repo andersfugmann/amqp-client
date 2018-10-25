@@ -56,12 +56,12 @@ module Internal = struct
   let register_deliver_handler t =
     let open Basic in
     let handler (deliver, (content, data)) =
-      try
-        let handler, _ = Hashtbl.find t.consumers deliver.Deliver.consumer_tag in
+      match Hashtbl.find t.consumers deliver.Deliver.consumer_tag with
+      | handler, _ ->
         handler (deliver, content, data);
         (* Keep the current handler *)
-      with
-      | Not_found -> failwith ("No consumers for: " ^ deliver.Deliver.consumer_tag)
+      | exception Not_found ->
+        failwith ("No consumers for: " ^ deliver.Deliver.consumer_tag)
     in
     let read = snd Deliver.Internal.read in
     read ~once:false handler (channel t)
@@ -107,13 +107,11 @@ let close_handler t channel_no close =
 
 let consumer_cancel_handler t (cancel : Basic.Cancel.t) =
   let consumer_tag = cancel.Basic.Cancel.consumer_tag in
-  try
-    let _, on_cancel = Hashtbl.find t.consumers consumer_tag in
-    (* Remove the handler *)
+  match Hashtbl.find t.consumers consumer_tag with
+  | _, on_cancel ->
     Hashtbl.remove t.consumers consumer_tag;
     on_cancel ()
-  with
-  | Not_found ->
+  | exception Not_found ->
     failwith
       ("Cannot cancel consumer, as no handler was found for consumer: " ^ consumer_tag)
 
