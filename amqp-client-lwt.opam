@@ -21,4 +21,4 @@ depends: [
   "lwt_log"
   "uri"
 ]
-synopsis: "Amqp client library, async version"
+synopsis: "Amqp client library, lwt version"
