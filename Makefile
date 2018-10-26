@@ -32,7 +32,7 @@ update-version:
 	@echo "Set version to: $(VERSION)"
 	@sed -i 's/version = ".*"/version = "$(VERSION)"/' async/src/connection.ml
 	@sed -i 's/^version: ".*"/version: "$(VERSION)"/' amqp-client*.opam
-	@sed -i "s/\(.*\"amqp-client\" { = \"\).*\(\" }\)/\1${VERSION}\2/" amqp-client-*.opam
+	@sed -i "s/\(.*\"amqp-client\" {[ ]*= \"\).*\(\" }\)/\1${VERSION}\2/" amqp-client-*.opam
 
 update-spec:
 	@echo "Retrieving AMQP spec from RabbitMQ servers"
@@ -53,6 +53,5 @@ gh-pages: doc
 	git -C .gh-pages push origin gh-pages -f
 	rm -rf .gh-pages
 
-release: VERSION=$(shell head -n 1 Changelog | sed 's/://')
 release:
-	@./release.sh "$(VERSION)"
+	opam publish
