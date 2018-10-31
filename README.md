@@ -73,8 +73,10 @@ To compile using the Lwt version of the library do:
 
 ```ocamlfind ocamlopt -thread -package amqp-client-lwt myprog.ml```
 
+### Examples
 
-### Example (Async)
+#### Async
+Install the async version of the library: `opam install amqp-client-async`
 
 ```ocaml
 open Async
@@ -92,14 +94,57 @@ let run () =
   Shutdown.shutdown 0; return ()
 
 let _ =
-  don't_wait_for (run ());
-  Scheduler.go ()
+  Thread_safe.block_on_async_exn run
+```
+
+Compile with:
+```
+$ ocamlfind ocamlopt -thread -package amqp-client-async amqp_example.ml -linkpkg -o amqp_example
+```
+
+#### Lwt
+Install the lwt version of the library: `opam install amqp-client-lwt`
+
+```ocaml
+open Lwt.Infix
+open Amqp_client_lwt
+
+let host = "localhost"
+
+let run () =
+  Amqp.Connection.connect ~id:"MyConnection" host >>= fun connection ->
+  Amqp.Connection.open_channel ~id:"MyChannel" Amqp.Channel.no_confirm connection >>= fun channel ->
+  Amqp.Queue.declare channel "MyQueue" >>= fun queue ->
+  Amqp.Queue.publish channel queue (Amqp.Message.make "My Message Payload") >>= function `Ok ->
+  Amqp.Channel.close channel >>= fun () ->
+  Amqp.Connection.close connection >>= fun () ->
+  Lwt.return ()
+
+let _ =
+  Lwt_main.run (run ())
 ```
 
 Compile with:
 
 ```
-$ ocamlfind ocamlopt -thread -package amqp-client-async amqp_example.ml -linkpkg -o amqp_example
+$ ocamlfind ocamlopt -thread -package amqp-client-lwt amqp_example.ml -linkpkg -o amqp_example
 ```
 
 More examples are available here: https://github.com/andersfugmann/amqp-client/tree/master/examples
+
+To compile the examples do: `make examples`, which will place the
+binaries under `_build/default/examples/`.
+
+It is recommended to use *dune* for building projects and not invoke
+ocaml/ocamlfind from the command line explicitly.
+
+A simple dune file for a project with one file called: `example.ml` looks like this:
+
+```lisp
+(executable
+  (name example)
+  (libraies amqp-client-async)
+)
+```
+To build do `dune build example.exe`. For more information on dune,
+see https://dune.readthedocs.io/en/latest/
