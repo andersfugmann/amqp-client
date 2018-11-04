@@ -3,7 +3,11 @@ let (>>=) = Lwt.(>>=)
 let (>>|) = Lwt.(>|=)
 let return = Lwt.return
 let after ms = Lwt_unix.sleep (ms /. 1000.0)
-let spawn t = Lwt.async (fun () -> t)
+let spawn ?exn_handler t = Lwt.async (fun () ->
+    match exn_handler with
+    | Some handler -> Lwt.catch (fun () -> t) handler
+    | None -> t
+  )
 
 let with_timeout seconds deferred =
   Lwt.pick [
@@ -217,14 +221,14 @@ end
 
 module Tcp = struct
 
-  let connect ?nodelay host port =
+  let connect  ~exn_handler ?nodelay host port =
     let fd = Lwt_unix.(socket PF_INET SOCK_STREAM 0) in
     Lwt_unix.gethostbyname host >>= fun entry ->
     let sock_addr = (Lwt_unix.ADDR_INET (entry.Lwt_unix.h_addr_list.(0), port)) in
     Lwt_io.open_connection ~fd sock_addr >>= fun (ic, oc) ->
     (* Start a process that writes *)
     let (reader, writer) = Pipe.create () in
-    spawn (Pipe.iter ~f:(fun str ->
+    spawn ~exn_handler (Pipe.iter ~f:(fun str ->
         Lwt_io.write oc str) reader);
 
     (match nodelay with

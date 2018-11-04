@@ -122,6 +122,8 @@ let open_connection { framing; virtual_host; _ } =
 
 let connection_closed t _s =
   match t with
+  | { closed = Some ivar; _ } when Ivar.is_full ivar ->
+    return ()
   | { closed = Some ivar; _ } ->
     Ivar.fill ivar ();
     Framing.close t.framing
@@ -143,13 +145,17 @@ let on_closed t =
 
 let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest")) ?heartbeat host =
 
-  Tcp.connect ~nodelay:() host port >>= fun (input, output) ->
+  let tcp_error_handler = ref (fun exn -> raise exn) in
+
+  Tcp.connect ~exn_handler:(fun exn -> !tcp_error_handler exn) ~nodelay:() host port >>= fun (input, output) ->
 
   let framing = Framing.init ~id input output in
   let t =
     { framing; virtual_host; channel = 0; closing = false;
       closed = None }
   in
+  let exn_handler exn = connection_closed t (Printexc.to_string exn) in
+  tcp_error_handler := exn_handler;
   Framing.start framing (connection_closed t) >>= fun () ->
   reply_start framing credentials >>= fun () ->
   reply_tune framing >>= fun server_heartbeat ->
@@ -158,15 +164,14 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
     | None, `Disabled -> ()
     | Some hb, `Disabled
     | None, `Heartbeat hb ->
-      spawn (send_heartbeat hb t);
+      spawn ~exn_handler (send_heartbeat hb t);
     | Some hb, `Heartbeat hb' ->
-      spawn (send_heartbeat (min hb hb') t);
+      spawn ~exn_handler (send_heartbeat (min hb hb') t);
   end;
   open_connection t >>= fun () ->
   register_blocked_handler framing;
-  spawn (reply_close t framing);
+  spawn ~exn_handler (reply_close t framing);
   return t
-
 
 let connect_uri ~id uri =
   let u = Uri.of_string uri in
