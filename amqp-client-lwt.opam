@@ -6,7 +6,7 @@ bug-reports: "https://github.com/andersfugmann/amqp-client/issues"
 dev-repo: "git+https://github.com/andersfugmann/amqp-client.git"
 doc: "https://andersfugmann.github.io/amqp-client/amqp-client-lwt/Amqp_client_lwt/"
 license: "BSD3"
-version: "2.1.0"
+version: "2.1.1"
 build: [
   ["dune" "build" "-p" name "-j" jobs]
   ["dune" "runtest" "-p" name "-j" jobs] {with-test}

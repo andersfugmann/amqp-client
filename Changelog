@@ -1,3 +1,7 @@
+2.1.1: (unreleased)
+* Make Pipe.Reader / Pipe.write non-opaque for async version
+* Fix handling of on_closed if the connection is unexpectedly closed by the server.
+
 2.1.0: (2018-10-26)
 * Use dune commands in makefile
 * Reimplement Ivar for lwt based on Lwt.wait

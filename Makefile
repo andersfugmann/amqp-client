@@ -27,7 +27,7 @@ integration: build
 examples: build
 	dune build @examples
 
-update-version: VERSION=$(shell head -n 1 Changelog | sed 's/://')
+update-version: VERSION=$(shell head -n 1 Changelog | sed 's/:.*//')
 update-version:
 	@echo "Set version to: $(VERSION)"
 	@sed -i 's/version = ".*"/version = "$(VERSION)"/' async/src/connection.ml
