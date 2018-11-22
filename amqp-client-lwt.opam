@@ -15,7 +15,7 @@ depends: [
   "ocaml" {>= "4.04.0"}
   "dune" {build}
   "xml-light" {build}
-  "amqp-client" {= "2.1.0"}
+  "amqp-client" {= "2.1.1"}
   "ocplib-endian" {>= "0.6"}
   "lwt" {>= "2.4.6"}
   "lwt_log"
