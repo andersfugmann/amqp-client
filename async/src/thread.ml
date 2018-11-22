@@ -19,7 +19,17 @@ let (>>=) = (>>=)
 let (>>|) = (>>|)
 let return a = return a
 let after ms = after (Core.Time.Span.of_ms ms)
-let spawn t = don't_wait_for t
+let spawn ?exn_handler t =
+  don't_wait_for (
+    match exn_handler with
+    | Some handler ->
+      begin
+        Monitor.try_with (fun () -> t) >>= function
+        | Ok () -> return ()
+        | Error exn -> handler exn
+      end
+    | None -> t
+  )
 
 let with_timeout seconds deferred =
   let duration = Core.Time.Span.of_sec (float_of_int seconds) in
@@ -43,11 +53,13 @@ module Writer = struct
 end
 
 module Tcp = struct
-  let connect ?nodelay host port =
+  let connect ~exn_handler ?nodelay host port =
     let addr = Core.Host_and_port.create ~host ~port
                |> Tcp.Where_to_connect.of_host_and_port
     in
-    Tcp.connect ~buffer_age_limit:`Unlimited addr >>= fun (s, r, w) ->
+    let monitor = Monitor.create ~name:"Network" () in
+    Monitor.Exported_for_scheduler.within' ~monitor(fun () -> Tcp.connect ~buffer_age_limit:`Unlimited addr) >>= fun (s, r, w) ->
+    spawn (Monitor.detach_and_get_next_error monitor >>= exn_handler);
     (match nodelay with
      | Some () -> Socket.setopt s Socket.Opt.nodelay true
      | None -> ());

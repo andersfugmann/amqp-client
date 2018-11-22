@@ -28,6 +28,7 @@ type channel = { mutable state: channel_state;
 type close_handler = string -> unit Deferred.t
 type t = { input: Reader.t; output: Writer.t;
            multiplex: String.t Pipe.Reader.t Pipe.Writer.t;
+           multiplex_reader: String.t Pipe.Reader.t Pipe.Reader.t;
            mutable channels: channel option array;
            mutable max_length: int;
            id: string;
@@ -284,19 +285,21 @@ let id {id; _} = id
 let init ~id input output =
   let id = Printf.sprintf "%s.%s.%s.%s" id (Unix.gethostname ()) (Unix.getpid () |> string_of_int) (Sys.executable_name |> Filename.basename) in
   let reader, writer = Pipe.create () in
-  spawn (start_writer output (Pipe.interleave_pipe reader));
   { input;
     output;
     max_length = 1024;
     channels = Array.make 256 None;
     multiplex = writer;
+    multiplex_reader = reader;
     id;
     flow = false;
   }
 
 let start t close_handler =
+  let exn_handler exn = close_handler (Printexc.to_string exn) in
+  spawn ~exn_handler (start_writer t.output (Pipe.interleave_pipe t.multiplex_reader));
   Writer.write t.output protocol_header;
-  spawn (read_frame t close_handler);
+  spawn ~exn_handler (read_frame t close_handler);
   open_channel t 0
 
 let set_max_length t max_length =

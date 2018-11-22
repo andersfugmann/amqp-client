@@ -13,7 +13,7 @@ module type T = sig
   val ( >>| ) : 'a Deferred.t -> ('a -> 'b) -> 'b Deferred.t
   val return : 'a -> 'a Deferred.t
   val after : float -> unit Deferred.t
-  val spawn : unit Deferred.t -> unit
+  val spawn : ?exn_handler:(exn -> unit Deferred.t) -> unit Deferred.t -> unit
   val with_timeout : int -> 'a Deferred.t -> [ `Result of 'a | `Timeout ] Deferred.t
 
   module Ivar : sig
@@ -39,7 +39,7 @@ module type T = sig
   end
 
   module Tcp : sig
-    val connect : ?nodelay:unit -> string -> int ->
+    val connect : exn_handler:(exn -> unit Deferred.t) -> ?nodelay:unit -> string -> int ->
       (Reader.t * Writer.t) Deferred.t
   end
 
