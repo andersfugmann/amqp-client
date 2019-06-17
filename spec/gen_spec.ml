@@ -312,7 +312,7 @@ let emit_method ?(is_content=false) class_index
   emit "(**/**)";
   emit ~loc:__LINE__ "module Internal = struct";
   incr indent;
-  emit "open !Internal_alias";
+  emit "open Internal_alias [@@warning \"-33\"]";
 
   if is_content then
     emit "open Protocol.Content"

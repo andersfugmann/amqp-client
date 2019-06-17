@@ -271,7 +271,7 @@ module Content = struct
       in
       reader (b value) (flags lsr 1) t
   | [] ->
-    fun _b _flags _t -> _b
+    fun b _flags _t -> b
 
   let rec write: type b. (b, Output.t) spec -> int ref -> Output.t -> b = function
   | Bit :: tail ->
