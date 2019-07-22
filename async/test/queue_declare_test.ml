@@ -19,8 +19,11 @@ let test =
   Log.info "Connection started";
   Connection.open_channel ~id:(uniq "queue.test") Channel.no_confirm connection >>= fun channel ->
   Log.info "Channel opened";
-  let queue_names = List.init 10 (fun i -> Printf.sprintf "queue.test_%d" i) in
-  let queues = List.map (declare ~channel) queue_names in
+  let queues =
+    [0;1;2;3;4;5;6;7;8;9]
+    |> List.map (fun i -> Printf.sprintf "queue.test_%d" i)
+    |> List.map (declare ~channel)
+  in
   List.fold_left (fun acc queue -> acc >>= fun acc -> queue >>= fun queue -> return (queue :: acc)) (return []) queues >>= fun queues ->
   Log.info "Queues declared";
   List.fold_left (fun acc queue -> acc >>= fun () -> Queue.delete channel queue) (return ()) queues >>= fun () ->
