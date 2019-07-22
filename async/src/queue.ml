@@ -18,6 +18,7 @@ let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(p
               auto_delete; no_wait=false; arguments }
   in
   Declare.request channel req >>= fun rep ->
+  assert (name = rep.Declare_ok.queue);
   return { name = rep.Declare_ok.queue }
 
 let get ~no_ack channel t =
