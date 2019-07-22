@@ -194,7 +194,7 @@ let rec read_frame t close_handler =
 
 let register_method_handler (t, channel_no) message_id handler =
   let c = channel t channel_no in
-  Mlist.prepend c.method_handlers (message_id, handler)
+  Mlist.append c.method_handlers (message_id, handler)
 
 let register_content_handler (t, channel_no) class_id handler =
   let c = channel t channel_no in
