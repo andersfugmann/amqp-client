@@ -1,4 +1,4 @@
-2.2.0: (unreleased)
+2.2.0: (2019-07-23)
 * Make Pipe.Reader / Pipe.write non-opaque for async version
 * Fix handling of on_closed if the connection is unexpectedly closed by the server.
 * Fix incorrect order when handling responses for the same message type (#32)
