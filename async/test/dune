@@ -6,6 +6,7 @@
                  exchange_test
                  mandatory_test
                  queue_test
+                 queue_declare_test
                  repeat
                  rpc_async_test
                  rpc_test
@@ -48,6 +49,12 @@
 (alias
  (name   integration)
  (action (run ./queue_test.exe))
+ (package amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./queue_declare_test.exe))
  (package amqp-client-async)
 )
 

@@ -5,6 +5,7 @@
 (rule (copy# ../../async/test/exchange_test.ml exchange_test.ml))
 (rule (copy# ../../async/test/mandatory_test.ml mandatory_test.ml))
 (rule (copy# ../../async/test/queue_test.ml queue_test.ml))
+(rule (copy# ../../async/test/queue_declare_test.ml queue_declare_test.ml))
 (rule (copy# ../../async/test/repeat.ml repeat.ml))
 (rule (copy# ../../async/test/rpc_async_test.ml rpc_async_test.ml))
 (rule (copy# ../../async/test/rpc_test.ml rpc_test.ml))
@@ -20,6 +21,7 @@
         exchange_test
         mandatory_test
         queue_test
+        queue_declare_test
         repeat
         rpc_async_test
         rpc_test
@@ -62,6 +64,12 @@
 (alias
  (name   integration)
  (action (run ./queue_test.exe))
+ (package amqp-client-lwt)
+)
+
+(alias
+ (name   integration)
+ (action (run ./queue_declare_test.exe))
  (package amqp-client-lwt)
 )
 
