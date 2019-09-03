@@ -48,7 +48,7 @@ module Client = struct
     spawn (Pipe.iter (Channel.on_return channel) ~f:(fun (_, message) -> handle_reply t false message));
     return t
 
-  let call t ?correlation_id ~ttl ~routing_key ~headers exchange (header, body) =
+  let call t ?correlation_id ~ttl ?(grace_time_ms=100) ~routing_key ~headers exchange (header, body) =
     let correlation_id_prefix = match correlation_id with
       | Some cid -> cid
       | None -> t.id
@@ -67,7 +67,7 @@ module Client = struct
                  }
     in
     Exchange.publish t.channel ~mandatory:true ~routing_key exchange (header, body) >>= function
-    | `Ok -> with_timeout ttl (Ivar.read var) >>= function
+    | `Ok -> with_timeout (ttl + grace_time_ms) (Ivar.read var) >>= function
       | `Timeout ->
         Hashtbl.remove t.outstanding correlation_id;
         return None

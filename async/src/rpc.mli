@@ -13,9 +13,18 @@ module Client :
 
     (** Make an rpc call to the exchange using the routing key and headers.
         @param ttl is the message timeout in milliseconds.
+                   If the message is on the rpc endpoints queue for more than [ttl]
+                   milliseconds the message will be dead
+                   lettered and returned which will cause this function to timeout and
+                   return None.
+
+        @param grace_time_ms is the time added to the ttl before the function times out and returns None
+                             This is to give the rpc serve a chance to process the message,
+                             in case the rpc server consumed the message from the queue close to ttl.
+                             Default 100ms.
 
         To call directly to a named queue, use
-        [call t Exchange.default ~routing_key:"name_of_the_queue" ~headers:[]]
+        [call t Exchange.default ~ttl:500 ~routing_key:"name_of_the_queue" ~headers:[]]
 
         [correlation_id] allows you to specify a correlation id. The
         id will be suffixed with an id to allow the caller to reuse
@@ -27,11 +36,15 @@ module Client :
         headers regardless of the type of exchange used, as exchanges
         may be chained in a way where both headers and routing keys
         are used.
+
+        This function will timeout and return None, either if the request message is
+        dead-lettered or if ttl + grace_time_ms has passed.
     *)
     val call :
       t ->
       ?correlation_id:string ->
       ttl:int ->
+      ?grace_time_ms:int ->
       routing_key:string ->
       headers:Types.header list ->
       _ Exchange.t ->
