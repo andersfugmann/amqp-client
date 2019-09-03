@@ -4,6 +4,7 @@
   the same as the maximum wait time (previous behaviour was to wait ttl * 1000 ms).
   (by AndreasDahl)
 * Handle errors when establishing connection early (#35)
+* Add grace_time_ms to rpc calls to give the remote rpc server some time to process the message
 
 2.2.0: (2019-07-23)
 * Make Pipe.Reader / Pipe.write non-opaque for async version
