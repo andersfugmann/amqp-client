@@ -9,9 +9,9 @@ let spawn ?exn_handler t = Lwt.async (fun () ->
     | None -> t
   )
 
-let with_timeout seconds deferred =
+let with_timeout milliseconds deferred =
   Lwt.pick [
-    Lwt_unix.sleep (float_of_int seconds) >>| (fun () -> `Timeout);
+    Lwt_unix.sleep (float_of_int milliseconds /. 1000.) >>| (fun () -> `Timeout);
     deferred >>| (fun success -> `Result success)
   ]
 
