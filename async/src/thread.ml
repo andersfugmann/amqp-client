@@ -31,8 +31,8 @@ let spawn ?exn_handler t =
     | None -> t
   )
 
-let with_timeout seconds deferred =
-  let duration = Core.Time.Span.of_sec (float_of_int seconds) in
+let with_timeout milliseconds deferred =
+  let duration = Core.Time.Span.of_ms (float_of_int milliseconds) in
   Clock.with_timeout duration deferred
 
 module Ivar = struct

@@ -12,7 +12,7 @@ module Client :
     val init : id:string -> Connection.t -> t Deferred.t
 
     (** Make an rpc call to the exchange using the routing key and headers.
-        @param ttl is the message timeout.
+        @param ttl is the message timeout in milliseconds.
 
         To call directly to a named queue, use
         [call t Exchange.default ~routing_key:"name_of_the_queue" ~headers:[]]
