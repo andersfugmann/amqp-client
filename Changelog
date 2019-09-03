@@ -1,3 +1,9 @@
+2.2.1: (2019-09-03)
+* Fix RPC client ttl second and millis mismatch.
+  The ttl is now consistently in milli seconds,  and ttl set on the message sent is
+  the same as the maximum wait time (previous behaviour was to wait ttl * 1000 ms).
+  (by AndreasDahl)
+
 2.2.0: (2019-07-23)
 * Make Pipe.Reader / Pipe.write non-opaque for async version
 * Fix handling of on_closed if the connection is unexpectedly closed by the server.
