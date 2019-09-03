@@ -157,6 +157,7 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
   let exn_handler exn = connection_closed t (Printexc.to_string exn) in
   tcp_error_handler := exn_handler;
   Framing.start framing (connection_closed t) >>= fun () ->
+  spawn ~exn_handler (reply_close t framing);
   reply_start framing credentials >>= fun () ->
   reply_tune framing >>= fun server_heartbeat ->
   begin
@@ -170,7 +171,6 @@ let connect ~id ?(virtual_host="/") ?(port=5672) ?(credentials=("guest", "guest"
   end;
   open_connection t >>= fun () ->
   register_blocked_handler framing;
-  spawn ~exn_handler (reply_close t framing);
   return t
 
 let connect_uri ~id uri =

@@ -2,6 +2,7 @@
  (names        channel_test
                  close_test
                  connection_test
+                 connection_fail_test
                  connect_uri_test
                  exchange_test
                  mandatory_test
@@ -25,6 +26,12 @@
 (alias
  (name   integration)
  (action (run ./connection_test.exe))
+ (package amqp-client-async)
+)
+
+(alias
+ (name   integration)
+ (action (run ./connection_fail_test.exe))
  (package amqp-client-async)
 )
 
