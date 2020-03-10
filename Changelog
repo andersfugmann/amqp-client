@@ -1,3 +1,6 @@
+2.2.2: Unreleased
+* Switch to (ez)xmlm as build dependency
+
 2.2.1: (2019-09-03)
 * Fix RPC client ttl second and millis mismatch.
   The ttl is now consistently in milli seconds,  and ttl set on the message sent is
