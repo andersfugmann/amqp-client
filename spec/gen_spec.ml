@@ -1,4 +1,5 @@
 open Printf
+module List = ListLabels
 let indent = ref 0
 let emit_location = ref true
 
@@ -101,7 +102,7 @@ let parse_method (attrs, nodes) =
   let index = Ezxmlm.get_attr "index" attrs |> int_of_string in
   let response =
     Ezxmlm.members_with_attr "response" nodes
-    |> List.map (fun (attrs, _) -> Ezxmlm.get_attr "name" attrs)
+    |> List.map ~f:(fun (attrs, _) -> Ezxmlm.get_attr "name" attrs)
   in
 
   let synchronous =
@@ -116,14 +117,14 @@ let parse_method (attrs, nodes) =
     | _ -> false
     | exception Not_found -> false
   in
-  let arguments = Ezxmlm.members_with_attr "field" nodes |> List.map parse_field in
+  let arguments = Ezxmlm.members_with_attr "field" nodes |> List.map ~f:parse_field in
 
   let chassis =
     Ezxmlm.members_with_attr "chassis" nodes
-    |> List.map (fun (attrs, _) -> Ezxmlm.get_attr "name" attrs)
+    |> List.map ~f:(fun (attrs, _) -> Ezxmlm.get_attr "name" attrs)
   in
-  let client = List.mem "client" chassis in
-  let server = List.mem "server" chassis in
+  let client = List.mem "client" ~set:chassis in
+  let server = List.mem "server" ~set:chassis in
   decr indent;
   { Method.name; arguments; response; content; index; synchronous;
     client; server; doc = doc nodes }
@@ -133,8 +134,8 @@ let parse_class (attrs, nodes) =
   let name = Ezxmlm.get_attr "name" attrs in
   incr indent;
   let index = Ezxmlm.get_attr "index" attrs |> int_of_string in
-  let fields = Ezxmlm.members_with_attr "field" nodes |> List.map parse_field in
-  let methods = Ezxmlm.members_with_attr "method" nodes |> List.map parse_method in
+  let fields = Ezxmlm.members_with_attr "field" nodes |> List.map ~f:parse_field in
+  let methods = Ezxmlm.members_with_attr "method" nodes |> List.map ~f:parse_method in
   decr indent;
   Class { Class.name; index; content=fields; methods; doc = doc nodes }
 
@@ -147,7 +148,9 @@ let parse = function
 
 let parse_amqp xml =
   Ezxmlm.member "amqp" xml
-  |> List.filter_map parse
+  |> List.map ~f:parse
+  |> List.fold_left ~f:(fun acc -> function None -> acc | Some v -> v :: acc) ~init:[]
+  |> List.rev
 
 let bind_name str =
   String.map (function '-' -> '_' | c -> Char.lowercase_ascii c) str
@@ -162,10 +165,11 @@ let pvariant_name str =
 (* Remove domains *)
 let emit_domains tree =
   let domains = Hashtbl.create 0 in
-  List.iter (function
+  List.iter ~f:(function
       | Domain {Domain.name; amqp_type; doc} when name <> amqp_type ->
         Hashtbl.add domains name (amqp_type, doc)
-      | _ -> ()) tree;
+      | _ -> ()
+    ) tree;
 
   emit "(* Domains *)";
   Hashtbl.iter (fun d (t, doc) ->
@@ -189,40 +193,40 @@ let emit_domains tree =
   (* Alter the tree *)
   let replace lst =
     let open Field in
-    List.map (fun t ->
+    List.map ~f:(fun t ->
         let tpe = match Hashtbl.mem domains t.tpe with
           | true -> bind_name t.tpe
           | false -> variant_name t.tpe
         in
-        { t with tpe }) lst
+        { t with tpe }
+      ) lst
   in
   let map = function
     | Domain _ -> None
     | Constant c -> Some (Constant c)
     | Class ({ Class.content; methods; _ } as c) ->
         let methods =
-          List.map
-            (function {Method.arguments; _ } as m -> { m with Method.arguments = replace arguments })
-            methods
+          List.map ~f:(function {Method.arguments; _ } as m ->
+              { m with Method.arguments = replace arguments }
+            ) methods
         in
         Some (Class { c with Class.methods; content = replace content })
   in
-  List.fold_left (fun acc e -> match map e with Some x -> x :: acc | None -> acc) [] tree
+  List.fold_left ~f:(fun acc e -> match map e with Some x -> x :: acc | None -> acc) ~init:[] tree
 
 let emit_constants tree =
   emit "(* Constants *)";
-  List.iter
-    (function Constant { Constant.name; value; doc } ->
-       emit_doc doc;
-       emit ~loc:__LINE__ "let %s = %d" (bind_name name) value | _ -> ())
-    tree
+  List.iter ~f:(function Constant { Constant.name; value; doc } ->
+      emit_doc doc;
+      emit ~loc:__LINE__ "let %s = %d" (bind_name name) value | _ -> ()
+    ) tree
 
 let emit_class_index tree =
   emit "(* Class index *)";
   let idx = ref 0 in
   emit ~loc:__LINE__ "let index_of_class = function";
   incr indent;
-  List.iter (function Class { Class.index; _ } -> emit "| %d -> %d" index !idx; incr idx | _ -> ()) tree;
+  List.iter ~f:(function Class { Class.index; _ } -> emit "| %d -> %d" index !idx; incr idx | _ -> ()) tree;
   emit "| _ -> failwith \"Unknown class\"";
   decr indent;
   emit ~loc:__LINE__ "let classes = %d" !idx
@@ -232,17 +236,19 @@ let emit_method_index tree =
   let idx = ref 0 in
   emit ~loc:__LINE__ "let index_of_class_method = function";
   incr indent;
-  List.iter (function
+  List.iter ~f:(function
       | Class { Class.index; methods; _ } ->
         emit "| %d -> begin function" index;
         incr indent;
-        List.iter (fun { Method.index; _ } ->
+        List.iter ~f:(fun { Method.index; _ } ->
             emit "| %d -> %d" index !idx;
-            incr idx) methods;
+            incr idx
+          ) methods;
         emit "| _ -> failwith \"Unknown method\"";
         emit "end";
         decr indent;
-      | _ -> ()) tree;
+      | _ -> ()
+    ) tree;
   emit "| _ -> failwith \"Unknown class\"";
   decr indent;
   emit ~loc:__LINE__ "let methods = %d" !idx
@@ -250,7 +256,7 @@ let emit_method_index tree =
 
 let spec_str arguments =
   arguments
-  |> List.map (fun t -> t.Field.tpe)
+  |> List.map ~f:(fun t -> t.Field.tpe)
   |> fun a -> List.append a ["[]"]
   |> String.concat " :: "
 
@@ -271,29 +277,30 @@ let emit_method ?(is_content=false) class_index
   incr indent;
   let t_args =
     arguments
-    |> List.filter (fun t -> not t.Field.reserved)
+    |> List.filter ~f:(fun t -> not t.Field.reserved)
   in
   let option = if is_content then " option" else "" in
   let doc_str = function
     | None -> ""
     | Some doc -> "(** " ^ doc ^ " *)"
   in
-  let types = List.map (fun t -> (bind_name t.Field.name), (bind_name t.Field.tpe) ^ option, doc_str t.Field.doc) t_args in
+  let types = List.map ~f:(fun t -> (bind_name t.Field.name), (bind_name t.Field.tpe) ^ option, doc_str t.Field.doc) t_args in
 
   let t_args = match types with
     | [] -> "()"
-    | t -> List.map (fun (a, _, _) -> a) t |> String.concat "; " |> sprintf "{ %s }"
+    | t -> List.map ~f:(fun (a, _, _) -> a) t |> String.concat "; " |> sprintf "{ %s }"
   in
   let names =
     arguments
-    |> List.map (function t when t.Field.reserved -> "_" | t -> bind_name t.Field.name)
+    |> List.map ~f:(function t when t.Field.reserved -> "_" | t -> bind_name t.Field.name)
   in
   let values =
     arguments
-    |> List.map (function
+    |> List.map ~f:(function
         | t when t.Field.reserved ->
           "(reserved_value " ^ t.Field.tpe ^ ")"
-        | t -> bind_name t.Field.name)
+        | t -> bind_name t.Field.name
+      )
     |> String.concat " "
   in
 
@@ -302,7 +309,7 @@ let emit_method ?(is_content=false) class_index
    | t ->
      emit ~loc:__LINE__ "type t = {";
      incr indent;
-     List.iter (fun (a, b, doc) -> emit "%s: %s; %s" a b doc) t;
+     List.iter ~f:(fun (a, b, doc) -> emit "%s: %s; %s" a b doc) t;
      decr indent;
      emit "}");
   emit "";
@@ -339,17 +346,17 @@ let emit_method ?(is_content=false) class_index
   emit "(**/**)";
   emit "";
 
-  let inames = List.filter ((<>) "_") names in
+  let inames = List.filter ~f:((<>) "_") names in
   begin match is_content with
     | true ->
-      emit ~loc:__LINE__ "let init %s () = Internal.make %s" (List.map (fun n -> "?" ^ n) inames |> String.concat " ") (String.concat " " inames)
+      emit ~loc:__LINE__ "let init %s () = Internal.make %s" (List.map ~f:(fun n -> "?" ^ n) inames |> String.concat " ") (String.concat " " inames)
     | false ->
-      emit ~loc:__LINE__ "let init %s () = Internal.make %s" (List.map (fun n -> "~" ^ n) inames |> String.concat " ") (String.concat " " inames)
+      emit ~loc:__LINE__ "let init %s () = Internal.make %s" (List.map ~f:(fun n -> "~" ^ n) inames |> String.concat " ") (String.concat " " inames)
   end;
 
 
 
-  let response = List.map variant_name response in
+  let response = List.map ~f:variant_name response in
   if List.length response >= 0 && ((synchronous && response != []) || not synchronous)  then begin
     let id r =
       if List.length response > 1 then
@@ -360,11 +367,11 @@ let emit_method ?(is_content=false) class_index
     if client then
       emit ~loc:__LINE__ "let reply = reply%d Internal.read %s"
         (List.length response)
-        (response |> List.map (fun s -> Printf.sprintf "%s.Internal.write %s" s (id s)) |> String.concat " ");
+        (response |> List.map ~f:(fun s -> Printf.sprintf "%s.Internal.write %s" s (id s)) |> String.concat " ");
     if server then
       emit ~loc:__LINE__ "let request = request%d Internal.write %s"
         (List.length response)
-        (response |> List.map (fun s -> Printf.sprintf "%s.Internal.read %s" s (id s)) |> String.concat " ");
+        (response |> List.map ~f:(fun s -> Printf.sprintf "%s.Internal.read %s" s (id s)) |> String.concat " ");
   end;
   decr indent;
   emit "end";
@@ -376,7 +383,7 @@ let emit_class { Class.name; content; index; methods; doc } =
   let rec reorder methods =
     let rec move_down = function
       | { Method.response; _} as m :: x :: xs when
-          List.exists (fun r -> List.exists (fun {Method.name; _} -> name = r) (x :: xs)) response -> x :: move_down (m :: xs)
+          List.exists ~f:(fun r -> List.exists ~f:(fun {Method.name; _} -> name = r) (x :: xs)) response -> x :: move_down (m :: xs)
       | x :: xs -> x :: move_down xs
       | [] -> []
     in
@@ -402,7 +409,7 @@ let emit_class { Class.name; content; index; methods; doc } =
               doc = None;
             };
 
-  List.iter (emit_method index) methods;
+  List.iter ~f:(emit_method index) methods;
 
   decr indent;
   emit "end";
@@ -416,7 +423,7 @@ let emit_printer tree =
   incr indent;
   emit "match cid with";
   incr indent;
-  List.iter (function
+  List.iter ~f:(function
       | Class {Class.name; index; _} ->
         emit "| %d -> \"%s\" ^ \", \" ^(%s.method_to_string mid)" index name (variant_name name)
       | _ -> ()
@@ -435,7 +442,7 @@ let emit_specification tree =
   emit "open Protocol";
   emit "open Protocol_helpers";
   emit_domains tree
-  |> List.iter (function Class x -> emit_class x | _ -> ());
+  |> List.iter ~f:(function Class x -> emit_class x | _ -> ());
   (* emit_printer tree; *)
   ()
 
