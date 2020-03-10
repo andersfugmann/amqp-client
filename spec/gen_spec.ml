@@ -59,61 +59,68 @@ type elem =
   | Class of Class.t
 
 let blanks = Str.regexp "[ \t\n]+"
-let rec doc = function
-  | Xml.Element("doc", [], [ Xml.PCData doc]) :: _ -> Some (String.trim (Str.global_replace blanks " " doc))
-  | _ :: xs -> doc xs
-  | [] -> None
+let doc xml =
+  try
+    Ezxmlm.member "doc" xml
+    |> Ezxmlm.data_to_string
+    |> (fun x -> Some x)
+  with
+  | Ezxmlm.Tag_not_found _ -> None
 
-let rec map_elements tpe f = function
-  | [] -> []
-  | Xml.Element(t, a, n) :: xs when t = tpe -> f a n :: map_elements tpe f xs
-  | _ :: xs -> map_elements tpe f xs
-
-let parse_field attrs nodes =
+let parse_field (attrs, nodes) =
+  (* Only look at the attributes *)
   ignore nodes;
   let name =
-    List.assoc "name" attrs
-    |> (function "type" -> "amqp_type" | s -> s)
+    match Ezxmlm.get_attr "name" attrs with
+    | "type" -> "amqp_type"
+    | name -> name
   in
   let tpe =
-    match List.assoc "domain" attrs with
+    match Ezxmlm.get_attr "domain" attrs with
     | d -> d
-    | exception Not_found -> List.assoc "type" attrs
+    | exception Not_found -> Ezxmlm.get_attr "type" attrs
   in
 
-  let reserved = List.mem ("reserved", "1")  attrs in
+  let reserved = Ezxmlm.mem_attr "reserved" "1" attrs in
   { Field.name; tpe; reserved; doc = doc nodes }
 
-let parse_constant attrs nodes =
-  let name = List.assoc "name" attrs in
-  let value = List.assoc "value" attrs |> int_of_string in
+let parse_constant (attrs, nodes) =
+  let name = Ezxmlm.get_attr "name" attrs in
+  let value = Ezxmlm.get_attr "value" attrs |> int_of_string in
   Constant { Constant.name; value; doc = doc nodes }
 
-let parse_domain attrs nodes =
+let parse_domain (attrs, nodes) =
   ignore nodes;
-  let name = List.assoc "name" attrs in
-  let amqp_type = List.assoc "type" attrs in
+  let name = Ezxmlm.get_attr "name" attrs in
+  let amqp_type = Ezxmlm.get_attr "type" attrs in
   Domain { Domain.name; amqp_type; doc = doc nodes}
 
-let parse_method attrs nodes =
-  let name = List.assoc "name" attrs in
+let parse_method (attrs, nodes) =
+  let name = Ezxmlm.get_attr "name" attrs in
   incr indent;
-  let index = List.assoc "index" attrs |> int_of_string in
+  let index = Ezxmlm.get_attr "index" attrs |> int_of_string in
   let response =
-    nodes
-    |> List.filter (function Xml.Element ("response", _, _) -> true | _ -> false)
-    |> List.map (function Xml.Element ("response", attrs, []) -> List.assoc "name" attrs | _ -> failwith "Error parsing response")
+    Ezxmlm.members_with_attr "response" nodes
+    |> List.map (fun (attrs, _) -> Ezxmlm.get_attr "name" attrs)
   in
 
-  let synchronous = List.mem ("synchronous", "1") attrs in
-  let content = List.mem ("content", "1") attrs in
-  let arguments = map_elements "field" parse_field nodes in
+  let synchronous =
+    match Ezxmlm.get_attr "synchronous" attrs with
+    | "1" -> true
+    | _ -> false
+    | exception Not_found -> false
+  in
+  let content =
+    match Ezxmlm.get_attr "content" attrs with
+    | "1" -> true
+    | _ -> false
+    | exception Not_found -> false
+  in
+  let arguments = Ezxmlm.members_with_attr "field" nodes |> List.map parse_field in
 
   let chassis =
-    List.fold_left
-      (fun acc -> function Xml.Element ("chassis", attrs, _) -> acc @ attrs | _ -> acc) [] nodes
-    |> List.filter (fun (n, _) -> n = "name")
-    |> List.map snd
+    Ezxmlm.members_with_attr "chassis" nodes
+    |> List.map (fun (attrs, _) -> Ezxmlm.get_attr "name" attrs)
   in
   let client = List.mem "client" chassis in
   let server = List.mem "server" chassis in
@@ -121,28 +128,26 @@ let parse_method attrs nodes =
   { Method.name; arguments; response; content; index; synchronous;
     client; server; doc = doc nodes }
 
-let parse_class attrs nodes =
+let parse_class (attrs, nodes) =
   (* All field nodes goes into content *)
-  let name = List.assoc "name" attrs in
+  let name = Ezxmlm.get_attr "name" attrs in
   incr indent;
-
-  let index = List.assoc "index" attrs |> int_of_string in
-  let fields = map_elements "field" parse_field nodes in
-  let methods = map_elements "method" parse_method nodes in
+  let index = Ezxmlm.get_attr "index" attrs |> int_of_string in
+  let fields = Ezxmlm.members_with_attr "field" nodes |> List.map parse_field in
+  let methods = Ezxmlm.members_with_attr "method" nodes |> List.map parse_method in
   decr indent;
   Class { Class.name; index; content=fields; methods; doc = doc nodes }
 
 let parse = function
-  | Xml.PCData _ -> failwith "pc data not supported"
-  | Xml.Element ("constant", attrs, nodes) -> parse_constant attrs nodes
-  | Xml.Element ("domain", attrs, nodes) -> parse_domain attrs nodes
-  | Xml.Element ("class", attrs, nodes) -> parse_class attrs nodes
-  | Xml.Element (t, _, _) -> failwith ("Unknown type: " ^ t)
+  | `Data _ -> None
+  | `El (((_, "constant"), attrs), nodes) -> Some (parse_constant (attrs, nodes))
+  | `El (((_, "domain"), attrs), nodes) -> Some (parse_domain (attrs, nodes))
+  | `El (((_, "class"), attrs), nodes) -> Some (parse_class (attrs, nodes))
+  | `El (((_, name), _), _) -> failwith ("Unknown type: " ^ name)
 
-let parse_amqp = function
-  | Xml.Element ("amqp", _attrs, nodes) ->
-      List.map parse nodes
-  | _ -> failwith "Error parsing"
+let parse_amqp xml =
+  Ezxmlm.member "amqp" xml
+  |> List.filter_map parse
 
 let bind_name str =
   String.map (function '-' -> '_' | c -> Char.lowercase_ascii c) str
@@ -153,14 +158,6 @@ let variant_name str =
 
 let pvariant_name str =
   "`" ^ (variant_name str)
-
-let rec print = function
-  | Xml.Element (_n, _attrs, nodes) ->
-      incr indent;
-      List.iter print nodes;
-      decr indent;
-  | _ -> ()
-
 
 (* Remove domains *)
 let emit_domains tree =
@@ -407,13 +404,6 @@ let emit_class { Class.name; content; index; methods; doc } =
 
   List.iter (emit_method index) methods;
 
-(*
-  emit "let method_to_string = function";
-  incr indent;
-  List.iter (fun {Method.name; index; _} -> emit "| %d -> \"%s\"" index name) methods;
-  emit "| n -> Printf.sprintf \"<%%d>\" n";
-  decr indent;
-*)
   decr indent;
   emit "end";
   ()
@@ -468,7 +458,12 @@ let () =
     (fun f -> filename := f)
     "Generate protocol code";
 
-  let xml = Xml.parse_file !filename in
+  let xml =
+    let in_ch = open_in !filename in
+    let (_, xml) = Ezxmlm.from_channel in_ch in
+    close_in in_ch;
+    xml
+  in
   let tree = xml |> parse_amqp in
   emit "(** Internal - Low level protocol description *)";
   emit "(***********************************)";
@@ -482,10 +477,6 @@ let () =
     match !output_type with
     | Constants ->
       emit_constants tree;
-      (*
-      emit_class_index tree;
-      emit_method_index tree
-      *)
       ()
     | Specification -> emit_specification tree
   end;

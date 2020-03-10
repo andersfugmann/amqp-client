@@ -1,7 +1,7 @@
 (executable
  (name gen_spec)
  (modules Gen_spec)
- (libraries xml-light str)
+ (libraries ezxmlm str)
 )
 
 (rule
