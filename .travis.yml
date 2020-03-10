@@ -13,14 +13,10 @@ env:
   matrix:
   - OCAML_VERSION=4.04 PACKAGE="amqp-client-async" POST_INSTALL_HOOK="dune build @integration -p amqp-client-async"
   - OCAML_VERSION=4.04 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="dune build @integration -p amqp-client-lwt"
-  - OCAML_VERSION=4.05 PACKAGE="amqp-client-async" POST_INSTALL_HOOK="dune build @integration -p amqp-client-async"
-  - OCAML_VERSION=4.05 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="dune build @integration -p amqp-client-lwt"
-  - OCAML_VERSION=4.06 PACKAGE="amqp-client-async" POST_INSTALL_HOOK="dune build @integration -p amqp-client-async"
-  - OCAML_VERSION=4.06 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="dune build @integration -p amqp-client-lwt"
-  - OCAML_VERSION=4.07 PACKAGE="amqp-client-async" POST_INSTALL_HOOK="dune build @integration -p amqp-client-async"
-  - OCAML_VERSION=4.07 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="dune build @integration -p amqp-client-lwt"
-  - OCAML_VERSION=4.08 PACKAGE="amqp-client-async" POST_INSTALL_HOOK="dune build @integration -p amqp-client-async"
-  - OCAML_VERSION=4.08 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="dune build @integration -p amqp-client-lwt"
+  - OCAML_VERSION=4.09 PACKAGE="amqp-client-async" POST_INSTALL_HOOK="dune build @integration -p amqp-client-async"
+  - OCAML_VERSION=4.09 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="dune build @integration -p amqp-client-lwt"
+  - OCAML_VERSION=4.10 PACKAGE="amqp-client-async" POST_INSTALL_HOOK="dune build @integration -p amqp-client-async"
+  - OCAML_VERSION=4.10 PACKAGE="amqp-client-lwt"   POST_INSTALL_HOOK="dune build @integration -p amqp-client-lwt"
 
   global:
   - DEPOPTS="*"
