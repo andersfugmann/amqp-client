@@ -1,5 +1,7 @@
 2.2.2: (2020-05-10)
 * Switch to (ez)xmlm as build dependency
+* Add optional argument `autogenerate` to allow declaring queues with
+  empty names (by NightBlues)
 
 2.2.1: (2019-09-03)
 * Fix RPC client ttl second and millis mismatch.
