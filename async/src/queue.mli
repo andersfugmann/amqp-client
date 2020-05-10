@@ -13,7 +13,14 @@ val dead_letter_exchange : string -> string * Types.value
 val dead_letter_routing_key : string -> string * Types.value
 val maximum_priority : int -> string * Types.value
 
-(** Declare a queue *)
+(** Declare a queue.
+
+ To use server-generated queue name explicitly pass
+ [~autogenerate:true] and empty name: [declare channel ~autogenerate:true ""].
+ Reason for making [autogenerate] param explicit is inability in production
+ to find out which services are leaking queues with auto-generated names.
+ We advice not to use this feature in production.
+*)
 val declare :
   _ Channel.t ->
   ?durable:bool ->
@@ -21,6 +28,7 @@ val declare :
   ?auto_delete:bool ->
   ?passive:bool ->
   ?arguments:Types.table ->
+  ?autogenerate:bool ->
   string -> t Deferred.t
 
 (** Get a single message from the queue.

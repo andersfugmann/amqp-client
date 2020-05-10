@@ -14,6 +14,25 @@ let declare ~channel name =
   | false -> failwith (Printf.sprintf "Queue name mismatch: %s != %s" (Queue.name queue) queue_name)
   | true -> return queue
 
+let check_declare_autogenerate ~channel =
+  Queue.declare channel ~auto_delete:true ~autogenerate:true "" >>= fun queue ->
+  Log.info "Created queue: %s" (Queue.name queue);
+  let _ = try
+      Queue.declare channel ~auto_delete:true
+        ~autogenerate:true "non-empty-name"
+    with Invalid_argument msg ->
+      assert (msg = "Queue.declare name must be empty if autogenerate is true.");
+      return queue
+  in
+  let _ = try
+      Queue.declare channel ~auto_delete:true ""
+    with Invalid_argument msg ->
+      assert (msg = "Queue.declare autogenerate must be true if name is empty.");
+      return queue
+  in
+  return queue
+
+
 let test =
   Connection.connect ~id:(uniq "") "localhost" >>= fun connection ->
   Log.info "Connection started";
@@ -24,6 +43,7 @@ let test =
     |> List.map (fun i -> Printf.sprintf "queue.test_%d" i)
     |> List.map (declare ~channel)
   in
+  let queues = check_declare_autogenerate ~channel :: queues in
   List.fold_left (fun acc queue -> acc >>= fun acc -> queue >>= fun queue -> return (queue :: acc)) (return []) queues >>= fun queues ->
   Log.info "Queues declared";
   List.fold_left (fun acc queue -> acc >>= fun () -> Queue.delete channel queue) (return ()) queues >>= fun () ->

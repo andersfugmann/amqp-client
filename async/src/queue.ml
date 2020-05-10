@@ -12,13 +12,18 @@ let dead_letter_exchange v = "x-dead-letter-exchange", Types.VLongstr v
 let dead_letter_routing_key v = "x-dead-letter-routing-key", Types.VLongstr v
 let maximum_priority v = "x-max-priotity", Types.VLonglong v
 
-let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(passive=false) ?(arguments=[]) name =
+let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(passive=false) ?(arguments=[]) ?(autogenerate=false) name =
+  if autogenerate && String.length name != 0 then
+    invalid_arg "Queue.declare name must be empty if autogenerate is true.";
+  if not autogenerate && String.length name == 0 then
+    invalid_arg "Queue.declare autogenerate must be true if name is empty.";
   let channel = Channel.channel channel in
   let req = { Declare.queue=name; passive; durable; exclusive;
               auto_delete; no_wait=false; arguments }
   in
   Declare.request channel req >>= fun rep ->
-  assert (name = rep.Declare_ok.queue);
+  if not autogenerate && name <> rep.Declare_ok.queue then
+    failwith "Queue name returned by server doesn't match requested.";
   return { name = rep.Declare_ok.queue }
 
 let get ~no_ack channel t =
