@@ -245,6 +245,27 @@ let set_global_prefetch ?(count=0) ?(size=0) t =
                                   prefetch_size=size;
                                   global=true }
 
+let publish t
+    ?(mandatory=false)
+    ~exchange_name
+    ~routing_key
+    (header, body) =
+
+  let open Spec.Basic in
+  let header = match header.Content.app_id with
+    | Some _ -> header
+    | None -> { header with Content.app_id = Some (id t) }
+  in
+  let wait_for_confirm = Internal.wait_for_confirm t in
+  Publish.request (channel t)
+    ({Publish.exchange = exchange_name;
+      routing_key;
+      mandatory;
+      immediate=false},
+     header, body) >>= fun () ->
+  wait_for_confirm ~routing_key ~exchange_name
+
+
 module Transaction = struct
   type tx = EChannel: _ t -> tx
 

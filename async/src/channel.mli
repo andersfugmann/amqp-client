@@ -84,14 +84,29 @@ val set_global_prefetch : ?count:int -> ?size:int -> _ t -> unit Deferred.t
 (** Flush the channel, making sure all messages have been sent *)
 val flush : _ t -> unit Deferred.t
 
+(** Publish a message to the given exhange.
+    This function is unsafe. It is recommended to use
+    Queue.publish or Exchange.publish instead
+*)
+val publish:
+  'a t ->
+  ?mandatory:no_ack ->
+  exchange_name:consumer_tag ->
+  routing_key:consumer_tag ->
+  Basic.Content.t * consumer_tag -> 'a Deferred.t
+
 (** Transactions.
     Transactions can be made per channel.
 
-    After a transaction is started, all published messages and all changes
-    (queue/exchange bindings, creations or deletions) and message
-    acknowledgements are not visible outside the transaction.
+    After a transaction is started, all published messages / acks / rejects
+    are queued on the server.
 
     The changes becomes visible after a [commit] or canceled by call to [rollback].
+
+    Note that transactions are only atomic per queue.
+
+    Once a channel is in "transaction mode", it will stay in transaction mode.
+    So there is no need to start new transactions over the same channel.
 *)
 module Transaction : sig
   type tx

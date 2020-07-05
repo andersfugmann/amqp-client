@@ -1,3 +1,4 @@
+open Thread
 open Spec.Basic
 open Amqp_client_lib
 
@@ -60,6 +61,37 @@ let reject ~requeue channel t =
   Reject.request (Channel.channel channel)
     { Reject.delivery_tag = t.delivery_tag; requeue }
 
-
 let recover ~requeue channel =
   Spec.Basic.Recover.request  (Channel.channel channel) { Spec.Basic.Recover.requeue }
+
+let with_redeliver_count ?(header_name="x-redelivered-count") channel ~f t =
+  let get_redelivered_count headers =
+    match List.assoc_opt header_name headers with
+    | Some ( Types.VLong n
+           | Types.VLonglong n
+           | Types.VShort n
+           | Types.VShortshort n ) -> n
+    | _ -> 0
+  in
+  let set_redelivered_count count headers =
+    let filtered = List.filter (fun (n, _) -> n <> header_name) headers in
+    (header_name, Types.VShort count) :: filtered
+  in
+
+  let headers = match (fst t.message).headers with
+    | Some h -> h
+    | None -> []
+  in
+  let redeliver_count = get_redelivered_count headers in
+
+  match t.redelivered with
+  | false -> f redeliver_count t >>= fun () ->
+    return ()
+
+  | true ->
+    let headers = set_redelivered_count (redeliver_count + 1) headers in
+    Channel.publish channel ~exchange_name:t.exchange ~routing_key:t.routing_key ({ (fst t.message) with headers = Some headers}, snd t.message) >>= function
+    | `Ok ->
+      ack channel t
+    | `Failed ->
+      failwith "Unable to repost message"

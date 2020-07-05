@@ -136,22 +136,9 @@ let unbind: type a. _ Channel.t -> destination:_ t -> source:a t -> a -> unit De
     | Match -> fun (`Headers arguments) -> unbind ~arguments ()
 
 let publish channel t
-    ?(mandatory=false)
+    ?mandatory
     ~routing_key
     (header, body) =
-
-  let open Spec.Basic in
-  let header = match header.Content.app_id with
-    | Some _ -> header
-    | None -> { header with Content.app_id = Some (Channel.id channel) }
-  in
-  let wait_for_confirm = Channel.Internal.wait_for_confirm channel in
-  Publish.request (Channel.channel channel)
-    ({Publish.exchange = t.name;
-      routing_key;
-      mandatory;
-      immediate=false},
-     header, body) >>= fun () ->
-  wait_for_confirm ~routing_key ~exchange_name:t.name
+  Channel.publish channel ?mandatory ~exchange_name:t.name ~routing_key (header, body)
 
 let name t = t.name
