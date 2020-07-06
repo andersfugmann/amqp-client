@@ -75,7 +75,7 @@ let with_redeliver_count ?(header_name="x-redelivered-count") channel ~f t =
     | exception Not_found -> 0
   in
   let set_redelivered_count count headers =
-    let filtered = List.filter (fun (n, _) -> n <> header_name) headers in
+    let filtered = List.remove_assoc header_name headers in
     (header_name, Types.VShort count) :: filtered
   in
 
