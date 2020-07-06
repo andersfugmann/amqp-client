@@ -91,6 +91,7 @@ let with_redeliver_count ?(header_name="x-redelivered-count") channel ~f t =
 
   | true ->
     let headers = set_redelivered_count (redeliver_count + 1) headers in
+    (* This should be done in an atomic fashion. *)
     Channel.publish channel ~exchange_name:t.exchange ~routing_key:t.routing_key ({ (fst t.message) with headers = Some headers}, snd t.message) >>= function
     | `Ok ->
       ack channel t

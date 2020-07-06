@@ -51,6 +51,8 @@ let test =
   Message.ack channel m >>= fun () ->
   Queue.delete channel queue >>= fun () ->
   Log.info "Queue deleted";
+  Exchange.delete channel exchange >>= fun () ->
+  Log.info "Exchange deleted";
   Channel.close channel >>= fun () ->
   Log.info "Channel closed";
   Connection.close connection >>| fun () ->
