@@ -66,12 +66,13 @@ let recover ~requeue channel =
 
 let with_redeliver_count ?(header_name="x-redelivered-count") channel ~f t =
   let get_redelivered_count headers =
-    match List.assoc_opt header_name headers with
-    | Some ( Types.VLong n
-           | Types.VLonglong n
-           | Types.VShort n
-           | Types.VShortshort n ) -> n
+    match List.assoc header_name headers with
+    | Types.VLong n
+    | Types.VLonglong n
+    | Types.VShort n
+    | Types.VShortshort n -> n
     | _ -> 0
+    | exception Not_found -> 0
   in
   let set_redelivered_count count headers =
     let filtered = List.filter (fun (n, _) -> n <> header_name) headers in
