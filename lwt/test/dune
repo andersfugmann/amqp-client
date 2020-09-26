@@ -33,86 +33,86 @@
   (libraries amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./channel_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./connection_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./connection_fail_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./connect_uri_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./exchange_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./mandatory_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./queue_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./queue_declare_test.exe))
  (package amqp-client-lwt)
 )
 
-;(alias
-; ((name   integration)
-;  (action (run ./repeat.exe))
-;  (package amqp-client-lwt)
-;))
+;(rule
+; (alias   integration)
+; (action (run ./repeat.exe))
+; (package amqp-client-lwt)
+;)
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./rpc_async_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./rpc_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./vhost_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./with_confirm_test.exe))
  (package amqp-client-lwt)
 )
 
-(alias
- (name   integration)
+(rule
+ (alias  integration)
  (action (run ./queue_cancel_test.exe))
  (package amqp-client-lwt)
 )
