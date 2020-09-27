@@ -2,16 +2,16 @@
 all: build
 
 build:
-	dune build @install
+	dune build @all
 
 clean:
-	dune clean
-	rm -f test/jbuild
+	dune clean @all
 
 test:
 	dune runtest
 
-install: build
+install:
+	dune build @install
 	dune install
 
 uninstall:
@@ -21,18 +21,17 @@ uninstall:
 tests/%.exe: tests/%.ml
 	dune build $@
 
-integration: build
-	dune build -j 10 @integration
+integration:
+	dune build @integration
 
-examples: build
+examples:
 	dune build @examples
 
 update-version: VERSION=$(shell head -n 1 Changelog | sed 's/:.*//')
 update-version:
 	@echo "Set version to: $(VERSION)"
+	@git tag --force $(VERSION)
 	@sed -i 's/version = ".*"/version = "$(VERSION)"/' async/src/connection.ml
-	@sed -i 's/^version: ".*"/version: "$(VERSION)"/' amqp-client*.opam
-	@sed -i 's/\(.*"amqp-client" {[ ]*=\).*\(}.*\)/\1 "$(VERSION)"\2/' amqp-client-*.opam
 
 update-spec:
 	@echo "Retrieving AMQP spec from RabbitMQ servers"
@@ -53,5 +52,5 @@ gh-pages: doc
 	git -C .gh-pages push origin gh-pages -f
 	rm -rf .gh-pages
 
-release:
+release: update-version
 	opam publish
