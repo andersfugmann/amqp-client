@@ -29,6 +29,7 @@ val declare :
   ?passive:bool ->
   ?durable:bool ->
   ?auto_delete:bool ->
+  ?internal:bool ->
   _ Channel.t ->
   'a exchange_type ->
   ?arguments:Types.table ->
