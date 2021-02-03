@@ -1,0 +1,42 @@
+name: Main workflow
+
+on:
+  - pull_request
+  - push
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+        ocaml-version:
+          - 4.11.1
+          - 4.05.0
+
+    runs-on: ${{ matrix.os }}
+
+    container-job:
+      container: ubuntu
+      # Service containers to run with `container-job`
+      services:
+        # Label used to access the service container
+        rabbitmq:
+          image: rabbitmq
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Use OCaml ${{ matrix.ocaml-version }}
+        uses: avsm/setup-ocaml@v1
+        with:
+          ocaml-version: ${{ matrix.ocaml-version }}
+
+      - run: opam pin . --no-action
+      - run: opam depext amqp-client amqp-client-lwt --yes --with-doc --with-test
+      - run: opam install amqp-client amqp-client-lwt --deps-only --with-doc --with-test
+      - run: opam exec -- dune build amqp-client amqp-client-lwt
+      - run: opam exec -- dune runtest amqp-client amqp-client-lwt
+      - run: opam exec -- dune build @integration -p amqp-client-lwt
