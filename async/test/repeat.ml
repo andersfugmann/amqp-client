@@ -18,7 +18,8 @@ let rec repeat channel queue =
   | _ -> failwith "Cannot publish"
 
 let test =
-  Connection.connect ~id:(uniq "") "localhost" >>= fun connection ->
+  let port = Sys.getenv_opt "AMQP_PORT" |> Option.map int_of_string in
+  Connection.connect ~id:(uniq "") ?port "localhost" >>= fun connection ->
   Log.info "Connection started";
   Connection.open_channel ~id:(uniq "test.repeat") Channel.no_confirm connection >>= fun channel ->
   Queue.declare channel ~auto_delete:true (uniq "test.repeat") >>= fun queue ->

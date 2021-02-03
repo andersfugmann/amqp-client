@@ -5,9 +5,10 @@ let uniq s =
   Printf.sprintf "%s_%d_%s" (Filename.basename Sys.argv.(0)) (Unix.getpid ()) s
 
 let test =
+  let port = Sys.getenv_opt "AMQP_PORT" |> Option.map int_of_string in
   Thread.Deferred.try_with
     (fun () ->
-       Connection.connect ~credentials:("invalid", "credentials") ~id:(uniq "ocaml-amqp-tests") "localhost" >>= fun connection ->
+       Connection.connect ~credentials:("invalid", "credentials") ~id:(uniq "ocaml-amqp-tests") ?port "localhost" >>= fun connection ->
        Connection.close connection
     ) >>| function
   | `Error Amqp_client_lib.Types.Connection_closed ->

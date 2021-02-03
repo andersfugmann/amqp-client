@@ -6,6 +6,12 @@ on:
 
 jobs:
   build:
+    services:
+      rabbitmq:
+        image: rabbitmq
+        ports:
+        - 5672/tcp
+
     strategy:
       fail-fast: false
       matrix:
@@ -17,14 +23,6 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
-    container-job:
-      container: ubuntu
-      # Service containers to run with `container-job`
-      services:
-        # Label used to access the service container
-        rabbitmq:
-          image: rabbitmq
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -35,8 +33,11 @@ jobs:
           ocaml-version: ${{ matrix.ocaml-version }}
 
       - run: opam pin . --no-action
-      - run: opam depext amqp-client amqp-client-lwt --yes --with-doc --with-test
+      #- run: opam depext amqp-client amqp-client-lwt --yes --with-doc --with-test
       - run: opam install amqp-client amqp-client-lwt --deps-only --with-doc --with-test
-      - run: opam exec -- dune build amqp-client amqp-client-lwt
-      - run: opam exec -- dune runtest amqp-client amqp-client-lwt
-      - run: opam exec -- dune build @integration -p amqp-client-lwt
+      - run: opam exec -- dune build -p amqp-client,amqp-client-lwt
+      - run: opam exec -- dune runtest -p amqp-client,amqp-client-lwt
+
+      - run: opam exec -- dune build @integration -p amqp-client,amqp-client-lwt
+        env:
+          AMQP_PORT: ${{ job.services.rabbitmq.ports[5672] }}

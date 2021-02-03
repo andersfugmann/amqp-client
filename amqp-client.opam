@@ -16,8 +16,6 @@ depends: [
   "dune" {>= "2.0"}
   "ezxmlm" {build}
   "ocplib-endian" {>= "0.6"}
-  "async" {with-test}
-  "lwt" {with-test}
 ]
 synopsis: "Amqp client base library"
 description: """

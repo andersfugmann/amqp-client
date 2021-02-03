@@ -24,7 +24,8 @@ let rec run_tests rpc_client i =
   | None -> failwith "No reply"
 
 let test =
-  Connection.connect ~id:(uniq "") "localhost" >>= fun connection ->
+  let port = Sys.getenv_opt "AMQP_PORT" |> Option.map int_of_string in
+  Connection.connect ~id:(uniq "") ?port "localhost" >>= fun connection ->
   Log.info "Connection started";
   Connection.open_channel ~id:(uniq "test") Channel.no_confirm connection >>= fun channel ->
   Log.info "Channel opened";

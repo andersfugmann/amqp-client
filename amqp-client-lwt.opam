@@ -13,8 +13,7 @@ build: [
 ]
 depends: [
   "ocaml" {>= "4.04.0"}
-  "dune" {>= "1.1"}
-  "xml-light" {build}
+  "dune" {>= "2.0"}
   "amqp-client" {= "2.2.2"}
   "ocplib-endian" {>= "0.6"}
   "lwt" {>= "2.4.6"}

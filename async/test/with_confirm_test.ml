@@ -15,7 +15,8 @@ let rec list_create = function
   | n -> n :: list_create (n - 1)
 
 let test =
-  Connection.connect ~id:(uniq "integration_test") "localhost" >>= fun connection ->
+  let port = Sys.getenv_opt "AMQP_PORT" |> Option.map int_of_string in
+  Connection.connect ~id:(uniq "integration_test") ?port "localhost" >>= fun connection ->
   Log.info "Connection started";
   Connection.open_channel ~id:(uniq "with_confirm.test") Channel.with_confirm connection >>= fun channel ->
   Log.info "Channel opened";
