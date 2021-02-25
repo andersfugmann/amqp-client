@@ -5,7 +5,7 @@ build:
 	dune build @all
 
 clean:
-	dune clean @all
+	dune clean
 
 test:
 	dune runtest
