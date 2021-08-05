@@ -39,6 +39,6 @@ jobs:
       - run: opam exec -- dune build -p amqp-client,amqp-client-lwt
       - run: opam exec -- dune runtest -p amqp-client,amqp-client-lwt
 
-      - run: opam exec -- dune build @integration -p amqp-client,amqp-client-lwt
+      - run: opam exec -- dune build @integration -p amqp-client,amqp-client-lwt -j 1
         env:
           AMQP_PORT: ${{ job.services.rabbitmq.ports[5672] }}
