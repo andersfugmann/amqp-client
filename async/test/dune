@@ -1,20 +1,20 @@
 (executables
  (names        channel_test
-                 close_test
-                 connection_test
-                 connection_fail_test
-                 connect_uri_test
-                 exchange_test
-                 mandatory_test
-                 queue_test
-                 queue_declare_test
-                 repeat
-                 rpc_async_test
-                 rpc_test
-                 vhost_test
-                 with_confirm_test
-                 queue_cancel_test)
-  (libraries    amqp-client-async)
+               close_test
+               connection_test
+               connection_fail_test
+               connect_uri_test
+               exchange_test
+               mandatory_test
+               queue_test
+               queue_declare_test
+               repeat
+               rpc_async_test
+               rpc_test
+               vhost_test
+               with_confirm_test
+               queue_cancel_test)
+  (libraries   amqp-client-async)
 )
 
 (rule
