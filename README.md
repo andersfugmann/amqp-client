@@ -1,6 +1,6 @@
 OCaml client library for AMQP
 =============================
-[![Main workflow](https://github.com/andersfugmann/amqp-client/actions/workflows/lwt.yml/badge.svg)](https://github.com/andersfugmann/amqp-client/actions/workflows/lwt.yml)
+[![Main workflow](https://github.com/andersfugmann/amqp-client/actions/workflows/workflow.yml/badge.svg)](https://github.com/andersfugmann/amqp-client/actions/workflows/workflow.yml)
 
 Amqp-client is a AMQP client library written in pure OCaml. The
 library implements AMQP protocol version 0.9.1 as well as RabbitMQ-specific
