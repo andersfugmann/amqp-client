@@ -5,7 +5,7 @@ let uniq s =
   Printf.sprintf "%s_%d_%s" (Filename.basename Sys.argv.(0)) (Unix.getpid ()) s
 
 let test =
-  let port = Sys.getenv_opt "AMQP_PORT" |> Option.map int_of_string in
+  let port = Sys.getenv_opt "AMQP_PORT" |> function Some port -> Some (int_of_string port) | None -> None in
   Connection.connect ~id:(uniq "") ?port "localhost" >>= fun connection ->
   Log.info "Connection started";
   Connection.open_channel ~id:(uniq "test") Channel.no_confirm connection >>= fun channel ->

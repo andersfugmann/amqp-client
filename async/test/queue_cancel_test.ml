@@ -7,7 +7,7 @@ let uniq s =
 let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return ()
 
 let test =
-  let port = Sys.getenv_opt "AMQP_PORT" |> Option.map int_of_string in
+  let port = Sys.getenv_opt "AMQP_PORT" |> function Some port -> Some (int_of_string port) | None -> None in
   Connection.connect ~id:(uniq "") ?port "localhost" >>= fun connection ->
   Log.info "Connection started";
   Connection.open_channel ~id:(uniq "queue.test") Channel.no_confirm connection >>= fun channel ->
