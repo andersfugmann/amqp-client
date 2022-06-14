@@ -10,7 +10,7 @@ let max_length v = "x-max-length", Types.VLonglong v
 let max_length_bytes v = "x-max-length-bytes", Types.VLonglong v
 let dead_letter_exchange v = "x-dead-letter-exchange", Types.VLongstr v
 let dead_letter_routing_key v = "x-dead-letter-routing-key", Types.VLongstr v
-let maximum_priority v = "x-max-priotity", Types.VLonglong v
+let maximum_priority v = "x-max-priority", Types.VLonglong v
 
 let declare channel ?(durable=false) ?(exclusive=false) ?(auto_delete=false) ?(passive=false) ?(arguments=[]) ?(autogenerate=false) name =
   if autogenerate && String.length name != 0 then
