@@ -18,7 +18,7 @@ jobs:
         os:
           - ubuntu-latest
         ocaml-compiler:
-          - 4.12.0
+          - 4.14.0
           - 4.05.0
         concurrency:
           - async
