@@ -17,7 +17,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        ocaml-version:
+        ocaml-compiler:
           - 4.12.0
           - 4.05.0
         concurrency:
@@ -30,10 +30,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: Use OCaml ${{ matrix.ocaml-version }}
+      - name: Use OCaml ${{ matrix.ocaml-compiler }}
         uses: avsm/setup-ocaml@v1
         with:
-          ocaml-version: ${{ matrix.ocaml-version }}
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
 
       - run: opam pin . --no-action
       - run: opam install amqp-client amqp-client-${{ matrix.concurrency }} --deps-only --with-doc --with-test
