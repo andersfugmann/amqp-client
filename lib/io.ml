@@ -1,17 +1,22 @@
 (** Internal *)
 
 module Input = struct
-  open EndianString.BigEndian
-  type t = { buf: String.t; mutable offset: int }
+  open EndianBytes.BigEndian
+  type t = { buf: Bytes.t; mutable offset: int }
   let init ?(offset=0) buf = { buf; offset }
   let read f n t =
     let r = f t.buf t.offset in
     t.offset <- t.offset + n;
     r
+
   let string t len =
-    let s = String.sub t.buf t.offset len in
+    let s =
+      Bytes.sub t.buf t.offset len
+      |> Bytes.to_string
+    in
     t.offset <- t.offset + len;
     s
+
   let octet = read get_uint8 1
   let short = read get_uint16 2
   let long t = read get_int32 4 t |> Int32.to_int
@@ -19,17 +24,17 @@ module Input = struct
   let float = read get_float 4
   let double = read get_double 8
 
-  let length t = String.length t.buf - t.offset
+  let length t = Bytes.length t.buf - t.offset
   let has_data t = length t > 0
   let offset t = t.offset
 
   let copy t ~dst_pos ~len (dst:Bytes.t) =
-    Bytes.blit_string t.buf t.offset dst dst_pos len;
+    Bytes.blit t.buf t.offset dst dst_pos len;
     t.offset <- t.offset + len
 end
 
 module Output = struct
-  open EndianString.BigEndian
+  open EndianBytes.BigEndian
   type t = { mutable buf: Bytes.t; mutable offset: int; apply: bool }
   let create len = { buf = Bytes.create len; offset = 0; apply = true }
 

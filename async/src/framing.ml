@@ -177,7 +177,7 @@ let rec read_frame t close_handler =
   | `Eof n ->
       close_handler (Bytes.sub_string header 0 n)
   | `Ok ->
-    let input = Io.Input.init (Bytes.unsafe_to_string header) in
+    let input = Io.Input.init header in
     let tpe, channel_no, length = read_frame_header (fun a b c -> a, b, c) input in
     let buf = Bytes.create (length+1) in
     Reader.read t.input buf >>= function
@@ -187,7 +187,7 @@ let rec read_frame t close_handler =
         close_handler (Bytes.to_string s)
     | `Ok -> match Bytes.get buf length |> Char.code with
       | n when n = Constants.frame_end ->
-        let input = Io.Input.init (Bytes.unsafe_to_string buf) in
+        let input = Io.Input.init buf in
         decode_message t tpe channel_no length input;
         read_frame t close_handler
       | n -> failwith (Printf.sprintf "Unexpected frame end: %x" n)
