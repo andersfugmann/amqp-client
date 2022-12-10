@@ -11,10 +11,9 @@ build: [
   ["dune" "runtest" "-p" name "-j" jobs] {with-test}
 ]
 depends: [
-  "ocaml" {>= "4.04.0"}
+  "ocaml" {>= "4.13.0"}
   "dune" {>= "2.0"}
   "ezxmlm" {build}
-  "ocplib-endian" {>= "0.6"}
 ]
 synopsis: "Amqp client base library"
 description: """

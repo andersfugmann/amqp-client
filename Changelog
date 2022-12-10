@@ -1,7 +1,7 @@
-2.2.3: (Unreleased)
+2.3.0: (Unreleased)
 * Allow creation of internal exchanges (only useful for use with rabbitmq). Thanks hongchangwu
 * Update amqp spec
-* Avoid use of deprecated ocp-lib functions
+* Remove dependency on ocplib-endian functions and bump minir required ocaml version to 4.13
 
 2.2.2: (2020-05-10)
 * Switch to (ez)xmlm as build dependency
