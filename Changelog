@@ -1,5 +1,7 @@
 2.2.3: (Unreleased)
 * Allow creation of internal exchanges (only useful for use with rabbitmq). Thanks hongchangwu
+* Update amqp spec
+* Avoid use of deprecated ocp-lib functions
 
 2.2.2: (2020-05-10)
 * Switch to (ez)xmlm as build dependency
