@@ -146,13 +146,13 @@
     We use the 'name' attribute as an identifier, usually within the context
     of the surrounding entities.
 
-    We use spaces to seperate words in names, so that we can print names in
+    We use spaces to separate words in names, so that we can print names in
     their natural form depending on the context - underlines for source code,
     hyphens for written text, etc.
 
     We do not enforce any particular validation mechanism but we support all
     mechanisms.  The protocol definition conforms to a formal grammar that is
-    published seperately in several technologies.
+    published separately in several technologies.
 
  -->
 
@@ -187,6 +187,13 @@
       The client attempted to transfer content larger than the server could accept
       at the present time. The client may retry at a later time.
     </doc>
+  </constant>
+
+  <constant name = "no-route" value = "312" class = "soft-error">
+      <doc>
+          Returned when RabbitMQ sends back with 'basic.return' when a
+          'mandatory' message cannot be delivered to any queue.
+      </doc>
   </constant>
 
   <constant name = "no-consumers" value = "313" class = "soft-error">
@@ -897,16 +904,21 @@
       <chassis name = "server" implement = "MUST" />
     </method>
 
-    <method name = "blocked" index = "60">
+    <method name = "blocked" index = "60" label = "indicate that connection is blocked">
       <doc>
         This method indicates that a connection has been blocked
         and does not accept new publishes.
       </doc>
       <chassis name = "server" implement = "MUST"/>
       <chassis name = "client" implement = "MUST"/>
-      <field name = "reason" domain = "shortstr" />
+      <field name="reason" domain="shortstr" label="Block reason" required="0">
+          <doc>
+              The reason the connection was blocked.
+          </doc>
+      </field>
+
     </method>
-    <method name = "unblocked" index = "61">
+    <method name = "unblocked" index = "61" label = "indicate that connection is unblocked">
       <doc>
         This method indicates that a connection has been unblocked
         and now accepts publishes.
@@ -914,6 +926,37 @@
       <chassis name = "server" implement = "MUST"/>
       <chassis name = "client" implement = "MUST"/>
     </method>
+
+    <method name = "update-secret" synchronous = "1" index = "70" label = "update secret">
+      <doc>
+        This method updates the secret used to authenticate this connection. It is used
+        when secrets have an expiration date and need to be renewed, like OAuth 2 tokens.
+      </doc>
+
+      <chassis name = "client" implement = "MUST" />
+      <response name = "update-secret-ok" />
+
+      <field name = "new-secret" domain = "longstr" label = "new secret">
+        <doc>
+          The new secret.
+        </doc>
+      </field>
+
+      <field name = "reason" domain = "shortstr" label = "reason">
+        <doc>
+          The reason for the secret update.
+        </doc>
+      </field>
+    </method>
+
+    <method name = "update-secret-ok" synchronous = "1" index = "71" label = "update secret response">
+      <doc>
+        This method confirms the updated secret is valid.
+      </doc>
+
+      <chassis name = "server" implement = "MUST" />
+    </method>
+
   </class>
 
   <!-- ==  CHANNEL  ========================================================== -->
@@ -3324,14 +3367,7 @@
       </doc>
       <chassis name="server" implement="MUST"/>
       <response name="select-ok"/>
-      <field name = "nowait" type = "bit">
-        do not send a reply method
-        <doc>
-          If set, the server will not respond to the method. The client should
-          not wait for a reply method.  If the server could not complete the
-          method it will raise a channel or connection exception.
-        </doc>
-      </field>
+      <field name = "nowait" domain = "no-wait" />
     </method>
 
     <method name="select-ok" synchronous="1" index="11">
