@@ -20,7 +20,7 @@ jobs:
         ocaml-compiler:
           - 4.13.0
           - 4.14.0
-          - ocaml-base-compiler.5.0.0~rc1
+          - 5.0.0
         concurrency:
           - async
           - lwt
