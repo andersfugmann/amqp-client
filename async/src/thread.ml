@@ -9,7 +9,7 @@ module Deferred = struct
     | Core.Result.Ok v -> return (`Ok v)
     | Core.Result.Error exn -> return (`Error exn)
   module List = struct
-    let init ~f n = Deferred.List.init ~f n
+    let init ?(how:[`Sequential | `Parallel] = `Parallel) ~f n = Deferred.List.init ~how:(how :> Async_kernel.Monad_sequence.how) ~f n
     let iter ?(how:[`Sequential | `Parallel] = `Parallel) ~f l = Deferred.List.iter ~how:(how :> Async_kernel.Monad_sequence.how) ~f l
   end
 
@@ -18,7 +18,7 @@ end
 let (>>=) = (>>=)
 let (>>|) = (>>|)
 let return a = return a
-let after ms = after (Core.Time.Span.of_ms ms)
+let after ms = after (Core.Time_float.Span.of_ms ms)
 let spawn ?exn_handler t =
   don't_wait_for (
     match exn_handler with
@@ -32,7 +32,7 @@ let spawn ?exn_handler t =
   )
 
 let with_timeout milliseconds deferred =
-  let duration = Core.Time.Span.of_ms (float_of_int milliseconds) in
+  let duration = Core.Time_float.Span.of_ms (float_of_int milliseconds) in
   Clock.with_timeout duration deferred
 
 module Ivar = struct

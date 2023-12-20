@@ -5,7 +5,7 @@ module type T = sig
     val all_unit : unit t list -> unit t
     val try_with : (unit -> 'a t) -> [> `Error of exn | `Ok of 'a ] t
     module List : sig
-      val init : f:(int -> 'a t) -> int -> 'a list t
+      val init : ?how:[`Sequential | `Parallel] -> f:(int -> 'a t) -> int -> 'a list t
       val iter : ?how:[`Sequential | `Parallel] -> f:('a -> unit t) -> 'a list -> unit t
     end
   end

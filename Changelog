@@ -1,4 +1,9 @@
+* Add optional `how` parameter to thread list init signature
+* async: Upgrade min required async version to v0.16.0
+* async: Replace usage of deprecated `Core.Time` with `Core.Time_float`
+
 2.3.0: (Unreleased)
+=======
 * Allow creation of internal exchanges (only useful for use with rabbitmq). Thanks hongchangwu
 * Update amqp spec
 * Remove dependency on ocplib-endian functions and bump minir required ocaml version to 4.13
