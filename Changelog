@@ -4,7 +4,8 @@
 * async: Replace usage of deprecated `Core.Time` with `Core.Time_float`
 * Allow creation of internal exchanges (only useful for use with rabbitmq). Thanks hongchangwu
 * Update amqp spec
-* Remove dependency on ocplib-endian functions and bump minir required ocaml version to 4.13
+* Remove dependency on ocplib-endian
+* Bump minimum ocaml version to 4.14
 
 2.2.2: (2020-05-10)
 * Switch to (ez)xmlm as build dependency
