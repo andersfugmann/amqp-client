@@ -61,12 +61,14 @@ module Deferred = struct
     return x
 
   module List = struct
-    let init ~f n =
+    let init ?(how:[>`Sequential | `Parallel] = `Parallel) ~f n =
       let rec inner = function
         | i when i = n -> []
         | i -> i :: inner (i + 1)
       in
-      inner 0 |> Lwt_list.map_p f
+      match how with
+      | `Sequential -> inner 0 |> Lwt_list.map_s f
+      | `Parallel -> inner 0 |> Lwt_list.map_p f
 
     let iter ?(how:[>`Sequential | `Parallel] = `Parallel) ~f l =
       match how with
