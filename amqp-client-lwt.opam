@@ -11,7 +11,7 @@ build: [
   ["dune" "runtest" "-p" name "-j" jobs] {with-test}
 ]
 depends: [
-  "ocaml" {>= "4.04.0"}
+  "ocaml" {>= "4.14.0"}
   "dune" {>= "2.0"}
   "amqp-client" {= version}
   "lwt" {>= "2.4.6"}
