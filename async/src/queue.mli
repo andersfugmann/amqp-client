@@ -63,6 +63,7 @@ val consume :
   ?no_local:bool ->
   ?no_ack:bool ->
   ?exclusive:bool ->
+  ?arguments:Types.table ->
   ?on_cancel:(unit -> unit) ->
   'a Channel.t ->
   t ->
