@@ -50,7 +50,7 @@ type 'a consumer = { channel: 'a Channel.t;
                      writer: Message.t Pipe.Writer.t }
 
 (** Consume message from a queue. *)
-let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false)
+let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false) ?(arguments=[])
     ?on_cancel channel t =
   let open Spec.Basic in
   let (reader, writer) = Pipe.create () in
@@ -77,7 +77,7 @@ let consume ~id ?(no_local=false) ?(no_ack=false) ?(exclusive=false)
               no_ack;
               exclusive;
               no_wait = false;
-              arguments = [];
+              arguments;
             }
   in
   let var = Ivar.create () in
