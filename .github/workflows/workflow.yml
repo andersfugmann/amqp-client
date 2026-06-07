@@ -1,8 +1,10 @@
 name: Main workflow
 
 on:
-  - push
-  - workflow_dispatch
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,19 +21,21 @@ jobs:
           - ubuntu-latest
         ocaml-compiler:
           - 4.14.0
+          - 4
           - 5
         concurrency:
           - async
           - lwt
 
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Use OCaml ${{ matrix.ocaml-compiler }}
-        uses: ocaml/setup-ocaml@v2
+        uses: ocaml/setup-ocaml@v3
         with:
           ocaml-compiler: ${{ matrix.ocaml-compiler }}
 
