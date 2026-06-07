@@ -37,6 +37,7 @@ let with_timeout milliseconds deferred =
 
 module Ivar = struct
   include Ivar
+  let fill = fill_exn
 end
 
 module Reader = struct
