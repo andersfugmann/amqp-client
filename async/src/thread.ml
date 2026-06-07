@@ -18,7 +18,7 @@ end
 let (>>=) = (>>=)
 let (>>|) = (>>|)
 let return a = return a
-let after ms = after (Core.Time_float.Span.of_ms ms)
+let after ms = Clock_ns.after (Core.Time_ns.Span.of_ms ms)
 let spawn ?exn_handler t =
   don't_wait_for (
     match exn_handler with
@@ -32,12 +32,11 @@ let spawn ?exn_handler t =
   )
 
 let with_timeout milliseconds deferred =
-  let duration = Core.Time_float.Span.of_ms (float_of_int milliseconds) in
-  Clock.with_timeout duration deferred
+  let duration = Core.Time_ns.Span.of_ms (float_of_int milliseconds) in
+  Clock_ns.with_timeout duration deferred
 
 module Ivar = struct
   include Ivar
-  let fill = fill_exn
 end
 
 module Reader = struct
