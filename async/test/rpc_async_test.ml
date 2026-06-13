@@ -19,7 +19,7 @@ let start_server channel =
     after (Random.float 100.0) >>= fun () ->
     return (content, (string_of_int (i * i)))
   in
-  Queue.declare channel ~auto_delete:true req_queue >>= fun queue ->
+  Queue.declare channel ~auto_delete:true ~exclusive:true req_queue >>= fun queue ->
   Rpc.Server.start ~async:true channel queue handler >>= fun _ ->
   return ()
 

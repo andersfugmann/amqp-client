@@ -8,24 +8,24 @@ let handler var { Message.message = (_, body); _ } = Ivar.fill var body; return 
 
 let declare ~channel name =
   let queue_name = uniq name in
-  Queue.declare channel ~auto_delete:true queue_name >>= fun queue ->
+  Queue.declare channel ~auto_delete:true ~exclusive:true queue_name >>= fun queue ->
   Log.info "Created queue: %s === %s" (Queue.name queue) queue_name;
   match Queue.name queue = queue_name with
   | false -> failwith (Printf.sprintf "Queue name mismatch: %s != %s" (Queue.name queue) queue_name)
   | true -> return queue
 
 let check_declare_autogenerate ~channel =
-  Queue.declare channel ~auto_delete:true ~autogenerate:true "" >>= fun queue ->
+  Queue.declare channel ~auto_delete:true ~exclusive:true ~autogenerate:true "" >>= fun queue ->
   Log.info "Created queue: %s" (Queue.name queue);
   let _ = try
-      Queue.declare channel ~auto_delete:true
+      Queue.declare channel ~auto_delete:true ~exclusive:true
         ~autogenerate:true "non-empty-name"
     with Invalid_argument msg ->
       assert (msg = "Queue.declare name must be empty if autogenerate is true.");
       return queue
   in
   let _ = try
-      Queue.declare channel ~auto_delete:true ""
+      Queue.declare channel ~auto_delete:true ~exclusive:true ""
     with Invalid_argument msg ->
       assert (msg = "Queue.declare autogenerate must be true if name is empty.");
       return queue

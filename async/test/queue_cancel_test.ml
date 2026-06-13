@@ -12,7 +12,7 @@ let test =
   Log.info "Connection started";
   Connection.open_channel ~id:(uniq "queue.test") Channel.no_confirm connection >>= fun channel ->
   Log.info "Channel opened";
-  Queue.declare channel ~auto_delete:true (uniq "queue.test") >>= fun queue ->
+  Queue.declare channel ~auto_delete:true ~exclusive:true (uniq "queue.test") >>= fun queue ->
   Log.info "Queue declared";
   (* Start consuming *)
   let cancelled = ref false in

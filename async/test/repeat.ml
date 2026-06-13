@@ -22,7 +22,7 @@ let test =
   Connection.connect ~id:(uniq "") ?port "localhost" >>= fun connection ->
   Log.info "Connection started";
   Connection.open_channel ~id:(uniq "test.repeat") Channel.no_confirm connection >>= fun channel ->
-  Queue.declare channel ~auto_delete:true (uniq "test.repeat") >>= fun queue ->
+  Queue.declare channel ~auto_delete:true ~exclusive:true (uniq "test.repeat") >>= fun queue ->
   repeat channel queue >>= fun () ->
   Connection.close connection >>= fun () ->
   Scheduler.shutdown 0 |> return

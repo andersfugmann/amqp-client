@@ -20,7 +20,7 @@ let test =
   Log.info "Connection started";
   Connection.open_channel ~id:(uniq "with_confirm.test") Channel.with_confirm connection >>= fun channel ->
   Log.info "Channel opened";
-  Queue.declare channel ~auto_delete:true (uniq "with_confirm_test") >>= fun queue ->
+  Queue.declare channel ~auto_delete:true ~exclusive:true (uniq "with_confirm_test") >>= fun queue ->
   Queue.purge channel queue >>= fun () ->
 
   (* Publish 1000 messages in one go, and wait for all of them to complete *)
